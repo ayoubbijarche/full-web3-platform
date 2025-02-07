@@ -10,12 +10,12 @@ describe("coinpetitive", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const program = anchor.workspace.Coinpetitive as Program<Coinpetitive>;
   
-  const metadata_seed = "cpv"
+  const metadata_seed = "metadata"
   const token_metadata_program_id = new web3.PublicKey(
     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
   )
   
-  const mint_seed = "cpv";
+  const mint_seed = "mint";
   const payer = program.provider.publicKey;
   const metadata = {
     name : "Coinpetitive",
@@ -30,17 +30,18 @@ describe("coinpetitive", () => {
   
   const supply = 21;
   const [mint] = web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(mint_seed)], 
-            program.programId
-    );
+    [Buffer.from(mint_seed)], 
+    program.programId
+  );
   
   const [metadataAddress] = web3.PublicKey
-          .findProgramAddressSync([
-            Buffer.from(metadata_seed) , 
-            token_metadata_program_id.toBuffer() , 
-            mint.toBuffer()] , 
-          token_metadata_program_id
-          );
+    .findProgramAddressSync([
+      Buffer.from("metadata"),
+      token_metadata_program_id.toBuffer(),
+      mint.toBuffer()
+    ], 
+    token_metadata_program_id
+  );
   
 
   it("Initialize", async () => {
@@ -77,15 +78,15 @@ describe("coinpetitive", () => {
         mint: mint,
         owner: payer,
       });
-  
-      let initialBalance: number;
-  
+
+      // Check existing balance
+      let initialBalance = 0;
       try {
         const balance = await program.provider.connection.getTokenAccountBalance(destination);
         initialBalance = balance.value.uiAmount;
-      } catch {
-        // Token account not yet initiated has 0 balance
-        initialBalance = 0;
+        console.log(`  Initial balance: ${initialBalance}`);
+      } catch (e) {
+        console.log("  No initial balance found");
       }
   
       const context = {
@@ -98,20 +99,29 @@ describe("coinpetitive", () => {
         associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
       };
   
+      // Mint exactly 2 tokens with proper decimal handling
+      const amountToMint = 1000000;
+      const amount = new anchor.BN(amountToMint * Math.pow(10, metadata.decimals));
+      
       const txHash = await program.methods
-        .mintToken(new anchor.BN(supply * 6 ** metadata.decimals))
+        .mintToken(amount)
         .accounts(context)
         .rpc();
       await program.provider.connection.confirmTransaction(txHash);
       console.log(`  https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
   
+      // Wait a bit for the transaction to be fully processed
+      await new Promise(resolve => setTimeout(resolve, 2000));
+  
       const postBalance = (
         await program.provider.connection.getTokenAccountBalance(destination)
       ).value.uiAmount;
+      
+      console.log(`  Final balance: ${postBalance}`);
       assert.equal(
-        initialBalance + supply,
-        postBalance,
-        "Compare balances, it must be equal"
+        postBalance, 
+        initialBalance + amountToMint, 
+        "Balance should be increased by exactly 2 tokens"
       );
     });
 })
