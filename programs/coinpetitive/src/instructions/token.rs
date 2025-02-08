@@ -61,7 +61,6 @@ pub struct InitTokenParams {
     pub decimals: u8,
 }
 
-pub struct Initialize {}
 
 
 pub fn initiate_token(_ctx: Context<InitToken>, metadata: InitTokenParams) -> Result<()> {

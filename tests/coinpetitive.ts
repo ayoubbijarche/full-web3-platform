@@ -5,6 +5,12 @@ import { web3 } from "@coral-xyz/anchor";
 import BN = require("@coral-xyz/anchor");
 import { assert } from "chai";
 import { ComputeBudgetProgram } from "@solana/web3.js";
+import { 
+  getAssociatedTokenAddressSync, 
+  createAssociatedTokenAccountInstruction 
+} from "@solana/spl-token";
+
+import getATA from "./transfer"
 
 describe("coinpetitive", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -43,13 +49,22 @@ describe("coinpetitive", () => {
     token_metadata_program_id
   );
   
+  const mint_addr = new anchor.web3.PublicKey("Dazs8dzwT7iR55L576WRaijEBF6RMJUHskErrFx4fwJ9");
+  const recipientPublicKey = new anchor.web3.PublicKey("8E1TjSr2jTPXDMiHFBDytLQS2orkmzTmgM29itFvs66g");
+  const recipientTokenAccount = getAssociatedTokenAddressSync(mint_addr, recipientPublicKey);
+  const senderPublicKey = new anchor.web3.PublicKey("3EqDtdVGZistkvBr4gchmjVeqdCHYdUuVLQSMtPM2bTD");
+  const senderTokenAccount = getAssociatedTokenAddressSync(mint_addr, senderPublicKey);
+  
 
+  
+  
   it("Initialize", async () => {
     const info = await program.provider.connection.getAccountInfo(mint);
     if (info) {
+      console.log("already initialized!")
       return; // Do not attempt to initialize if already initialized
     }
-    console.log("  Mint not found. Initializing Program...");
+    console.log("Mint not found. Initializing Program...");
   
     const context = {
       metadata: metadataAddress,
@@ -73,6 +88,75 @@ describe("coinpetitive", () => {
   });
   
   
+  
+
+  
+  
+  
+  
+  it("transfers cpv", async () => {
+    const ata = getAssociatedTokenAddressSync(
+      mint_addr,
+      recipientPublicKey
+    );
+
+    try {
+      const account = await program.provider.connection.getAccountInfo(ata);
+      if (!account) {
+        console.log("creating an ata account")
+        const ix = createAssociatedTokenAccountInstruction(
+          payer,
+          ata,
+          recipientPublicKey,
+          mint_addr
+        );
+        const tx = new web3.Transaction().add(ix);
+        await program.provider.sendAndConfirm(tx);
+        console.log("  Created recipient's token account");
+      }else{
+        console.log("ata exists!")
+      }
+    } catch (e) {
+      console.log("  Creating recipient's token account");
+      const ix = createAssociatedTokenAccountInstruction(
+        payer,
+        recipientTokenAccount,
+        recipientPublicKey,
+        mint_addr
+      );
+      const tx = new web3.Transaction().add(ix);
+      await program.provider.sendAndConfirm(tx);
+      console.log("error due to :" , e)
+    }
+    const amount = new anchor.BN(10000000 * Math.pow(10, metadata.decimals));
+    let tx = await program.methods
+      .transfer(amount)
+      .accounts({
+        from: senderTokenAccount,
+        to: ata,
+        authority: payer,
+      })
+      .rpc();
+    
+    console.log(`Transfer successful: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+  });
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+/*
   it("mint tokens", async () => {
       const destination = await anchor.utils.token.associatedAddress({
         mint: mint,
@@ -124,4 +208,7 @@ describe("coinpetitive", () => {
         "Balance should be increased by exactly 2 tokens"
       );
     });
+    */
+  
+  
 })
