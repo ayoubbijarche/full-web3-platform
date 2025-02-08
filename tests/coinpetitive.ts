@@ -52,19 +52,19 @@ describe("coinpetitive", () => {
   
   
   //initialize the token & token metadata and it willskip if the token exists already
-  init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
+  //init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
   //it will mint 21M tokens 
   //mint_cpv(mint, payer, program, metadata, 21000000)
   //transfer tokens to the parties mentioned in the doc
   //transfer to founder wallet 1.1M
-  transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 1100000)
+  //transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 1100000)
   //tranfer to dev team wallet 500K
-  transfer_to_dev(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
+  //transfer_to_dev(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
   //transfer to marketing affiliator wallet 500k
-  transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, 1000000)
+  //transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, 1000000)
+  
+  
 })
-
-
 
 
 
@@ -314,4 +314,105 @@ function transfer_to_marketing(mint_addr , program , payer , metadata , senderTo
         console.log(`Transfer successful: https://explorer.solana.com/tx/${txSignature}?cluster=devnet`);
       });
     
+}
+
+
+
+
+// 5 M challenges complete
+function milestone_1(mint , payer , program , metadata , supply){
+  let challenges = 0;
+  for (challenges; challenges <= 5; ++challenges){
+    console.log("challenge : ", challenges);
+    if(challenges == 5){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+//10 M challenges complete
+function milestone_2(mint , payer , program , metadata , supply){
+  let challenges = 0;
+  for (challenges; challenges <= 10; ++challenges){
+    console.log("challenge : ", challenges);
+    if(challenges == 5){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+
+//50M token entry fee
+function milestone_3(mint , payer , program , metadata , supply){
+  let fee = 0;
+  for (fee; fee <= 5; ++fee){
+    console.log("entry fee number : ", fee);
+    if(fee == 5){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+//100M entry fee payed
+function milestone_4(mint , payer , program , metadata , supply){
+  let fee = 0;
+  for (fee; fee <= 100; ++fee){
+    console.log("entry fee : ", fee);
+    if(fee == 100){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+
+//250K unique wallets holding tokens
+function milestone_5(mint , payer , program , metadata , supply){
+  let wallets = 0;
+  for (wallets; wallets <= 25; ++wallets){
+    console.log("wallet : ", wallets);
+    if(wallets == 5){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+
+//500K unique wallets holding tokens
+function milestone_6(mint , payer , program , metadata , supply){
+  let wallets = 0;
+  for (wallets; wallets <= 5; ++wallets){
+    console.log("wallet : ", wallets);
+    if(wallets == 5){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+//1M unique wallets holding
+function milestone_7(mint , payer , program , metadata , supply){
+  let wallets = 0;
+  for (wallets; wallets <= 10; ++wallets){
+    console.log("wallet : ", wallets);
+    if(wallets == 5){
+      console.log("minting 5M tokens...")
+      mint_cpv(mint, payer, program, metadata, supply)
+    }
+  }
+}
+
+//platform self sustaining revenue
+function milestone_8(mint , payer , program , metadata , supply){
+  let operational_costs = 100;
+  let revenue = 200;
+  if(operational_costs < revenue){
+    console.log("platform reached self-sustaining revenue!")
+    mint_cpv(mint, payer, program, metadata, supply)
+  }
+  
 }
