@@ -24,11 +24,25 @@ pub mod coinpetitive {
         Ok(())
     }
     
-    pub fn transfer(
+    pub fn transfer_founder(
         ctx: Context<PartiesTr>,
         amount : u64
     )-> Result<()> {
         founder_transfer(ctx, amount);
+        Ok(())
+    }
+    pub fn transfer_dev(
+        ctx: Context<PartiesTr>,
+        amount : u64
+    )-> Result<()> {
+        dev_transfer(ctx, amount);
+        Ok(())
+    }
+    pub fn marketing_transfer(
+        ctx: Context<PartiesTr>,
+        amount : u64
+    )-> Result<()> {
+        marketing_transfer(ctx, amount);
         Ok(())
     }
 }
