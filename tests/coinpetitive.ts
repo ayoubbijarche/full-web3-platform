@@ -24,7 +24,7 @@ describe("coinpetitive", () => {
   const metadata = {
     name : "Coinpetitive",
     symbol : "CPV",
-    uri : "https://gateway.pinata.cloud/ipfs/bafkreideacsn42daznmw6tixpzqeaiqwkchmntu7luiqieaujancknrr7y",
+    uri : "https://gateway.pinata.cloud/ipfs/bafkreier252mzmzb5jdmhbiubo6bndnpplnlvh7ynuixargdmrxi4ci2ay",
     decimals : 7
   }
   
@@ -52,17 +52,27 @@ describe("coinpetitive", () => {
   
   
   //initialize the token & token metadata and it willskip if the token exists already
-  //init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
+  init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
   //it will mint 21M tokens 
-  //mint_cpv(mint, payer, program, metadata, 21000000)
+  mint_cpv(mint, payer, program, metadata, 21000000)
   //transfer tokens to the parties mentioned in the doc
   //transfer to founder wallet 1.1M
-  //transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 1100000)
+  transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 1100000)
   //tranfer to dev team wallet 500K
-  //transfer_to_dev(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
+  transfer_to_dev(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
   //transfer to marketing affiliator wallet 500k
-  //transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, 1000000)
-  
+  transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
+  //milestones
+  /*
+  milestone_1(mint, payer, program, metadata, 5000000)
+  milestone_2(mint, payer, program, metadata, 5000000)
+  milestone_3(mint, payer, program, metadata, 5000000)
+  milestone_4(mint, payer, program, metadata, 5000000)
+  milestone_5(mint, payer, program, metadata, 5000000)
+  milestone_6(mint, payer, program, metadata, 5000000)
+  milestone_7(mint, payer, program, metadata, 5000000)
+  milestone_8(mint, payer, program, metadata, 5000000)
+  */
   
 })
 
@@ -156,7 +166,7 @@ function mint_cpv(mint , payer , program , metadata , supply){
 function transfer_to_founder(mint_addr , program , payer , metadata , senderTokenAccount , tk){
   it("transfers tokens to the founder's ATA", async () => {
     
-    const founderWallet = new web3.PublicKey("GxtatboRULAtYxGwEKdzjdA7ftht24xeF2VnDjwjZY6h");
+    const founderWallet = new web3.PublicKey("5w3VpTacYmcCBXygAxFoCDfG4R11q9dbj4WGLVswweKE");
     const recipientAta = getAssociatedTokenAddressSync(mint_addr, founderWallet);
     
       try {
@@ -210,7 +220,7 @@ function transfer_to_founder(mint_addr , program , payer , metadata , senderToke
 function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAccount , tk){
   it("transfers tokens to the dev's ATA", async () => {
     
-      const founderWallet = new web3.PublicKey("9BcytaZGrXSjjYKBwgG45uTVFKT3bEVBUNdC1iHLdGh5");
+      const founderWallet = new web3.PublicKey("DhCu49epRCawP9Yp2ZoatzSvfmTewi2x73xEM6Vb2kh2");
       const recipientAta = getAssociatedTokenAddressSync(mint_addr, founderWallet);
       
         try {
@@ -243,7 +253,7 @@ function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAcc
       
     
   
-        const amountToMint = tk; //1.1M
+        const amountToMint = tk; //500k
         const amount = new anchor.BN(amountToMint * Math.pow(10, metadata.decimals));
         
         const txSignature = await program.methods
@@ -262,59 +272,69 @@ function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAcc
 
 
 
+function transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, tk) {
+  it("transfers tokens to the marketing ATA", async () => {
+    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ 
+      units: 600000  // Increased from 400000 to 600000
+    });
+    
+    const marketingWallet = new web3.PublicKey("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh");
+    const recipientAta = getAssociatedTokenAddressSync(mint_addr, marketingWallet);
+    
+    try {
+      const accountInfo = await program.provider.connection.getAccountInfo(recipientAta);
+      if (!accountInfo) {
+        console.log("ATA does not exist. Creating ATA...");
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          payer,
+          recipientAta,
+          marketingWallet,
+          mint_addr
+        );
+        const createAtaTx = new web3.Transaction().add(modifyComputeUnits, createAtaIx);
+        await program.provider.sendAndConfirm(createAtaTx);
+        console.log("Created marketing's associated token account");
+      } else {
+        console.log("Found existing ATA for marketing team.");
+      }
+    } catch (e) {
+      console.error("Error checking ATA; attempting to create:", e);
+      const createAtaIx = createAssociatedTokenAccountInstruction(
+        payer,
+        recipientAta,
+        marketingWallet,
+        mint_addr
+      );
+      const createAtaTx = new web3.Transaction().add(modifyComputeUnits, createAtaIx);
+      await program.provider.sendAndConfirm(createAtaTx);
+    }
 
-function transfer_to_marketing(mint_addr , program , payer , metadata , senderTokenAccount , tk){
-  it("transfers tokens to the marketing's ATA", async () => {
+    const amountToMint = tk;
+    const amount = new anchor.BN(amountToMint * Math.pow(10, metadata.decimals));
     
-      const founderWallet = new web3.PublicKey("GiHJuLS73j59W2xpwBuFeECFy5U1WUkCf21guEVoXHV9");
-      const recipientAta = getAssociatedTokenAddressSync(mint_addr, founderWallet);
-      
-        try {
-          const accountInfo = await program.provider.connection.getAccountInfo(recipientAta);
-          if (!accountInfo) {
-            console.log("ATA does not exist. Creating ATA...");
-            const createAtaIx = createAssociatedTokenAccountInstruction(
-              payer,          // payer of the transaction
-              recipientAta,   // the ATA to be created
-              founderWallet,  // owner of the ATA
-              mint_addr       // token mint
-            );
-            const createAtaTx = new web3.Transaction().add(createAtaIx);
-            await program.provider.sendAndConfirm(createAtaTx);
-            console.log("Created founder's associated token account");
-          } else {
-            console.log("Found existing ATA for marketing team.");
-          }
-        } catch (e) {
-          console.error("Error checking ATA; attempting to create:", e);
-          const createAtaIx = createAssociatedTokenAccountInstruction(
-            payer,
-            recipientAta,
-            founderWallet,
-            mint_addr
-          );
-          const createAtaTx = new web3.Transaction().add(createAtaIx);
-          await program.provider.sendAndConfirm(createAtaTx);
-        }
-      
-    
-  
-        const amountToMint = tk; //1.1M
-        const amount = new anchor.BN(amountToMint * Math.pow(10, metadata.decimals));
-        
-        const txSignature = await program.methods
-          .transferDev(amount)
-          .accounts({
-            from: senderTokenAccount,
-            to: recipientAta,
-            authority: payer,
-            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
-          })
-          .rpc();
-        console.log(`Transfer successful: https://explorer.solana.com/tx/${txSignature}?cluster=devnet`);
-      });
-    
+    const txSignature = await program.methods
+      .marketingTransfer(amount)
+      .accounts({
+        from: senderTokenAccount,
+        to: recipientAta,
+        authority: payer,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
+      })
+      .preInstructions([modifyComputeUnits])
+      .rpc();
+    console.log(`Transfer successful: https://explorer.solana.com/tx/${txSignature}?cluster=devnet`);
+  });
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

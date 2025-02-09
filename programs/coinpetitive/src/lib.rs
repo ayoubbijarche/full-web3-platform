@@ -42,7 +42,7 @@ pub mod coinpetitive {
         ctx: Context<PartiesTr>,
         amount : u64
     )-> Result<()> {
-        marketing_transfer(ctx, amount);
+        do_marketing_transfer(ctx, amount);
         Ok(())
     }
 }
