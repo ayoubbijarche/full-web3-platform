@@ -11,6 +11,7 @@ import logoImage from "@/assets/logo.png"
 import { SignInDialog } from "@/components/sign-in-dialog"
 import { useState } from "react"
 import Link from "next/link"
+import { WalletConnectionDialog } from "@/components/wallet-connection-dialog"
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1)
@@ -41,13 +42,7 @@ export default function Home() {
             <span className="text-2xl font-bold text-[#b3731d]">COINPETITIVE</span>
           </div>
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              className="font-bold border-2 border-[#b3731d] text-[#b3731d] hover:bg-[#b3731d] hover:text-white"
-            >
-              <Wallet className="mr-2 h-4 w-4" />
-              Connect Wallet
-            </Button>
+            <WalletConnectionDialog />
             <SignInDialog />
           </div>
         </div>
