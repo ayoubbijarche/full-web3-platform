@@ -54,25 +54,23 @@ describe("coinpetitive", () => {
   //initialize the token & token metadata and it willskip if the token exists already
   init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
   //it will mint 21M tokens 
-  mint_cpv(mint, payer, program, metadata, 21000000)
+  //mint_cpv(mint, payer, program, metadata, 21000000)
   //transfer tokens to the parties mentioned in the doc
   //transfer to founder wallet 1.1M
-  transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 1100000)
+  //transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 1100000)
   //tranfer to dev team wallet 500K
-  transfer_to_dev(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
+  //transfer_to_dev(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
   //transfer to marketing affiliator wallet 500k
-  transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
+  //transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, 500000)
   //milestones
-  /*
-  milestone_1(mint, payer, program, metadata, 5000000)
-  milestone_2(mint, payer, program, metadata, 5000000)
-  milestone_3(mint, payer, program, metadata, 5000000)
-  milestone_4(mint, payer, program, metadata, 5000000)
-  milestone_5(mint, payer, program, metadata, 5000000)
-  milestone_6(mint, payer, program, metadata, 5000000)
-  milestone_7(mint, payer, program, metadata, 5000000)
-  milestone_8(mint, payer, program, metadata, 5000000)
-  */
+  //milestone_1(mint, payer, program, metadata, 5000000)
+  //milestone_2(mint, payer, program, metadata, 5000000)
+  //milestone_3(mint, payer, program, metadata, 5000000)
+  //milestone_4(mint, payer, program, metadata, 5000000)
+  //milestone_5(mint, payer, program, metadata, 5000000)
+  //milestone_6(mint, payer, program, metadata, 5000000)
+  //milestone_7(mint, payer, program, metadata, 5000000)
+  //milestone_8(mint, payer, program, metadata, 5000000)
   
 })
 
