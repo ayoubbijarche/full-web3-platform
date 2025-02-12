@@ -4,19 +4,40 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
-import { Search, User, Wallet, Video, Clock, Ticket } from "lucide-react"
+import { Search, Video, Clock, Ticket } from "lucide-react"
 import { ChallengeCard } from "@/components/challenge-card"
 import mountImage from "@/assets/mount.png"
-import logoImage from "@/assets/logo.png"
-import { SignInDialog } from "@/components/sign-in-dialog"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { WalletConnectionDialog } from "@/components/wallet-connection-dialog"
+import { getChallenges } from "@/lib/pb"
+import { ChallengeModel } from "@/lib/pb"
+import { Navbar } from "@/components/navbar"
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1)
+  const [challenges, setChallenges] = useState<ChallengeModel[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const itemsPerPage = 6
-  const totalItems = 12 // will be dynamic only representing actual data
+
+  useEffect(() => {
+    const loadChallenges = async () => {
+      setIsLoading(true)
+      try {
+        const result = await getChallenges()
+        if (result.success) {
+          setChallenges(result.challenges || [])
+        }
+      } catch (error) {
+        console.error('Error loading challenges:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadChallenges()
+  }, [])
+
+  const totalItems = challenges.length
   const totalPages = Math.ceil(totalItems / itemsPerPage)
 
   const handlePageChange = (page: number) => {
@@ -28,29 +49,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white p-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image
-              src={logoImage}
-              alt="Coinpetitive Logo"
-              width={48}
-              height={48}
-              className="rounded-full"
-            />
-            <span className="text-2xl font-bold text-[#b3731d]">COINPETITIVE</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <WalletConnectionDialog />
-            <SignInDialog />
-          </div>
-        </div>
-        {/* Separator Line */}
-        <div className="flex justify-center mt-4">
-          <div className="w-[80%] h-px bg-[#898989]"></div>
-        </div>
-      </header>
 
       <main>
         {/* Hero Section with Featured Challenge */}
@@ -199,11 +197,27 @@ export default function Home() {
 
           {/* Challenge Grid */}
           <div className="grid grid-cols-3 gap-6">
-            {Array.from({ length: totalItems })
-              .slice(startIndex, endIndex)
-              .map((_, i) => (
-                <ChallengeCard key={startIndex + i} />
-              ))}
+            {isLoading ? (
+              Array.from({ length: itemsPerPage })
+                .map((_, i) => (
+                  <div key={i} className="h-[180px] rounded-[30px] bg-gray-100 animate-pulse" />
+                ))
+            ) : challenges.length === 0 ? (
+              <div className="text-center py-12">
+                <h3 className="text-xl font-medium text-gray-600 mb-4">No challenges found</h3>
+                <Link href="/create-challenge">
+                  <Button variant="outline" className="border-[#b3731d] text-[#b3731d] hover:bg-[#b3731d] hover:text-white">
+                    Create Your First Challenge
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              Array.from({ length: totalItems })
+                .slice(startIndex, endIndex)
+                .map((_, i) => (
+                  <ChallengeCard key={startIndex + i} challenge={challenges[startIndex + i]} />
+                ))
+            )}
           </div>
 
           {/* Pagination */}
@@ -278,4 +292,3 @@ export default function Home() {
     </div>
   )
 }
-

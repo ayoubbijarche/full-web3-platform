@@ -3,6 +3,16 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import logoImage from "@/assets/logo.png"
 import mountImage from "@/assets/mount.png"
 import { User, Clock, Video, Wallet, Ticket } from "lucide-react"
@@ -66,9 +76,6 @@ export default function ChallengeDetails() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-2xl font-semibold text-gray-800">Mountain Climbing Challenge</h3>
-                  <div className="px-4 py-1 rounded-full bg-green-100 text-green-600 text-sm font-medium">
-                    Open
-                  </div>
                 </div>
 
                 {/* Stats */}
@@ -93,6 +100,35 @@ export default function ChallengeDetails() {
                     <Ticket className="h-5 w-5 text-gray-500" />
                     <span>15M+</span>
                   </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="ml-auto bg-[#b3731d] hover:bg-[#b3731d]/90 text-white">
+                        Report Challenge
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Report Challenge</DialogTitle>
+                        <DialogDescription>
+                          Please provide details about why you are reporting this challenge.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <Textarea
+                          placeholder="Describe the issue with this challenge..."
+                          className="min-h-[100px]"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" className="text-gray-500">
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="bg-[#b3731d] hover:bg-[#b3731d]/90">
+                          Submit Report
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
 
                 {/* Description */}
