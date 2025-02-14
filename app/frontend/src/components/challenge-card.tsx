@@ -4,9 +4,18 @@ import { User, Video, Clock, Ticket } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { ChallengeModel } from "@/lib/pb"
+import { format } from 'date-fns'
 
 interface ChallengeCardProps {
   challenge: ChallengeModel;
+}
+
+function formatDate(dateString: string) {
+  try {
+    return format(new Date(dateString), 'MMM dd, yyyy')
+  } catch (error) {
+    return 'Invalid date'
+  }
 }
 
 export function ChallengeCard({ challenge }: ChallengeCardProps) {
@@ -16,14 +25,9 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
   const votingEnd = new Date(challenge.voting_end)
   const isActive = now < votingEnd
 
-  // Format dates for display
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date)
-  }
+  const imageUrl = challenge.image 
+    ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}`
+    : '/placeholder-challenge.jpg'
 
   return (
     <Link href={`/challenge/${challenge.id}`}>
@@ -32,7 +36,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
           {/* Image */}
           <div className="relative h-[140px] w-[120px] flex-shrink-0 overflow-hidden rounded-2xl">
             <Image
-              src={challenge.image || '/placeholder-challenge.jpg'}
+              src={imageUrl}
               alt={challenge.challengetitle}
               fill
               className="object-cover"
@@ -61,7 +65,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
-                  <span>Ends {formatDate(submissionEnd)}</span>
+                  <span>Ends {formatDate(challenge.submission_end)}</span>
                 </div>
               </div>
               

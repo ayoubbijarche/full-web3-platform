@@ -2,60 +2,51 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/lib/pb'
-import { Button } from './ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { SignInDialog } from './sign-in-dialog'
+import Image from 'next/image'
+import logo from '@/assets/logo.png'
+import { UserAvatarMenu } from './user-avatar-menu'
+import { useEffect, useState } from 'react'
 
 export function Navbar() {
   const { users, signOut } = useAuth()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null // or a loading skeleton
+  }
 
   return (
-    <nav className="border-b">
-      <div className="flex h-16 items-center px-4 container mx-auto">
-        <Link href="/" className="font-bold text-xl">
-          Coinpetitive
-        </Link>
+    <div className="flex flex-col items-center">
+      <nav className="w-full">
+        <div className="flex h-20 items-center px-8 container mx-auto">
+          <Link href="/" className="flex items-center gap-4">
+            <Image
+              src={logo}
+              alt="Coinpetitive Logo"
+              width={48}
+              height={48}
+            />
+            <span className="font-bold text-2xl uppercase text-[#b3731d]">Coinpetitive</span>
+          </Link>
 
-        <div className="ml-auto flex items-center space-x-4">
-          {users ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={users.avatar || ''} alt={users.username || ''} />
-                    <AvatarFallback>{(users.username || '').slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuItem className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{users.username}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {users.email}
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => signOut()}>
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button asChild>
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
-          )}
+          <div className="ml-auto flex items-center space-x-4">
+            {users ? (
+              <UserAvatarMenu 
+                user={users} 
+                onSignOut={signOut}
+              />
+            ) : (
+              <SignInDialog />
+            )}
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      <div className="w-[80%] h-[1px] bg-black" />
+    </div>
   )
 }

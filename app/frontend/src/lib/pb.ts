@@ -127,23 +127,30 @@ export interface CreateChallengeData {
   keywords: string[];
   submission_end: string;
   voting_end: string;
+  image?: File;
 }
 
-export async function createChallenge(data: CreateChallengeData): Promise<
-  | { success: true; challenge: ChallengeModel }
-  | { success: false; error: string }
-> {
+export async function createChallenge(data: CreateChallengeData) {
   try {
     if (!pb.authStore.model) {
       throw new Error('User must be authenticated to create a challenge');
     }
 
-    const challenge = await pb.collection('challenges').create({
-      ...data,
-      participants: [],
-      voters: [],
-      creator: pb.authStore.model.id
+    // Create FormData for file upload
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'keywords') {
+        formData.append(key, JSON.stringify(value));
+      } else if (value !== undefined) {
+        formData.append(key, value);
+      }
     });
+
+    formData.append('creator', pb.authStore.model.id);
+    formData.append('participants', JSON.stringify([]));
+    formData.append('voters', JSON.stringify([]));
+
+    const challenge = await pb.collection('challenges').create(formData);
 
     return {
       success: true,

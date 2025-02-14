@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
+import Image from "next/image"
+import { Calendar, Upload } from "lucide-react"
 
 const categories = [
   "Web3",
@@ -25,16 +27,24 @@ export default function CreateChallengePage() {
   const auth = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>("")
 
   const [formData, setFormData] = useState({
     challengetitle: "",
     category: "",
-    maxparticipants: 10,
-    reward: 100,
+    maxparticipants: "",
+    voters: "",
+    votingFees: "0.000",
+    reward: "0.000",
     description: "",
+    demoVideoLink: "",
     keywords: "",
+    registration_end: "",
     submission_end: "",
     voting_end: "",
+    participantsNickname: "",
+    votersNickname: "",
   })
 
   if (!auth.isAuthenticated) {
@@ -50,62 +60,34 @@ export default function CreateChallengePage() {
     )
   }
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedImage(file)
+      const url = URL.createObjectURL(file)
+      setPreviewUrl(url)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     setError("")
     setIsLoading(true)
 
-    // Basic validation
-    if (!formData.challengetitle.trim()) {
-      setError("Challenge title is required")
-      setIsLoading(false)
-      return
-    }
-
-    if (!formData.category) {
-      setError("Category is required")
-      setIsLoading(false)
-      return
-    }
-
-    if (!formData.description.trim()) {
-      setError("Description is required")
-      setIsLoading(false)
-      return
-    }
-
-    if (!formData.submission_end || !formData.voting_end) {
-      setError("Both submission and voting end dates are required")
-      setIsLoading(false)
-      return
-    }
-
-    // Validate dates
-    const submissionDate = new Date(formData.submission_end)
-    const votingDate = new Date(formData.voting_end)
-    const now = new Date()
-
-    if (submissionDate <= now) {
-      setError("Submission end date must be in the future")
-      setIsLoading(false)
-      return
-    }
-
-    if (votingDate <= submissionDate) {
-      setError("Voting end date must be after submission end date")
-      setIsLoading(false)
-      return
-    }
-
     try {
       const result = await createChallenge({
-        ...formData,
-        keywords: formData.keywords.split(",").map(k => k.trim()).filter(k => k),
+        challengetitle: formData.challengetitle,
+        category: formData.category,
         maxparticipants: Number(formData.maxparticipants),
         reward: Number(formData.reward),
+        description: formData.description,
+        keywords: formData.keywords.split(",").map(k => k.trim()).filter(k => k),
+        submission_end: formData.submission_end,
+        voting_end: formData.voting_end,
+        image: selectedImage || undefined,
       })
 
-      if (result.success) {
+      if (result.success && result.challenge) {
         router.push(`/challenge/${result.challenge.id}`)
       } else {
         setError(result.error || "Failed to create challenge")
@@ -118,125 +100,257 @@ export default function CreateChallengePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] py-8">
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-sm">
-        <h1 className="text-2xl font-bold mb-6">Create New Challenge</h1>
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <div className="bg-white rounded-3xl p-8 shadow-sm">
+        <div className="text-[#B3731D] mb-1">Great!</div>
+        <h1 className="text-3xl font-semibold mb-8">Lets Challenge People</h1>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <Label htmlFor="challengetitle">Challenge Title</Label>
-            <Input
-              id="challengetitle"
-              value={formData.challengetitle}
-              onChange={(e) => setFormData(prev => ({ ...prev, challengetitle: e.target.value }))}
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="category">Category</Label>
-            <Select
-              value={formData.category}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="maxparticipants">Max Participants</Label>
-            <Input
-              id="maxparticipants"
-              type="number"
-              min={1}
-              value={formData.maxparticipants}
-              onChange={(e) => setFormData(prev => ({ ...prev, maxparticipants: Number(e.target.value) }))}
-              required
-            />
+        <div className="grid grid-cols-[300px,1fr] gap-8">
+          {/* Image Upload Section */}
+          <div className="bg-gray-100 rounded-3xl flex items-center justify-center h-[300px] relative overflow-hidden group border border-[#8a8a8a]">
+            {previewUrl ? (
+              <>
+                <Image
+                  src={previewUrl}
+                  alt="Challenge preview"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <label className="cursor-pointer text-white flex flex-col items-center">
+                    <Upload className="w-8 h-8 mb-2" />
+                    <span>Change Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <label className="cursor-pointer text-center">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Upload className="w-8 h-8 text-gray-400" />
+                </div>
+                <span className="text-sm text-gray-500">Upload Challenge Image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
 
-          <div>
-            <Label htmlFor="reward">Reward (in tokens)</Label>
-            <Input
-              id="reward"
-              type="number"
-              min={0}
-              value={formData.reward}
-              onChange={(e) => setFormData(prev => ({ ...prev, reward: Number(e.target.value) }))}
-              required
-            />
-          </div>
+          {/* Form Section */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-4">Basic Details</h2>
+            
+            <div className="grid grid-cols-[1fr,300px] gap-4">
+              <div>
+                <Label>Challenge Name</Label>
+                <Input 
+                  placeholder="Type Here"
+                  value={formData.challengetitle}
+                  onChange={(e) => setFormData(prev => ({ ...prev, challengetitle: e.target.value }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                >
+                  <SelectTrigger className="border-[#8a8a8a] rounded-[50px]">
+                    <SelectValue placeholder="Select One" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              required
-              className="h-32"
-            />
-          </div>
+            <div className="grid grid-cols-3 gap-16">
+              <div>
+                <Label>Registration End</Label>
+                <div className="relative w-[260px]">
+                  <Input 
+                    type="datetime-local"
+                    value={formData.registration_end}
+                    onChange={(e) => setFormData(prev => ({ ...prev, registration_end: e.target.value }))}
+                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full appearance-none"
+                    style={{ colorScheme: 'light' }}
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+              </div>
+              <div>
+                <Label>Submission End</Label>
+                <div className="relative w-[260px]">
+                  <Input 
+                    type="datetime-local"
+                    value={formData.submission_end}
+                    onChange={(e) => setFormData(prev => ({ ...prev, submission_end: e.target.value }))}
+                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full appearance-none"
+                    style={{ colorScheme: 'light' }}
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+              </div>
+              <div>
+                <Label>Voting End</Label>
+                <div className="relative w-[260px]">
+                  <Input 
+                    type="datetime-local"
+                    value={formData.voting_end}
+                    onChange={(e) => setFormData(prev => ({ ...prev, voting_end: e.target.value }))}
+                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full appearance-none"
+                    style={{ colorScheme: 'light' }}
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+              </div>
+            </div>
 
-          <div>
-            <Label htmlFor="keywords">Keywords (comma-separated)</Label>
-            <Input
-              id="keywords"
-              value={formData.keywords}
-              onChange={(e) => setFormData(prev => ({ ...prev, keywords: e.target.value }))}
-              placeholder="e.g., blockchain, defi, web3"
-              required
-            />
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Participants</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="From"
+                    value={formData.maxparticipants}
+                    onChange={(e) => setFormData(prev => ({ ...prev, maxparticipants: e.target.value }))}
+                    className="border-[#8a8a8a] rounded-[50px]"
+                  />
+                  <Input 
+                    placeholder="To"
+                    className="border-[#8a8a8a] rounded-[50px]"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Voters</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="From"
+                    value={formData.voters}
+                    onChange={(e) => setFormData(prev => ({ ...prev, voters: e.target.value }))}
+                    className="border-[#8a8a8a] rounded-[50px]"
+                  />
+                  <Input 
+                    placeholder="To"
+                    className="border-[#8a8a8a] rounded-[50px]"
+                  />
+                </div>
+              </div>
+            </div>
 
-          <div>
-            <Label htmlFor="submission_end">Submission End Date</Label>
-            <Input
-              id="submission_end"
-              type="datetime-local"
-              value={formData.submission_end}
-              onChange={(e) => setFormData(prev => ({ ...prev, submission_end: e.target.value }))}
-              required
-            />
-          </div>
+            <div>
+              <Label>Voting Fees</Label>
+              <Input 
+                value={formData.votingFees}
+                onChange={(e) => setFormData(prev => ({ ...prev, votingFees: e.target.value }))}
+                className="max-w-[200px] border-[#8a8a8a] rounded-[50px]"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="voting_end">Voting End Date</Label>
-            <Input
-              id="voting_end"
-              type="datetime-local"
-              value={formData.voting_end}
-              onChange={(e) => setFormData(prev => ({ ...prev, voting_end: e.target.value }))}
-              required
-            />
-          </div>
+            <div>
+              <Label>Reward</Label>
+              <Input 
+                value={formData.reward}
+                onChange={(e) => setFormData(prev => ({ ...prev, reward: e.target.value }))}
+                className="border-[#8a8a8a] rounded-[50px]"
+              />
+            </div>
 
-          <div className="flex gap-4">
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Challenge"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>
-              Cancel
-            </Button>
+            <div>
+              <Label>Description & Rules</Label>
+              <Textarea 
+                placeholder="Type Here"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="h-32 border-[#8a8a8a] rounded-[20px]"
+              />
+            </div>
+
+            <h2 className="text-xl font-semibold pt-4">Other Details</h2>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Demo Video Link</Label>
+                <Input 
+                  placeholder="https://"
+                  value={formData.demoVideoLink}
+                  onChange={(e) => setFormData(prev => ({ ...prev, demoVideoLink: e.target.value }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                />
+              </div>
+              <div>
+                <Label>Keywords</Label>
+                <Input 
+                  placeholder="Artists, Sports, etc"
+                  value={formData.keywords}
+                  onChange={(e) => setFormData(prev => ({ ...prev, keywords: e.target.value }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                />
+              </div>
+            </div>
+
+            <h2 className="text-xl font-semibold pt-4">Advanced Option (Optional)</h2>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Voters</Label>
+                <Input 
+                  placeholder="Nick Name"
+                  value={formData.votersNickname}
+                  onChange={(e) => setFormData(prev => ({ ...prev, votersNickname: e.target.value }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                />
+              </div>
+              <div>
+                <Label>Participants</Label>
+                <Input 
+                  placeholder="Nick Name"
+                  value={formData.participantsNickname}
+                  onChange={(e) => setFormData(prev => ({ ...prev, participantsNickname: e.target.value }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4">
+              <Button 
+                variant="outline" 
+                className="px-8 rounded-[50px]"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="px-8 bg-[#B3731D] hover:bg-[#B3731D]/90 rounded-[50px]"
+                onClick={handleSubmit}
+                disabled={isLoading}
+              >
+                {isLoading ? "Creating..." : "Challenge Now"}
+              </Button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
+
+      {error && (
+        <div className="text-red-500 text-sm text-center mt-4">
+          {error}
+        </div>
+      )}
     </div>
   )
 }
