@@ -157,7 +157,11 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Category</SelectItem>
-                  <SelectItem value="climbing">Mountain Climbing</SelectItem>
+                  <SelectItem value="food">Food</SelectItem>
+                  <SelectItem value="art">Art</SelectItem>
+                  <SelectItem value="fitness">Fitness</SelectItem>
+                  <SelectItem value="gaming">Gaming</SelectItem>
+                  <SelectItem value="music">Music</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -170,7 +174,10 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="voting">Voting</SelectItem>
+                  <SelectItem value="finallised">Finallised</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
