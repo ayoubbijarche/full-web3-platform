@@ -141,6 +141,10 @@ export async function createChallenge(data: CreateChallengeData) {
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'keywords') {
         formData.append(key, JSON.stringify(value));
+      } else if (key === 'submission_end' || key === 'voting_end') {
+        // Ensure dates are in ISO string format
+        const date = new Date(value);
+        formData.append(key, date.toISOString());
       } else if (value !== undefined) {
         formData.append(key, value);
       }
@@ -150,37 +154,66 @@ export async function createChallenge(data: CreateChallengeData) {
     formData.append('participants', JSON.stringify([]));
     formData.append('voters', JSON.stringify([]));
 
-    const challenge = await pb.collection('challenges').create(formData);
+    const challenge = await pb.collection('challenges').create(formData, {
+      requestKey: 'create-challenge',
+    });
 
     return {
       success: true,
       challenge
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to create challenge'
-    };
+    if (error?.name !== 'AbortError') {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create challenge'
+      };
+    }
+    return { success: false, error: 'Request cancelled' };
   }
 }
 
 export async function getChallenge(id: string) {
   try {
-    const challenge = await pb.collection('challenges').getOne(id, {
+    const record = await pb.collection('challenges').getOne(id, {
       expand: 'creator,participants,voters',
+      requestKey: `challenge-${id}`,
     });
+
+    const challenge: ChallengeModel = {
+      id: record.id,
+      challengetitle: record.challengetitle,
+      category: record.category,
+      participants: record.participants || [],
+      maxparticipants: record.maxparticipants,
+      voters: record.voters || [],
+      reward: record.reward,
+      description: record.description,
+      keywords: record.keywords || [],
+      submission_end: record.submission_end,
+      voting_end: record.voting_end,
+      creator: record.expand?.creator?.username || record.creator,
+      created: record.created,
+      updated: record.updated,
+      image: record.image,
+    };
+
     return { success: true, challenge };
   } catch (error) {
-    console.error('Error getting challenge:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
+    if (error?.name !== 'AbortError') {
+      console.error('Error getting challenge:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
+    }
+    return { success: false, error: 'Request cancelled' };
   }
 }
 
-export async function getChallenges() {
+export async function getChallenges(signal?: AbortSignal) {
   try {
     const records = await pb.collection('challenges').getFullList({
       sort: '-created',
       expand: 'creator',
+      signal,
     });
 
     const challenges: ChallengeModel[] = records.map(record => ({
@@ -195,7 +228,7 @@ export async function getChallenges() {
       keywords: record.keywords || [],
       submission_end: record.submission_end,
       voting_end: record.voting_end,
-      creator: record.creator,
+      creator: record.expand?.creator?.username || record.creator,
       created: record.created,
       updated: record.updated,
       image: record.image,
@@ -203,8 +236,14 @@ export async function getChallenges() {
 
     return { success: true, challenges };
   } catch (error) {
-    console.error('Error getting challenges:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
+    if (error?.name !== 'AbortError') {
+      console.error('Error getting challenges:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      };
+    }
+    return { success: false, error: 'Request cancelled' };
   }
 }
 
@@ -214,10 +253,54 @@ export async function getUserChallenges(userId: string) {
       filter: `creator = "${userId}" || participants ~ "${userId}"`,
       sort: '-created',
       expand: 'creator',
+      requestKey: `user-challenges-${userId}`,
     });
     return { success: true, challenges };
   } catch (error) {
-    console.error('Error getting user challenges:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
+    if (error?.name !== 'AbortError') {
+      console.error('Error getting user challenges:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
+    }
+    return { success: false, error: 'Request cancelled' };
+  }
+}
+
+export async function participateInChallenge(challengeId: string) {
+  try {
+    if (!pb.authStore.model) {
+      throw new Error('Must be authenticated to participate');
+    }
+
+    const userId = pb.authStore.model.id;
+    const challenge = await pb.collection('challenges').getOne(challengeId, {
+      requestKey: `participate-${challengeId}`,
+    });
+    
+    // Check if user is already participating
+    const participants = challenge.participants || [];
+    if (participants.includes(userId)) {
+      throw new Error('Already participating in this challenge');
+    }
+
+    // Check if challenge is full
+    if (participants.length >= challenge.maxparticipants) {
+      throw new Error('Challenge is full');
+    }
+
+    // Add user to participants
+    const updatedParticipants = [...participants, userId];
+    await pb.collection('challenges').update(challengeId, {
+      participants: updatedParticipants,
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to participate in challenge'
+      };
+    }
+    return { success: false, error: 'Request cancelled' };
   }
 }

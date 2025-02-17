@@ -29,6 +29,8 @@ export default function CreateChallengePage() {
   const [error, setError] = useState("")
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string>("")
+  const [keywords, setKeywords] = useState<string[]>([])
+  const [keywordInput, setKeywordInput] = useState("")
 
   const [formData, setFormData] = useState({
     challengetitle: "",
@@ -97,6 +99,42 @@ export default function CreateChallengePage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      const newKeyword = keywordInput.trim()
+      
+      if (newKeyword && keywords.length < 5 && !keywords.includes(newKeyword)) {
+        setKeywords([...keywords, newKeyword])
+        setKeywordInput("")
+        // Update formData with the new keywords
+        setFormData(prev => ({ 
+          ...prev, 
+          keywords: [...keywords, newKeyword].join(',')
+        }))
+      }
+    } else if (e.key === 'Backspace' && keywordInput === '') {
+      e.preventDefault()
+      const newKeywords = keywords.slice(0, -1)
+      setKeywords(newKeywords)
+      // Update formData with the new keywords
+      setFormData(prev => ({ 
+        ...prev, 
+        keywords: newKeywords.join(',')
+      }))
+    }
+  }
+
+  const removeKeyword = (indexToRemove: number) => {
+    const newKeywords = keywords.filter((_, index) => index !== indexToRemove)
+    setKeywords(newKeywords)
+    // Update formData with the new keywords
+    setFormData(prev => ({ 
+      ...prev, 
+      keywords: newKeywords.join(',')
+    }))
   }
 
   return (
@@ -294,12 +332,40 @@ export default function CreateChallengePage() {
               </div>
               <div>
                 <Label>Keywords</Label>
-                <Input 
-                  placeholder="Artists, Sports, etc"
-                  value={formData.keywords}
-                  onChange={(e) => setFormData(prev => ({ ...prev, keywords: e.target.value }))}
-                  className="border-[#8a8a8a] rounded-[50px]"
-                />
+                <div className="relative">
+                  <div className="flex flex-wrap gap-2 p-2 min-h-[44px] border border-[#8a8a8a] rounded-[50px] bg-white">
+                    {keywords.map((keyword, index) => (
+                      <span 
+                        key={index}
+                        className="flex items-center gap-1 px-2 py-1 bg-[#f8f1e9] text-[#B3731D] rounded-full text-sm"
+                      >
+                        {keyword}
+                        <button
+                          type="button"
+                          onClick={() => removeKeyword(index)}
+                          className="hover:text-red-500"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      value={keywordInput}
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      onKeyDown={handleKeywordKeyDown}
+                      placeholder={keywords.length >= 5 ? "Maximum 5 keywords" : "Type and press Enter"}
+                      className="flex-1 outline-none border-none bg-transparent placeholder:text-gray-400 min-w-[120px]"
+                      disabled={keywords.length >= 5}
+                    />
+                  </div>
+                  <div className="absolute right-3 top-[50%] -translate-y-[50%] text-xs text-gray-400">
+                    {keywords.length}/5
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Press Enter or comma to add a keyword. Maximum 5 keywords allowed.
+                </p>
               </div>
             </div>
 

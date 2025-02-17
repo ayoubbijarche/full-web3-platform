@@ -7,34 +7,47 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Search, Video, Clock, Ticket } from "lucide-react"
 import { ChallengeCard } from "@/components/challenge-card"
 import mountImage from "@/assets/mount.png"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { getChallenges } from "@/lib/pb"
-import { ChallengeModel } from "@/lib/pb"
+import { getChallenges, ChallengeModel } from "@/lib/pb"
 import { Navbar } from "@/components/navbar"
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1)
   const [challenges, setChallenges] = useState<ChallengeModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const itemsPerPage = 6
 
   useEffect(() => {
+    let mounted = true
+    
+    abortControllerRef.current = new AbortController()
+
     const loadChallenges = async () => {
       setIsLoading(true)
       try {
-        const result = await getChallenges()
-        if (result.success) {
+        const result = await getChallenges(abortControllerRef.current?.signal)
+        if (mounted && result.success) {
           setChallenges(result.challenges || [])
         }
       } catch (error) {
-        console.error('Error loading challenges:', error)
+        if (mounted && (error as any)?.name !== 'AbortError') {
+          console.error('Error loading challenges:', error)
+        }
       } finally {
-        setIsLoading(false)
+        if (mounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     loadChallenges()
+
+    return () => {
+      mounted = false
+      abortControllerRef.current?.abort()
+    }
   }, [])
 
   const totalItems = challenges.length
@@ -46,6 +59,10 @@ export default function Home() {
 
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
+
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
