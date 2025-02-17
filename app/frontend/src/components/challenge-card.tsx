@@ -1,88 +1,62 @@
-'use client'
-
-import { User, Video, Clock, Ticket } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { User, Eye, ThumbsUp, MessageSquare, Coins } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChallengeModel } from "@/lib/pb"
-import { format } from 'date-fns'
 
-interface ChallengeCardProps {
-  challenge: ChallengeModel;
-}
-
-function formatDate(dateString: string) {
-  try {
-    return format(new Date(dateString), 'MMM dd, yyyy')
-  } catch (error) {
-    return 'Invalid date'
-  }
-}
-
-export function ChallengeCard({ challenge }: ChallengeCardProps) {
-  // Calculate if challenge is active based on dates
-  const now = new Date()
-  const submissionEnd = new Date(challenge.submission_end)
-  const votingEnd = new Date(challenge.voting_end)
-  const isActive = now < votingEnd
-
-  const imageUrl = challenge.image 
-    ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}`
-    : '/placeholder-challenge.jpg'
-
+export default function ChallengeCard() {
   return (
-    <Link href={`/challenge/${challenge.id}`}>
-      <div className="rounded-[30px] bg-white p-5 shadow-sm hover:shadow-md transition-shadow h-[180px] border border-[#8a8a8a]">
-        <div className="flex gap-4 h-full">
-          {/* Image */}
-          <div className="relative h-[140px] w-[120px] flex-shrink-0 overflow-hidden rounded-2xl">
-            <Image
-              src={imageUrl}
-              alt={challenge.challengetitle}
-              fill
-              className="object-cover"
-            />
+    <Link href="/challenge/1">
+    <Card className="flex w-full max-w-md overflow-hidden bg-white p-4 gap-4 rounded-[30px] hover:shadow-lg transition-shadow">
+      {/* Image Section */}
+      <div className="relative w-1/3 min-w-[100px] aspect-square rounded-2xl overflow-hidden">
+        <Image
+          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Challenge%20Card%20(1)-wZG2CFTpfkEnK6LJqPOnluInchNV2M.png"
+          alt="Mountain climbing silhouette"
+          fill
+          className="object-cover"
+        />
+      </div>
+
+      {/* Content Section */}
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div>
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-semibold text-base sm:text-lg truncate pr-4">Mountain Climbing Challenge</h3>
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
           </div>
 
-          {/* Content */}
-          <div className="flex flex-1 flex-col h-full overflow-hidden">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-base font-semibold text-gray-800 truncate">
-                {challenge.challengetitle}
-              </h3>
-              <div className={`h-2 w-2 rounded-full ${isActive ? 'bg-green-400' : 'bg-red-400'} flex-shrink-0 ml-2`} />
+          <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
+            Lorem Ipsum is simply dummy text of the printing and typesetting industry.
+          </p>
+        </div>
+
+        <div>
+          <div className="flex items-center mb-3">
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 mr-1" />
+            <span className="text-xs sm:text-sm text-orange-500">Steven</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <div className="flex items-center gap-0.5">
+              <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>1500</span>
             </div>
-            
-            <p className="text-sm text-gray-500 line-clamp-2 mb-auto">
-              {challenge.description}
-            </p>
-            
-            <div className="flex flex-col gap-1.5">
-              {/* Stats */}
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <div className="flex items-center gap-1">
-                  <User className="h-3.5 w-3.5" />
-                  <span>{challenge.participants.length}/{challenge.maxparticipants} Participants</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>Ends {formatDate(challenge.submission_end)}</span>
-                </div>
-              </div>
-              
-              {/* Category and Reward */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="px-2 py-0.5 rounded-full bg-[#b3731d]/10 text-[#b3731d]">
-                  {challenge.category}
-                </span>
-                <div className="flex items-center gap-1 text-[#b3731d]">
-                  <Ticket className="h-3.5 w-3.5" />
-                  <span>{challenge.reward} tokens</span>
-                </div>
-              </div>
+            <div className="flex items-center gap-0.5">
+              <ThumbsUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>15M+</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>15M+</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Coins className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>15M+</span>
             </div>
           </div>
         </div>
       </div>
-    </Link>
+    </Card></Link>
   )
 }
+

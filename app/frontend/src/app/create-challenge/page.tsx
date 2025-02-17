@@ -13,13 +13,11 @@ import Image from "next/image"
 import { Calendar, Upload } from "lucide-react"
 
 const categories = [
-  "Web3",
-  "AI/ML",
-  "Mobile",
-  "Web",
-  "Blockchain",
+  "Food",
+  "Art",
+  "Fitness",
   "Gaming",
-  "Other"
+  "Music",
 ]
 
 export default function CreateChallengePage() {

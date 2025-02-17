@@ -1,36 +1,27 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from "react"
-import { useAuth, pb } from "@/lib/pb"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { ChallengeCard } from "@/components/challenge-card"
-import { User, Settings, Grid } from "lucide-react"
-import Link from "next/link"
+import { useState } from "react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { User, Settings, Grid } from "lucide-react";
+import Link from "next/link";
+import ChallengeCard from "@/components/challenge-card";
 
 export default function ProfilePage() {
-  const auth = useAuth()
-  const [challenges, setChallenges] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState('created')
+  const [activeTab, setActiveTab] = useState("created");
 
-  useEffect(() => {
-    const fetchChallenges = async () => {
-      if (!auth.users) return
-      try {
-        const createdChallenges = await pb.collection('challenges').getList(1, 50, {
-          filter: `creator = "${auth.users.id}"`,
-          sort: '-created'
-        });
-        setChallenges(createdChallenges.items)
-      } catch (error) {
-        console.error('Error fetching challenges:', error)
-      }
-    }
+  // Dummy user data replacing backend authentication
+  const user = {
+    id: "dummy-id",
+    username: "JohnDoe",
+    avatar: "", // Leave empty if no image is provided
+    xProfile: "johndoe",
+    telegram: "johndoe",
+  };
 
-    fetchChallenges()
-  }, [auth.users])
-
-  if (!auth.isAuthenticated || !auth.users) {
+  // Optionally, you could add a condition to simulate an unauthenticated state.
+  // For now, we assume the user is always "signed in."
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -40,7 +31,7 @@ export default function ProfilePage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -51,10 +42,10 @@ export default function ProfilePage() {
           <div className="flex gap-8 items-start">
             {/* Profile Picture */}
             <div className="w-40 h-40 rounded-full overflow-hidden flex-shrink-0 border-2 border-[#b3731d]">
-              {auth.users.avatar ? (
+              {user.avatar ? (
                 <Image
-                  src={`http://127.0.0.1:8090/api/files/users/${auth.users.id}/${auth.users.avatar}`}
-                  alt={`${auth.users.username}'s avatar`}
+                  src={`http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}`}
+                  alt={`${user.username}'s avatar`}
                   width={160}
                   height={160}
                   className="object-cover w-full h-full"
@@ -69,7 +60,7 @@ export default function ProfilePage() {
             {/* Profile Info */}
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-4">
-                <h1 className="text-2xl font-semibold">{auth.users.username}</h1>
+                <h1 className="text-2xl font-semibold">{user.username}</h1>
                 <Button variant="outline" className="flex items-center gap-2">
                   <Settings className="w-4 h-4" />
                   Edit Profile
@@ -93,18 +84,18 @@ export default function ProfilePage() {
 
               {/* Social Links */}
               <div className="flex gap-4">
-                {auth.users.xProfile && (
+                {user.xProfile && (
                   <Link 
-                    href={`https://x.com/${auth.users.xProfile}`}
+                    href={`https://x.com/${user.xProfile}`}
                     target="_blank"
                     className="text-sm text-[#b3731d] hover:underline"
                   >
-                    @{auth.users.xProfile}
+                    @{user.xProfile}
                   </Link>
                 )}
-                {auth.users.telegram && (
+                {user.telegram && (
                   <Link 
-                    href={`https://t.me/${auth.users.telegram}`}
+                    href={`https://t.me/${user.telegram}`}
                     target="_blank"
                     className="text-sm text-[#b3731d] hover:underline"
                   >
@@ -129,15 +120,9 @@ export default function ProfilePage() {
 
         {/* Challenge Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {challenges.length > 0 ? (
-            challenges.map((challenge) => (
-              <ChallengeCard key={challenge.id} challenge={challenge} />
-            ))
-          ) : (
-            <p className="col-span-2 text-center text-gray-500">No challenges found</p>
-          )}
+          <ChallengeCard />
         </div>
       </main>
     </div>
-  )
+  );
 }
