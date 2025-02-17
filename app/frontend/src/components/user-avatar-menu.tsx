@@ -12,10 +12,9 @@ import Link from 'next/link'
 
 interface UserAvatarMenuProps {
   user: {
-    id: string;
     username: string;
     email: string;
-    avatar: string;
+    avatarUrl?: string;
   };
   onSignOut: () => void;
 }
@@ -30,7 +29,7 @@ export function UserAvatarMenu({ user, onSignOut }: UserAvatarMenuProps) {
         >
           <Avatar className="h-8 w-8">
             <AvatarImage 
-              src={`http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}`} 
+              src={user.avatarUrl} 
               alt={user.username} 
             />
             <AvatarFallback>{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>

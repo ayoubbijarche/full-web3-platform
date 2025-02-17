@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { User, Settings, Grid } from "lucide-react";
 import Link from "next/link";
 import ChallengeCard from "@/components/challenge-card";
+import { EditProfileDialog } from "@/components/edit-profile-dialog";
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("created");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Dummy user data replacing backend authentication
   const user = {
@@ -18,6 +20,22 @@ export default function ProfilePage() {
     xProfile: "johndoe",
     telegram: "johndoe",
   };
+
+  // Dummy data for created challenges
+  const createdChallenges = [
+    { 
+      id: 1, 
+      title: "Mountain Climbing", 
+      description: "A challenging mountain climb...",
+      isCreator: true 
+    },
+    { 
+      id: 2, 
+      title: "City Marathon", 
+      description: "Run through the city...",
+      isCreator: true 
+    },
+  ];
 
   // Optionally, you could add a condition to simulate an unauthenticated state.
   // For now, we assume the user is always "signed in."
@@ -61,7 +79,11 @@ export default function ProfilePage() {
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-4">
                 <h1 className="text-2xl font-semibold">{user.username}</h1>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button 
+                  variant="default"
+                  className="flex items-center gap-2"
+                  onClick={() => setIsEditDialogOpen(true)}
+                >
                   <Settings className="w-4 h-4" />
                   Edit Profile
                 </Button>
@@ -120,9 +142,20 @@ export default function ProfilePage() {
 
         {/* Challenge Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ChallengeCard />
+          {createdChallenges.map((challenge) => (
+            <ChallengeCard 
+              key={challenge.id} 
+              challenge={challenge}
+            />
+          ))}
         </div>
       </main>
+
+      <EditProfileDialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen}
+        user={user}
+      />
     </div>
   );
 }

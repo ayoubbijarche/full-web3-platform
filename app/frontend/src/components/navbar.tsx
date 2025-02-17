@@ -7,9 +7,11 @@ import Image from 'next/image'
 import logo from '@/assets/logo.png'
 import { UserAvatarMenu } from './user-avatar-menu'
 import { useEffect, useState } from 'react'
+import { Button } from "@/components/ui/button"
+import { Wallet } from "lucide-react"
 
 export function Navbar() {
-  const { users, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -35,9 +37,16 @@ export function Navbar() {
           </Link>
 
           <div className="ml-auto flex items-center space-x-4">
-            {users ? (
+            <Button 
+              variant="default" 
+              className="bg-[#b3731d] hover:bg-[#b3731d]/90 flex items-center gap-2"
+            >
+              <Wallet className="w-4 h-4" />
+              Connect Wallet
+            </Button>
+            {user ? (
               <UserAvatarMenu 
-                user={users} 
+                user={user} 
                 onSignOut={signOut}
               />
             ) : (
