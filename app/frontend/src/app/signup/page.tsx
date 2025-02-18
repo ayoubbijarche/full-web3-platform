@@ -75,24 +75,7 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-white p-4">
-        <div className="mx-auto flex max-w-7xl items-center">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src={logoImage}
-              alt="Coinpetitive Logo"
-              width={48}
-              height={48}
-              className="rounded-full"
-            />
-            <span className="text-2xl font-bold text-[#b3731d]">COINPETITIVE</span>
-          </Link>
-        </div>
-        <div className="flex justify-center mt-4">
-          <div className="w-[80%] h-px bg-[#898989]"></div>
-        </div>
-      </header>
+
 
       {/* Main Content */}
       <main className="flex justify-center mt-12">
@@ -100,7 +83,7 @@ export default function SignUp() {
         <div className="relative">
           <div className="relative w-[800px] h-[550px]">
             <div className="absolute inset-0 rounded-full bg-[#f8f1e9] flex items-center justify-center">
-              <div className="w-[700px] h-[450px] rounded-full bg-[#f1e4d4] flex items-center justify-center">
+              <div className="relative w-[700px] h-[450px] rounded-full bg-[#f1e4d4] flex items-center justify-center">
                 <div className="w-[600px] h-[350px] rounded-full bg-[#ecd9c3] flex items-center justify-center">
                   {/* Sign Up Form */}
                   <div className="w-[500px] bg-white rounded-[30px] shadow-lg border-2 border-[#b3731d] p-6">

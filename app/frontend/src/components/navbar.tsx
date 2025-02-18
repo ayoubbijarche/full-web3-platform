@@ -8,18 +8,26 @@ import logo from '@/assets/logo.png'
 import { UserAvatarMenu } from './user-avatar-menu'
 import { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
-import { Wallet } from "lucide-react"
+import { Wallet, User } from "lucide-react"
+import { subscribeToAuth } from '@/lib/pb'
+import { WalletConnectionDialog } from './wallet-connection-dialog'
 
 export function Navbar() {
   const { user, signOut } = useAuth()
   const [mounted, setMounted] = useState(false)
+  const [isSignInOpen, setIsSignInOpen] = useState(false)
+  const [, forceUpdate] = useState({})
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+    const unsubscribe = subscribeToAuth(() => {
+      forceUpdate({});
+    });
+    return unsubscribe;
+  }, []);
 
   if (!mounted) {
-    return null // or a loading skeleton
+    return null
   }
 
   return (
@@ -37,20 +45,30 @@ export function Navbar() {
           </Link>
 
           <div className="ml-auto flex items-center space-x-4">
-            <Button 
-              variant="default" 
-              className="bg-[#b3731d] hover:bg-[#b3731d]/90 flex items-center gap-2"
-            >
-              <Wallet className="w-4 h-4" />
-              Connect Wallet
-            </Button>
+            <WalletConnectionDialog />
             {user ? (
               <UserAvatarMenu 
-                user={user} 
+                user={{
+                  username: user.username,
+                  email: user.email,
+                  avatarUrl: user.avatar ? `http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}` : undefined
+                }}
                 onSignOut={signOut}
               />
             ) : (
-              <SignInDialog />
+              <>
+                <Button 
+                  onClick={() => setIsSignInOpen(true)}
+                  className="font-bold"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Sign In
+                </Button>
+                <SignInDialog 
+                  open={isSignInOpen} 
+                  onOpenChange={setIsSignInOpen} 
+                />
+              </>
             )}
           </div>
         </div>

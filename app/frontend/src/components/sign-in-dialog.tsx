@@ -1,23 +1,26 @@
 'use client'
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { User } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
-import { signIn, signOut, useAuth } from "@/lib/pb"
+import { signIn } from "@/lib/pb"
 import { useRouter } from "next/navigation"
 
-export function SignInDialog() {
-  const [open, setOpen] = useState(false)
+interface SignInDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const { isAuthenticated, users: user } = useAuth()
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +30,7 @@ export function SignInDialog() {
     try {
       const result = await signIn(email, password)
       if (result.success) {
-        setOpen(false)
+        onOpenChange?.(false)
         router.refresh()
       } else {
         setError(result.error || "Failed to sign in")
@@ -39,31 +42,8 @@ export function SignInDialog() {
     }
   }
 
-  const handleSignOut = () => {
-    signOut()
-    router.refresh()
-  }
-
-  if (isAuthenticated && user) {
-    return (
-      <div className="flex items-center gap-3">
-        <span className="text-[#b3731d] font-medium">{user.username}</span>
-        <Button onClick={handleSignOut} variant="outline" className="font-bold">
-          <User className="mr-2 h-4 w-4" />
-          Sign Out
-        </Button>
-      </div>
-    )
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="font-bold">
-          <User className="mr-2 h-4 w-4" />
-          Sign In
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">Sign In</DialogTitle>

@@ -14,7 +14,7 @@ interface EditProfileDialogProps {
   user: {
     id: string;
     username: string;
-    avatar: string;
+    avatar?: string;
     xProfile: string;
     telegram: string;
     email?: string;

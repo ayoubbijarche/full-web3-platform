@@ -53,8 +53,7 @@ export function WalletConnectionDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button 
-          variant="outline" 
-          className="font-bold border-2 border-[#b3731d] text-[#b3731d] hover:bg-[#b3731d] hover:text-white"
+          className="bg-[#b3731d] text-white hover:bg-[#b3731d]"
         >
           <Wallet className="mr-2 h-4 w-4" />
           Connect Wallet

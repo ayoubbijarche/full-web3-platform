@@ -1,44 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { User, Settings, Grid } from "lucide-react";
 import Link from "next/link";
 import ChallengeCard from "@/components/challenge-card";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
+import { useAuth, getUserChallenges } from "@/lib/pb";
+
+interface UserChallenge {
+  id: number;
+  title: string;
+  description: string;
+  isCreator: boolean;
+}
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("created");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [createdChallenges, setCreatedChallenges] = useState<UserChallenge[]>([]);
+  const { user } = useAuth();
 
-  // Dummy user data replacing backend authentication
-  const user = {
-    id: "dummy-id",
-    username: "JohnDoe",
-    avatar: "", // Leave empty if no image is provided
-    xProfile: "johndoe",
-    telegram: "johndoe",
-  };
+  useEffect(() => {
+    const fetchUserChallenges = async () => {
+      if (user) {
+        const result = await getUserChallenges(user.id);
+        if (result.success && result.challenges) {
+          setCreatedChallenges(result.challenges.map(challenge => ({
+            id: Number(challenge.id),
+            title: challenge.title,
+            description: challenge.description,
+            isCreator: challenge.creator === user.id
+          })));
+        }
+      }
+    };
 
-  // Dummy data for created challenges
-  const createdChallenges = [
-    { 
-      id: 1, 
-      title: "Mountain Climbing", 
-      description: "A challenging mountain climb...",
-      isCreator: true 
-    },
-    { 
-      id: 2, 
-      title: "City Marathon", 
-      description: "Run through the city...",
-      isCreator: true 
-    },
-  ];
+    fetchUserChallenges();
+  }, [user]);
 
-  // Optionally, you could add a condition to simulate an unauthenticated state.
-  // For now, we assume the user is always "signed in."
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -91,7 +92,7 @@ export default function ProfilePage() {
 
               <div className="flex gap-8 mb-4">
                 <div>
-                  <span className="font-semibold">10</span>{" "}
+                  <span className="font-semibold">{createdChallenges.length}</span>{" "}
                   <span className="text-gray-500">challenges</span>
                 </div>
                 <div>

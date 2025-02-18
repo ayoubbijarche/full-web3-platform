@@ -9,6 +9,7 @@ export type UserModel = {
   username: string;
   xProfile: string;
   telegram: string;
+  avatar?: string;
   createdChallenges: string[]; // Array of challenge IDs
   created: string;
   updated: string;
@@ -35,10 +36,25 @@ export type ChallengeModel = {
   updated: string;
 };
 
+// Add a simple event system
+const listeners = new Set<() => void>();
+
+export function subscribeToAuth(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function notifyAuthChange() {
+  listeners.forEach(listener => listener());
+}
+
 // Auth Functions
 export async function signIn(email: string, password: string) {
   try {
     const authData = await pb.collection('users').authWithPassword(email, password);
+    notifyAuthChange(); // Notify listeners after successful sign in
     return {
       success: true,
       user: authData.record as unknown as UserModel,
@@ -58,11 +74,19 @@ export async function signUp(data: {
   username: string;
   xProfile?: string;
   telegram?: string;
+  avatar?: File;
 }) {
   try {
-    const record = await pb.collection('users').create(data);
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined) {
+        formData.append(key, value);
+      }
+    });
+
+    const record = await pb.collection('users').create(formData);
     await signIn(data.email, data.password);
-    
+    notifyAuthChange(); // Notify listeners after successful sign up
     return {
       success: true,
       user: record as unknown as UserModel,
@@ -77,6 +101,8 @@ export async function signUp(data: {
 
 export function signOut() {
   pb.authStore.clear();
+  notifyAuthChange();
+  window.location.href = '/'; // Redirect to home page after signout
 }
 
 // Challenge Functions
