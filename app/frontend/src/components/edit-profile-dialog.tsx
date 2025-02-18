@@ -26,7 +26,6 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
     username: user.username,
     xProfile: user.xProfile || "",
     telegram: user.telegram || "",
-    avatar: user.avatar || "",
     email: user.email || "",
   });
 
@@ -38,6 +37,10 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
     e.preventDefault();
     setShowPasswordConfirm(true);
   };
+
+  const avatarUrl = user.avatar 
+    ? `http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}`
+    : undefined;
 
   if (showPasswordConfirm) {
     return (
@@ -120,9 +123,9 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
           {/* Avatar Upload */}
           <div className="flex flex-col items-center gap-4">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-[#9A9A9A]">
-              {formData.avatar ? (
+              {avatarUrl ? (
                 <Image
-                  src={formData.avatar}
+                  src={avatarUrl}
                   alt="Profile"
                   width={96}
                   height={96}
