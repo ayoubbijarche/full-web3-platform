@@ -13,7 +13,10 @@ interface UserChallenge {
   id: number;
   title: string;
   description: string;
-  isCreator: boolean;
+  creator: string;
+  reward: number;
+  participants: number;
+  image?: string;
 }
 
 export default function ProfilePage() {
@@ -27,12 +30,19 @@ export default function ProfilePage() {
       if (user) {
         const result = await getUserChallenges(user.id);
         if (result.success && result.challenges) {
-          setCreatedChallenges(result.challenges.map(challenge => ({
-            id: Number(challenge.id),
-            title: challenge.title,
-            description: challenge.description,
-            isCreator: challenge.creator === user.id
-          })));
+          // Filter challenges where the logged-in user is the creator
+          const userCreatedChallenges = result.challenges
+            .filter(challenge => challenge.creator === user.id)
+            .map(challenge => ({
+              id: Number(challenge.id),
+              title: challenge.title,
+              description: challenge.description,
+              creator: challenge.expand?.creator?.username,
+              reward: challenge.reward,
+              participants: challenge.participants?.length || 0,
+              image: challenge.image ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
+            }));
+          setCreatedChallenges(userCreatedChallenges);
         }
       }
     };

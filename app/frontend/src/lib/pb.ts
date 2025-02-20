@@ -16,13 +16,42 @@ export type UserModel = {
 };
 
 // Challenge Model Type
+// Update Challenge Model Type to include chat
+
+
+
+export type MessageModel = {
+  id: string;
+  text: string;
+  sender: string;
+  chat: string;
+  created: string;
+  updated: string;
+  expand?: {
+    sender: UserModel;
+  };
+};
+
+export type ChatModel = {
+  id: string;
+  challenge: string;
+  messages: string[];
+  created: string;
+  updated: string;
+  expand?: {
+    messages: MessageModel[];
+    challenge: ChallengeModel;
+  };
+};
+
+// Update ChallengeModel to include chat
 export type ChallengeModel = {
   id: string;
   title: string;
   category: string;
-  participants: string[]; // Array of user IDs
+  participants: string[];
   maxParticipants: number;
-  voters: string[]; // Array of user IDs
+  voters: string[];
   reward: number;
   description: string;
   keywords: string[];
@@ -31,11 +60,64 @@ export type ChallengeModel = {
   votingEnd: string;
   image?: string;
   state: 'registration' | 'submission' | 'voting' | 'completed';
-  creator: string; // User ID
+  creator: string;
+  chat: string; // Chat ID
   created: string;
   updated: string;
+  expand?: {
+    creator: UserModel;
+    chat: ChatModel;
+  };
 };
 
+// Add chat functions
+export async function createChatForChallenge(challengeId: string) {
+  try {
+    const chat = await pb.collection('chat').create({
+      challenge: challengeId,
+      messages: []
+    });
+    return { success: true, chat };
+  } catch (error) {
+    return { success: false, error: 'Failed to create chat' };
+  }
+}
+
+export async function sendMessage(chatId: string, text: string) {
+  try {
+    if (!pb.authStore.model) {
+      throw new Error('Must be authenticated to send messages');
+    }
+
+    const message = await pb.collection('messages').create({
+      text: text,  // Changed from content to text
+      sender: pb.authStore.model.id,
+      chat: chatId
+    });
+
+    return { success: true, message };
+  } catch (error) {
+    console.error('Error sending message:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to send message' 
+    };
+  }
+}
+
+export async function getChatMessages(chatId: string) {
+  try {
+    const chat = await pb.collection('chat').getOne(chatId, {
+      expand: 'messages.sender'
+    });
+    return { 
+      success: true, 
+      messages: chat.expand?.messages || [] 
+    };
+  } catch (error) {
+    return { success: false, error: 'Failed to fetch messages' };
+  }
+}
 // Add a simple event system
 const listeners = new Set<() => void>();
 
@@ -123,6 +205,11 @@ export async function createChallenge(data: {
       throw new Error('Must be authenticated to create challenge');
     }
 
+    // First create a chat room
+    const chatRoom = await pb.collection('chat').create({
+      messages: []
+    });
+
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'keywords') {
@@ -138,8 +225,15 @@ export async function createChallenge(data: {
     formData.append('state', 'registration');
     formData.append('participants', JSON.stringify([]));
     formData.append('voters', JSON.stringify([]));
+    formData.append('chat', chatRoom.id);
 
     const challenge = await pb.collection('challenges').create(formData);
+    
+    // Update chat with challenge reference
+    await pb.collection('chat').update(chatRoom.id, {
+      challenge: challenge.id
+    });
+
     return { success: true, challenge: challenge as unknown as ChallengeModel };
   } catch (error) {
     return {
@@ -149,35 +243,38 @@ export async function createChallenge(data: {
   }
 }
 
-export async function getChallenge(id: string) {
+// Add this function after the getChallenges function
+export async function getChallenges(id?: string, signal?: AbortSignal) {
+  const options = {
+    expand: 'creator,chat',
+    $cancelKey: 'challenges-request',
+    signal
+  };
+
   try {
-    const record = await pb.collection('challenges').getOne(id, {
-      expand: 'creator,participants,voters',
-    });
-    return { success: true, challenge: record as unknown as ChallengeModel };
-  } catch (error) {
+    if (id) {
+      const record = await pb.collection('challenges').getOne(id, options);
+      return { 
+        success: true, 
+        challenges: [record] as unknown as ChallengeModel[] 
+      };
+    }
+    const records = await pb.collection('challenges').getFullList(options);
+    return { 
+      success: true, 
+      challenges: records as unknown as ChallengeModel[] 
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError' || error.isAbort) {
+      return { success: false, challenges: [], error: 'Request cancelled' };
+    }
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to get challenge',
+      error: error instanceof Error ? error.message : 'Failed to fetch challenges',
+      challenges: []
     };
   }
 }
-
-export async function getChallenges() {
-  try {
-    const records = await pb.collection('challenges').getFullList({
-      sort: '-created',
-      expand: 'creator',
-    });
-    return { success: true, challenges: records as unknown as ChallengeModel[] };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to get challenges',
-    };
-  }
-}
-
 export async function getUserChallenges(userId: string) {
   try {
     const records = await pb.collection('challenges').getFullList({

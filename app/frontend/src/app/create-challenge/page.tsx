@@ -76,14 +76,15 @@ export default function CreateChallengePage() {
 
     try {
       const result = await createChallenge({
-        challengetitle: formData.challengetitle,
+        title: formData.challengetitle,
         category: formData.category,
-        maxparticipants: Number(formData.maxparticipants),
+        maxParticipants: Number(formData.maxparticipants),
         reward: Number(formData.reward),
         description: formData.description,
         keywords: formData.keywords.split(",").map(k => k.trim()).filter(k => k),
-        submission_end: formData.submission_end,
-        voting_end: formData.voting_end,
+        registrationEnd: formData.registration_end,
+        submissionEnd: formData.submission_end,
+        votingEnd: formData.voting_end,
         image: selectedImage || undefined,
       })
 

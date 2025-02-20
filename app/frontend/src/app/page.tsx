@@ -9,42 +9,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Video, Clock, Ticket } from "lucide-react"
-import  ChallengeCard  from "@/components/challenge-card"
+import { Search, Video, Clock, Ticket, User, Coins, Users } from "lucide-react"
+import ChallengeCard from "@/components/challenge-card"
 import mountImage from "@/assets/mount.png"
-import { useState } from "react"
+import { useState, useEffect , use } from "react"
 import Link from "next/link"
+import { getChallenges, type ChallengeModel } from "@/lib/pb"
 import { Navbar } from "@/components/navbar"
+
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1)
+  const [challenges, setChallenges] = useState<ChallengeModel[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [featuredChallenge, setFeaturedChallenge] = useState<ChallengeModel | null>(null)
+  
   const itemsPerPage = 6
+  useEffect(() => {
+    const abortController = new AbortController();
+    let isSubscribed = true;
 
-  // Static dummy challenges data
-  const dummyChallenges = [
-    { id: 1, title: "Challenge 1", description: "Description for challenge 1." },
-    { id: 2, title: "Challenge 2", description: "Description for challenge 2." },
-    { id: 3, title: "Challenge 3", description: "Description for challenge 3." },
-    { id: 4, title: "Challenge 4", description: "Description for challenge 4." },
-    { id: 5, title: "Challenge 5", description: "Description for challenge 5." },
-    { id: 6, title: "Challenge 6", description: "Description for challenge 6." },
-    { id: 7, title: "Challenge 7", description: "Description for challenge 7." },
-    { id: 8, title: "Challenge 8", description: "Description for challenge 8." },
-    { id: 9, title: "Challenge 9", description: "Description for challenge 9." },
-  ]
+    const fetchChallenges = async () => {
+      setIsLoading(true);
+      try {
+        const result = await getChallenges(undefined, abortController.signal);
+        if (isSubscribed && result.success && result.challenges) {
+          setChallenges(result.challenges);
+          if (result.challenges.length > 0) {
+            setFeaturedChallenge(result.challenges[0]);
+          }
+        }
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Error fetching challenges:', error);
+        }
+      }
+      if (isSubscribed) {
+        setIsLoading(false);
+      }
+    };
 
-  const challenges = dummyChallenges
+    fetchChallenges();
 
+    return () => {
+      isSubscribed = false;
+      abortController.abort();
+    };
+  }, []);
   const totalItems = challenges.length
   const totalPages = Math.ceil(totalItems / itemsPerPage)
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
   }
-
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-
   return (
     <div className="min-h-screen flex flex-col">
       <main>
@@ -219,8 +237,12 @@ export default function Home() {
 
           {/* Challenge Grid */}
           <div className="grid grid-cols-3 gap-6">
-            {challenges.length === 0 ? (
-              <div className="text-center py-12">
+            {isLoading ? (
+              <div className="col-span-3 text-center py-12">
+                <p>Loading challenges...</p>
+              </div>
+            ) : challenges.length === 0 ? (
+              <div className="col-span-3 text-center py-12">
                 <h3 className="text-xl font-medium text-gray-600 mb-4">
                   No challenges found
                 </h3>
@@ -235,7 +257,18 @@ export default function Home() {
               </div>
             ) : (
               challenges.slice(startIndex, endIndex).map((challenge) => (
-                <ChallengeCard key={challenge.id} challenge={challenge} />
+                <ChallengeCard
+                  key={challenge.id}
+                  challenge={{
+                    id: challenge.id,
+                    title: challenge.title,
+                    description: challenge.description,
+                    creator: challenge.expand?.creator?.username,
+                    reward: challenge.reward,
+                    participants: challenge.participants?.length || 0,
+                    image: challenge.image ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
+                  }}
+                />
               ))
             )}
           </div>

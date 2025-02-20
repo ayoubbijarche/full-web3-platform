@@ -7,79 +7,121 @@ import { Video, Wallet, Users, Heart, MessageCircle, Share2, Trophy, User, Coins
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import mountImage from '@/assets/mount.png'
 import { SubmitVideoDialog } from "@/components/submit-video-dialog"
-import { useState } from "react"
+
+// First, fix the duplicate import
+import { getChatMessages, sendMessage, useAuth, type MessageModel } from "@/lib/pb"
+// Remove this line: import { useAuth } from "@/lib/pb"
+
+// Add useEffect import
+import { useState, useEffect } from "react"
 
 interface ChallengeDetailsProps {
   challenge: {
-    challengetitle: string
-    creator: string
-    reward: number
-    participants: string[]
-    maxparticipants: number
-    image?: string
-    description: string
-    keywords?: string[]
+    id: string;
+    challengetitle: string;
+    creator: string;
+    reward: number;
+    participants: string[];
+    maxparticipants: number;
+    image?: string;
+    description: string;
+    keywords?: string[];
+    chat: string;
   }
 }
 
 export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
+  const [messages, setMessages] = useState<MessageModel[]>([])
+  const [messageInput, setMessageInput] = useState("")
+  const auth = useAuth()
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const keywords = Array.isArray(challenge.keywords) ? challenge.keywords : []
   const imageUrl = challenge.image || "/placeholder-image.png"
-
+  
+  // Move useEffect here, before return
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const result = await getChatMessages(challenge.chat)
+      if (result.success) {
+        setMessages(result.messages)
+      }
+    }
+    fetchMessages()
+    const interval = setInterval(fetchMessages, 5000)
+    return () => clearInterval(interval)
+  }, [challenge.chat])
+  
+  // Move handleSendMessage here
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !auth.user || !challenge.chat) return;
+    
+    try {
+      const result = await sendMessage(challenge.chat, messageInput.trim());
+      if (result.success) {
+        setMessageInput("");
+        // Fetch updated messages after sending
+        const messagesResult = await getChatMessages(challenge.chat);
+        if (messagesResult.success) {
+          setMessages(messagesResult.messages);
+        }
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+  
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
-      {/* Main Content */}
       <div className="flex-1">
-        {/* Thumbnail */}
         <div className="border border-[#9A9A9A] rounded-xl overflow-hidden mb-4">
           <div className="aspect-video relative">
             <Image
-              src={mountImage}
-              alt="Challenge thumbnail"
+              src={challenge.image || mountImage}
+              alt={challenge.challengetitle}
               fill
               className="object-cover"
             />
           </div>
         </div>
 
-        {/* Title and Details */}
         <div className="p-3 mb-6">
           <div className="flex justify-between items-start mb-3">
-            <h1 className="text-2xl font-bold text-[#4A4A4A]">Mountain Climbing Challenge</h1>
-            <Button 
-              className="bg-[#b3731d] hover:bg-[#b3731d]/90"
-              onClick={() => {
-                // Handle join challenge
-              }}
-            >
-              Join Challenge 100 CPT
-            </Button>
+            <h1 className="text-2xl font-bold text-[#4A4A4A]">{challenge.challengetitle}</h1>
+            <div className="flex gap-2">
+              <Button 
+                className="bg-[#b3731d] hover:bg-[#b3731d]/90"
+                onClick={() => {
+                  // Handle join challenge
+                }}
+              >
+                Join Challenge 100 CPT
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => {
+                  // Handle report challenge
+                }}
+              >
+                Report Challenge
+              </Button>
+            </div>
           </div>
           <div className="flex items-center gap-6 mb-3">
             <div className="flex items-center gap-2 text-primary">
               <User className="h-5 w-5" />
-              <span>Steven</span>
-            </div>
-            <div className="flex items-center gap-2 text-primary">
-              <Video className="h-5 w-5" />
-              <span>1500</span>
+              <span>{challenge.creator}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Users className="h-5 w-5" />
-              <span>15M+</span>
+              <span>{challenge.participants.length}/{challenge.maxparticipants}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Coins className="h-5 w-5" />
-              <span>15M+</span>
-            </div>
-            <div className="flex items-center gap-2 text-primary">
-              <Ticket className="h-5 w-5" />
-              <span>15M+</span>
+              <span>{challenge.reward} CPT</span>
             </div>
           </div>
           <p className="text-gray-600">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+            {challenge.description}
           </p>
         </div>
 
@@ -120,7 +162,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
         </div>
       </div>
 
-      {/* Chat Section */}
+      {/* Chat Section - Fix the structure */}
       <div className="w-[320px] flex-shrink-0">
         <Button 
           className="w-full mb-4"
@@ -135,13 +177,49 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             <div className="space-y-4">
-              <div className="text-center text-gray-500 text-sm">Chat messages will appear here</div>
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-500 text-sm">No messages yet</div>
+              ) : (
+                messages.map((message) => (
+                  <div 
+                    key={message.id}
+                    className={`flex flex-col ${message.expand?.sender?.id === auth.user?.id ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs text-gray-500">
+                        {message.expand?.sender?.username || 'Anonymous'}
+                      </span>
+                    </div>
+                    <div className={`rounded-2xl px-4 py-2 max-w-[80%] ${
+                      message.expand?.sender?.id === auth.user?.id 
+                        ? 'bg-[#b3731d] text-white' 
+                        : 'bg-gray-100'
+                    }`}>
+                      <p className="text-sm">{message.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           <div className="p-3 border-t border-[#9A9A9A]">
             <div className="flex gap-2">
-              <Input placeholder="Input your msg" className="rounded-full text-sm" />
-              <Button size="sm">
+              <Input 
+                placeholder="Type your message" 
+                className="rounded-full text-sm"
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSendMessage()
+                  }
+                }}
+              />
+              <Button 
+                size="sm"
+                onClick={handleSendMessage}
+                disabled={!auth.isAuthenticated}
+              >
                 Send
               </Button>
             </div>
