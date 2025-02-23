@@ -28,10 +28,13 @@ export type MessageModel = {
   created: string;
   updated: string;
   expand?: {
-    sender: UserModel;
+    sender?: {
+      id: string;
+      username: string;
+      avatar?: string;
+    };
   };
 };
-
 export type ChatModel = {
   id: string;
   challenge: string;
@@ -104,20 +107,26 @@ export async function sendMessage(chatId: string, text: string) {
     };
   }
 }
-
-export async function getChatMessages(chatId: string) {
+export const getChatMessages = async (chatId: string) => {
   try {
-    const chat = await pb.collection('chat').getOne(chatId, {
-      expand: 'messages.sender'
+    const messages = await pb.collection('messages').getList(1, 50, {
+      filter: `chat = "${chatId}"`,
+      sort: '+created',
+      expand: 'sender'
     });
-    return { 
-      success: true, 
-      messages: chat.expand?.messages || [] 
+    
+    return {
+      success: true,
+      messages: messages.items
     };
   } catch (error) {
-    return { success: false, error: 'Failed to fetch messages' };
+    console.error('Error fetching messages:', error);
+    return {
+      success: false,
+      messages: []
+    };
   }
-}
+};
 // Add a simple event system
 const listeners = new Set<() => void>();
 

@@ -41,11 +41,30 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   // Move useEffect here, before return
   useEffect(() => {
     const fetchMessages = async () => {
-      const result = await getChatMessages(challenge.chat)
-      if (result.success) {
-        setMessages(result.messages)
+      try {
+        const result = await getChatMessages(challenge.chat)
+        if (result.success && Array.isArray(result.messages)) {
+          // Sort messages by creation date if available
+          const sortedMessages = result.messages.map(record => ({
+            id: record.id,
+            text: record.text || '',
+            sender: record.sender || '',
+            chat: record.chat || '',
+            created: record.created || new Date().toISOString(),
+            updated: record.updated || new Date().toISOString(),
+            expand: record.expand
+          })).sort((a, b) => 
+            new Date(a.created).getTime() - new Date(b.created).getTime()
+          );
+          setMessages(sortedMessages)
+        } else {
+          console.error('Failed to fetch messages or invalid response format')
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error)
       }
     }
+    
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
@@ -61,8 +80,19 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
         setMessageInput("");
         // Fetch updated messages after sending
         const messagesResult = await getChatMessages(challenge.chat);
-        if (messagesResult.success) {
-          setMessages(messagesResult.messages);
+        if (messagesResult.success && Array.isArray(messagesResult.messages)) {
+          const sortedMessages = messagesResult.messages.map(record => ({
+            id: record.id,
+            text: record.text || '',
+            sender: record.sender || '',
+            chat: record.chat || '',
+            created: record.created || new Date().toISOString(),
+            updated: record.updated || new Date().toISOString(),
+            expand: record.expand
+          })).sort((a, b) => 
+            new Date(a.created).getTime() - new Date(b.created).getTime()
+          );
+          setMessages(sortedMessages);
         }
       }
     } catch (error) {
@@ -183,11 +213,31 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                 messages.map((message) => (
                   <div 
                     key={message.id}
-                    className={`flex flex-col ${message.expand?.sender?.id === auth.user?.id ? 'items-end' : 'items-start'}`}
+                    className={`flex flex-col ${
+                      message.expand?.sender?.id === auth.user?.id ? 'items-end' : 'items-start'
+                    }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
+                      <Avatar className="h-6 w-6">
+                        {message.expand?.sender?.avatar ? (
+                          <Image
+                            src={`http://127.0.0.1:8090/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
+                            alt={message.expand.sender.username || 'User avatar'}
+                            width={24}
+                            height={24}
+                            className="rounded-full object-cover"
+                          />
+                        ) : (
+                          <AvatarFallback>
+                            {(message.expand?.sender?.username || 'A').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
                       <span className="text-xs text-gray-500">
                         {message.expand?.sender?.username || 'Anonymous'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(message.created).toLocaleTimeString()}
                       </span>
                     </div>
                     <div className={`rounded-2xl px-4 py-2 max-w-[80%] ${
