@@ -7,9 +7,42 @@ import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticke
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import mountImage from '@/assets/mount.png'
 import { SubmitVideoDialog } from "@/components/submit-video-dialog"
-import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, type VideoSubmissionModel, type ChallengeModel } from "@/lib/pb"
+import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel } from "@/lib/pb"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+
+// Update the VideoSubmissionModel type to include voters
+interface VideoSubmissionModel {
+  id: string;
+  description: string;
+  video: string;
+  challenge: string;
+  participant: string;
+  sender: string;
+  likes: string[];
+  dislikes: string[];
+  created: string;
+  updated: string;
+  collectionId: string;
+  expand?: {
+    participant?: {
+      id: string;
+      username: string;
+      avatar?: string;
+    };
+    challenge?: {
+      id: string;
+      title: string;
+    };
+    sender?: {
+      id: string;
+      username: string;
+      avatar?: string;
+    };
+    voters?: Array<{ id: string; username: string }>;
+  };
+  voters?: string[];
+}
 
 interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -32,6 +65,9 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}`
     : "/placeholder-image.png"
   const router = useRouter()
+  const [dataVersion, setDataVersion] = useState(0);
+  const [isVoting, setIsVoting] = useState(false);
+  const [voteError, setVoteError] = useState<string | null>(null);
   
   useEffect(() => {
     console.log('Challenge in component:', challenge);
@@ -145,7 +181,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       isMounted = false;
       controller.abort();
     };
-  }, [challenge.id]);
+  }, [challenge.id, dataVersion]);
   
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !auth.user || !challenge.chat) return;
@@ -177,7 +213,11 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   };
   
   const handleJoinChallenge = async () => {
-    if (!auth.user) return;
+    if (!auth.user) {
+      router.push('/signup');
+      return;
+    }
+    
     setIsJoining(true);
     setJoinError(null);
     try {
@@ -185,7 +225,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       if (!result.success) {
         setJoinError(result.error || 'Failed to join challenge');
       } else {
-        router.refresh()
+        setDataVersion(v => v + 1); // Trigger refresh
+        router.refresh();
       }
     } catch (error) {
       setJoinError('Failed to join challenge');
@@ -279,6 +320,37 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       console.error('Error disliking video:', error);
     }
   };
+
+  const handleVote = async (submissionId: string) => {
+    if (!auth.user) {
+      router.push('/signup');
+      return;
+    }
+
+    setIsVoting(true);
+    setVoteError(null);
+
+    try {
+      const result = await voteForSubmission(submissionId, auth.user.id);
+      if (result.success) {
+        setVideoSubmissions(prevSubmissions => 
+          prevSubmissions.map(sub => 
+            sub.id === submissionId 
+              ? { ...sub, voters: result.submission.voters || [] }
+              : sub
+          )
+        );
+        setDataVersion(v => v + 1);
+        router.refresh();
+      } else {
+        setVoteError(result.error || 'Failed to vote');
+      }
+    } catch (error) {
+      setVoteError('Failed to vote');
+    } finally {
+      setIsVoting(false);
+    }
+  };
   
   const isCreator = auth.user?.id === challenge.creator;
   const isParticipant = auth.user && challenge.participants.includes(auth.user.id);
@@ -288,12 +360,21 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       <div className="flex-1">
         <div className="border border-[#9A9A9A] rounded-xl overflow-hidden mb-4">
           <div className="aspect-video relative">
-            <Image
-              src={imageUrl}
-              alt={challenge.title}
-              fill
-              className="object-cover"
-            />
+            {challenge.challengevideo ? (
+              <video
+                src={`http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.challengevideo}`}
+                controls
+                className="w-full h-full object-cover"
+                poster={imageUrl} // Use image as fallback poster
+              />
+            ) : (
+              <Image
+                src={imageUrl}
+                alt={challenge.title}
+                fill
+                className="object-cover"
+              />
+            )}
           </div>
         </div>
 
@@ -302,20 +383,34 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             <h1 className="text-2xl font-bold text-[#4A4A4A]">{challenge.title}</h1>
             <div className="flex gap-2">
               <Button 
-                className={`flex items-center ${isCreator || isParticipant || isJoining 
-                      ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
-                      : 'bg-[#b3731d] hover:bg-[#b3731d]/90'}`}
+                className={`flex items-center ${
+                  isCreator || isParticipant || isJoining 
+                    ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
+                    : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
+                }`}
                 onClick={handleJoinChallenge}
                 disabled={isCreator || isParticipant || isJoining}
-                title={isCreator ? "You cannot join your own challenge" : isParticipant ? "You are already a participant" : isJoining ? "Joining..." : "Join this challenge"}
+                title={
+                  !auth.user 
+                    ? "Sign up to join this challenge" 
+                    : isCreator 
+                      ? "You cannot join your own challenge" 
+                      : isParticipant 
+                        ? "You are already a participant" 
+                        : isJoining 
+                          ? "Joining..." 
+                          : "Join this challenge"
+                }
               >
                 {isJoining 
                   ? "Joining..." 
-                  : isCreator 
-                    ? "Creator can't participate" 
-                    : isParticipant 
-                      ? "Already Joined" 
-                      : "Join Challenge 100 CPT"}
+                  : !auth.user
+                    ? "Sign up to Join"
+                    : isCreator 
+                      ? "Creator can't participate" 
+                      : isParticipant 
+                        ? "Already Joined" 
+                        : "Join Challenge 100 CPT"}
               </Button>
               {joinError && (
                 <div className="text-red-500 text-sm">{joinError}</div>
@@ -439,9 +534,33 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                       Submitted {new Date(submission.created).toLocaleDateString()}
                     </div>
                     <div className="flex justify-end items-center gap-4 mt-4">
-                      <Button variant="default" size="sm">
-                        Vote (5 $CPT)
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => handleVote(submission.id)}
+                        disabled={isVoting || (submission.voters || []).includes(auth.user?.id)}
+                        className={`${
+                          (submission.voters || []).includes(auth.user?.id)
+                            ? 'bg-gray-300 hover:bg-gray-300 cursor-not-allowed text-gray-600'
+                            : 'bg-primary hover:bg-primary/90'
+                        }`}
+                        title={
+                          !auth.user 
+                            ? "Sign up to vote" 
+                            : (submission.voters || []).includes(auth.user?.id)
+                              ? "Already voted"
+                              : "Vote for this submission"
+                        }
+                      >
+                        {isVoting 
+                          ? "Voting..." 
+                          : (submission.voters || []).includes(auth.user?.id)
+                            ? "Already voted"
+                            : "Vote"}
                       </Button>
+                      {!isVoting && voteError && (
+                        <div className="text-red-500 text-xs">{voteError}</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -547,6 +666,10 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           open={isSubmitDialogOpen} 
           onOpenChange={setIsSubmitDialogOpen}
           challengeId={challenge.id}
+          onSubmitSuccess={() => {
+            setDataVersion(v => v + 1); // Trigger refresh after submission
+            setIsSubmitDialogOpen(false);
+          }}
         />
       </div>
     </div>

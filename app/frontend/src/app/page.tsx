@@ -320,17 +320,17 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-center gap-8">
             <Link
-              href="/help"
+              href="/faq"
               className="text-gray-600 hover:text-[#b3731d] transition-colors"
             >
-              Help Center
+              FAQ
             </Link>
             <span className="text-gray-300">|</span>
             <Link
-              href="/contact"
+              href="/usage"
               className="text-gray-600 hover:text-[#b3731d] transition-colors"
             >
-              Contact Us
+              HOW TO USE COINPETITIVE
             </Link>
             <span className="text-gray-300">|</span>
             <Link

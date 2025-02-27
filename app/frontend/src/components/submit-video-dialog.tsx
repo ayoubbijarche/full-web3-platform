@@ -12,13 +12,21 @@ import { submitVideo, useAuth } from "@/lib/pb"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
+// Update the interface to include onSubmitSuccess
 interface SubmitVideoDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   challengeId: string
+  onSubmitSuccess?: () => void  // Add this line
 }
 
-export function SubmitVideoDialog({ open, onOpenChange, challengeId }: SubmitVideoDialogProps) {
+// Update the component to include the new prop
+export function SubmitVideoDialog({ 
+  open, 
+  onOpenChange, 
+  challengeId,
+  onSubmitSuccess 
+}: SubmitVideoDialogProps) {
   const [description, setDescription] = useState("")
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -69,6 +77,7 @@ export function SubmitVideoDialog({ open, onOpenChange, challengeId }: SubmitVid
         setVideoFile(null)
         setPreviewUrl(null)
         onOpenChange(false)
+        onSubmitSuccess?.() // Call the success callback
         router.refresh()
       } else {
         setError(result.error || "Failed to submit video")

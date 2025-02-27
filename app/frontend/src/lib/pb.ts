@@ -62,6 +62,7 @@ export type ChallengeModel = {
   submission_end: string;
   voting_end: string;
   image?: string;
+  challengevideo?: string; // Add this new field for the video file
   state: 'registration' | 'submission' | 'voting' | 'completed';
   creator: string;
   chat: string; // Chat ID
@@ -89,6 +90,8 @@ export type VideoSubmissionModel = {
   dislikes: number;    // Changed from string[] to number
   likedBy: string[];   // This remains an array (relation field)
   dislikedBy: string[]; // This remains an array (relation field)
+  voters?: string[];
+  votersCount?: number;
   created: string;
   updated: string;
   collectionId?: string;
@@ -96,6 +99,11 @@ export type VideoSubmissionModel = {
     participant: UserModel;
     challenge: ChallengeModel;
     sender?: UserModel;
+    voters?: Array<{
+      id: string;
+      username: string;
+      avatar?: string;
+    }>;
   };
 };
 
@@ -234,13 +242,13 @@ export async function createChallenge(data: {
   submissionEnd: string;
   votingEnd: string;
   image?: File;
+  challengevideo?: File;
 }) {
   try {
     if (!pb.authStore.model) {
       throw new Error('Must be authenticated to create challenge');
     }
 
-    // First create a chat room
     const chatRoom = await pb.collection('chat').create({
       messages: []
     });
@@ -250,7 +258,13 @@ export async function createChallenge(data: {
       if (key === 'keywords') {
         formData.append(key, JSON.stringify(value));
       } else if (value instanceof File) {
-        formData.append(key, value);
+        // Map file field names to match the database schema
+        const fileFieldMap: Record<string, string> = {
+          'image': 'image',
+          'challengevideo': 'challengevideo'
+        };
+        const dbFieldName = fileFieldMap[key] || key;
+        formData.append(dbFieldName, value);
       } else if (value !== undefined) {
         // Map the field names to match the database schema
         const fieldMap: Record<string, string> = {
@@ -273,13 +287,13 @@ export async function createChallenge(data: {
 
     const challenge = await pb.collection('challenges').create(formData);
     
-    // Update chat with challenge reference
     await pb.collection('chat').update(chatRoom.id, {
       challenge: challenge.id
     });
 
     return { success: true, challenge: challenge as unknown as ChallengeModel };
   } catch (error) {
+    console.error('Error creating challenge:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create challenge',
@@ -736,3 +750,36 @@ const handleError = (error: unknown) => {
     error: error instanceof Error ? error.message : 'Operation failed' 
   };
 };
+
+
+export async function voteForSubmission(submissionId: string, userId: string) {
+  try {
+    const submission = await pb.collection('video_submitted').getOne(submissionId);
+    const voters = submission.voters || [];
+    
+    // Check if user already voted
+    if (voters.includes(userId)) {
+      return {
+        success: false,
+        error: 'You have already voted for this submission'
+      };
+    }
+
+    // Add user to voters array and increment votersCount
+    const updatedSubmission = await pb.collection('video_submitted').update(submissionId, {
+      voters: [...voters, userId],
+      votersCount: (voters.length + 1) // Increment voters count
+    });
+
+    return {
+      success: true,
+      submission: updatedSubmission
+    };
+  } catch (error) {
+    console.error('Error voting:', error);
+    return {
+      success: false,
+      error: 'Failed to vote'
+    };
+  }
+}

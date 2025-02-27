@@ -38,7 +38,7 @@ export default function CreateChallengePage() {
     votingFees: "0.000",
     reward: "0.000",
     description: "",
-    demoVideoLink: "",
+    demoVideo: null as File | null, // Replace demoVideoLink with this
     keywords: "",
     registration_end: "",
     submission_end: "",
@@ -66,6 +66,13 @@ export default function CreateChallengePage() {
       setSelectedImage(file)
       const url = URL.createObjectURL(file)
       setPreviewUrl(url)
+    }
+  }
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setFormData(prev => ({ ...prev, demoVideo: file }))
     }
   }
 
@@ -321,13 +328,30 @@ export default function CreateChallengePage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Demo Video Link</Label>
-                <Input 
-                  placeholder="https://"
-                  value={formData.demoVideoLink}
-                  onChange={(e) => setFormData(prev => ({ ...prev, demoVideoLink: e.target.value }))}
-                  className="border-[#8a8a8a] rounded-[50px]"
-                />
+                <Label>Demo Video</Label>
+                <div className="relative">
+                  <Input 
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoSelect}
+                    className="hidden"
+                    id="video-upload"
+                  />
+                  <label 
+                    htmlFor="video-upload" 
+                    className="flex items-center gap-2 px-4 h-10 border border-[#8a8a8a] rounded-[50px] cursor-pointer hover:bg-gray-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span className="text-gray-600">
+                      {formData.demoVideo ? formData.demoVideo.name : 'Upload Video'}
+                    </span>
+                  </label>
+                  {formData.demoVideo && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Selected: {formData.demoVideo.name}
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
                 <Label>Keywords</Label>
