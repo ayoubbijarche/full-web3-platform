@@ -14,7 +14,10 @@ export default function ChallengePage({ params }: { params: Promise<{ id: string
       setIsLoading(true)
       const result = await getChallenges(resolvedParams.id)
       if (result.success && result.challenges && result.challenges.length > 0) {
-        setChallenge(result.challenges[0])  // Get the first challenge since we're fetching by ID
+        const challengeData = result.challenges[0];
+        console.log('Challenge data:', challengeData);
+        console.log('Video submission:', challengeData.expand?.video_submited);
+        setChallenge(challengeData)  // Get the first challenge since we're fetching by ID
       }
       setIsLoading(false)
     }
@@ -39,20 +42,7 @@ export default function ChallengePage({ params }: { params: Promise<{ id: string
   }
   return (
     <main className="container mx-auto px-4 py-8">
-      <ChallengeDetails 
-        challenge={{
-          id: challenge.id,  // Add this line
-          challengetitle: challenge.title,
-          creator: (challenge.expand?.creator as any)?.username || 'Anonymous',
-          reward: challenge.reward,
-          participants: challenge.participants,
-          maxparticipants: challenge.maxParticipants,
-          image: challenge.image ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined,
-          description: challenge.description,
-          keywords: challenge.keywords,
-          chat: challenge.chat // Add this line
-        }} 
-      />
+      <ChallengeDetails challenge={challenge} />
     </main>
   )
 }

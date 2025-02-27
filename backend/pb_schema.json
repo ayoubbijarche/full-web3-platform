@@ -340,6 +340,19 @@
         "type": "relation"
       },
       {
+        "cascadeDelete": false,
+        "collectionId": "pbc_3191176669",
+        "hidden": false,
+        "id": "relation1404782945",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "videos_submitted",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
         "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
@@ -1045,6 +1058,19 @@
         "type": "relation"
       },
       {
+        "cascadeDelete": false,
+        "collectionId": "pbc_3191176669",
+        "hidden": false,
+        "id": "relation842193697",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "video_submited",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
         "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
@@ -1293,6 +1319,82 @@
         "system": false,
         "thumbs": [],
         "type": "file"
+      },
+      {
+        "hidden": false,
+        "id": "number1237995133",
+        "max": null,
+        "min": null,
+        "name": "likes",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "number770948625",
+        "max": null,
+        "min": null,
+        "name": "dislikes",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "cascadeDelete": false,
+        "collectionId": "pbc_4177893232",
+        "hidden": false,
+        "id": "relation3607726417",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "challenge",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "cascadeDelete": false,
+        "collectionId": "_pb_users_auth_",
+        "hidden": false,
+        "id": "relation3617549073",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "participant",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "cascadeDelete": false,
+        "collectionId": "_pb_users_auth_",
+        "hidden": false,
+        "id": "relation3100860915",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "likedBy",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "cascadeDelete": false,
+        "collectionId": "_pb_users_auth_",
+        "hidden": false,
+        "id": "relation3425096573",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "dislikedBy",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
       },
       {
         "hidden": false,

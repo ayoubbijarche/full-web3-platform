@@ -89,7 +89,11 @@ export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
         </form>
         <div className="mt-4 text-center">
           <span className="text-gray-500">Don't have an account? </span>
-          <Link href="/signup" className="text-[#b3731d] hover:text-[#b3731d]/80 font-medium">
+          <Link 
+            href="/signup" 
+            className="text-[#b3731d] hover:text-[#b3731d]/80 font-medium"
+            onClick={() => onOpenChange?.(false)}
+          >
             Sign Up
           </Link>
         </div>
