@@ -35,14 +35,15 @@ export default function CreateChallengePage() {
     category: "",
     maxparticipants: "",
     voters: "",
-    votingFees: "0.000",
-    reward: "0.000",
+    votingFees: "0",
+    participation_fee: "0", // Add this line
+    reward: "0",
     description: "",
     demoVideo: null as File | null, // Replace demoVideoLink with this
     keywords: "",
-    registration_end: "",
-    submission_end: "",
-    voting_end: "",
+    registration_end: "", // Will store number of days
+    submission_end: "",   // Will store number of days
+    voting_end: "",      // Will store number of days
     participantsNickname: "",
     votersNickname: "",
   })
@@ -82,6 +83,10 @@ export default function CreateChallengePage() {
     setIsLoading(true)
 
     try {
+      // Convert days to timestamps (milliseconds since epoch)
+      const now = Date.now()
+      const msPerDay = 24 * 60 * 60 * 1000 // milliseconds in a day
+
       const result = await createChallenge({
         title: formData.challengetitle,
         category: formData.category,
@@ -89,10 +94,14 @@ export default function CreateChallengePage() {
         reward: Number(formData.reward),
         description: formData.description,
         keywords: formData.keywords.split(",").map(k => k.trim()).filter(k => k),
-        registrationEnd: formData.registration_end,
-        submissionEnd: formData.submission_end,
-        votingEnd: formData.voting_end,
+        registrationEnd: now + (Number(formData.registration_end) * msPerDay),
+        submissionEnd: now + (Number(formData.submission_end) * msPerDay),
+        votingEnd: now + (Number(formData.voting_end) * msPerDay),
         image: selectedImage || undefined,
+        challengevideo: formData.demoVideo || undefined,
+        voting_fee: Number(formData.votingFees),
+        participation_fee: Number(formData.participation_fee),
+        creator: auth.user?.id || '', // Add creator ID from auth
       })
 
       if (result.success && result.challenge) {
@@ -223,40 +232,52 @@ export default function CreateChallengePage() {
 
             <div className="grid grid-cols-3 gap-16">
               <div>
-                <Label>Registration End</Label>
+                <Label>Registration Period (days)</Label>
                 <div className="relative w-[260px]">
                   <Input 
-                    type="datetime-local"
+                    type="number"
+                    min="1"
                     value={formData.registration_end}
-                    onChange={(e) => setFormData(prev => ({ ...prev, registration_end: e.target.value }))}
-                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full appearance-none"
-                    style={{ colorScheme: 'light' }}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      registration_end: e.target.value 
+                    }))}
+                    placeholder="Enter days"
+                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
               </div>
               <div>
-                <Label>Submission End</Label>
+                <Label>Submission Period (days)</Label>
                 <div className="relative w-[260px]">
                   <Input 
-                    type="datetime-local"
+                    type="number"
+                    min="1"
                     value={formData.submission_end}
-                    onChange={(e) => setFormData(prev => ({ ...prev, submission_end: e.target.value }))}
-                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full appearance-none"
-                    style={{ colorScheme: 'light' }}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      submission_end: e.target.value 
+                    }))}
+                    placeholder="Enter days"
+                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
               </div>
               <div>
-                <Label>Voting End</Label>
+                <Label>Voting Period (days)</Label>
                 <div className="relative w-[260px]">
                   <Input 
-                    type="datetime-local"
+                    type="number"
+                    min="1"
                     value={formData.voting_end}
-                    onChange={(e) => setFormData(prev => ({ ...prev, voting_end: e.target.value }))}
-                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full appearance-none"
-                    style={{ colorScheme: 'light' }}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      voting_end: e.target.value 
+                    }))}
+                    placeholder="Enter days"
+                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
@@ -296,22 +317,52 @@ export default function CreateChallengePage() {
               </div>
             </div>
 
-            <div>
-              <Label>Voting Fees</Label>
-              <Input 
-                value={formData.votingFees}
-                onChange={(e) => setFormData(prev => ({ ...prev, votingFees: e.target.value }))}
-                className="max-w-[200px] border-[#8a8a8a] rounded-[50px]"
-              />
-            </div>
-
-            <div>
-              <Label>Reward</Label>
-              <Input 
-                value={formData.reward}
-                onChange={(e) => setFormData(prev => ({ ...prev, reward: e.target.value }))}
-                className="border-[#8a8a8a] rounded-[50px]"
-              />
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Voting Fee</Label>
+                <Input 
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={formData.votingFees}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    votingFees: e.target.value 
+                  }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                  placeholder="0.000 CPT"
+                />
+              </div>
+              <div>
+                <Label>Participation Fee</Label>
+                <Input 
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={formData.participation_fee}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    participation_fee: e.target.value 
+                  }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                  placeholder="0.000 CPT"
+                />
+              </div>
+              <div>
+                <Label>Reward</Label>
+                <Input 
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={formData.reward}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    reward: e.target.value 
+                  }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                  placeholder="0.000 CPT"
+                />
+              </div>
             </div>
 
             <div>

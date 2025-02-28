@@ -11,38 +11,6 @@ import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-// Update the VideoSubmissionModel type to include voters
-interface VideoSubmissionModel {
-  id: string;
-  description: string;
-  video: string;
-  challenge: string;
-  participant: string;
-  sender: string;
-  likes: string[];
-  dislikes: string[];
-  created: string;
-  updated: string;
-  collectionId: string;
-  expand?: {
-    participant?: {
-      id: string;
-      username: string;
-      avatar?: string;
-    };
-    challenge?: {
-      id: string;
-      title: string;
-    };
-    sender?: {
-      id: string;
-      username: string;
-      avatar?: string;
-    };
-    voters?: Array<{ id: string; username: string }>;
-  };
-  voters?: string[];
-}
 
 interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -68,6 +36,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [dataVersion, setDataVersion] = useState(0);
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
+  const isCreator = auth.user?.id === challenge.creator;
   
   useEffect(() => {
     console.log('Challenge in component:', challenge);
@@ -225,8 +194,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       if (!result.success) {
         setJoinError(result.error || 'Failed to join challenge');
       } else {
-        setDataVersion(v => v + 1); // Trigger refresh
-        router.refresh();
+        // Force a hard refresh of the page
+        window.location.reload();
       }
     } catch (error) {
       setJoinError('Failed to join challenge');
@@ -322,39 +291,64 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   };
 
   const handleVote = async (submissionId: string) => {
-    if (!auth.user) {
-      router.push('/signup');
-      return;
-    }
-
-    setIsVoting(true);
-    setVoteError(null);
-
+    if (!auth.user) return;
+    
     try {
+      setIsVoting(true);
+      setVoteError(null);
+      
+      const submission = videoSubmissions.find(sub => sub.id === submissionId);
+      if (!submission) {
+        setVoteError('Submission not found');
+        return;
+      }
+  
       const result = await voteForSubmission(submissionId, auth.user.id);
-      if (result.success) {
+      if (!result.success) {
+        setVoteError(result.error || 'Failed to vote');
+      } else {
+        // Update local state
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => 
             sub.id === submissionId 
-              ? { ...sub, voters: result.submission.voters || [] }
+              ? { 
+                  ...sub, 
+                  voters: [...(sub.voters || []), auth.user!.id],
+                  ...result.submission 
+                }
               : sub
           )
         );
-        setDataVersion(v => v + 1);
-        router.refresh();
-      } else {
-        setVoteError(result.error || 'Failed to vote');
       }
     } catch (error) {
-      setVoteError('Failed to vote');
+      console.error('Error voting:', error);
+      setVoteError('Failed to vote. Please try again.');
     } finally {
       setIsVoting(false);
     }
   };
   
-  const isCreator = auth.user?.id === challenge.creator;
   const isParticipant = auth.user && challenge.participants.includes(auth.user.id);
+  const isVoter = auth.user && videoSubmissions.some(submission => submission.voters?.includes(auth.user!.id));
   
+  // Add this function at the component level to check if user has voted in this challenge
+  const hasVotedInChallenge = (userId: string) => {
+    return videoSubmissions.some(submission => 
+      submission.voters?.includes(userId)
+    );
+  };
+
+  // First, add a helper function at the component level
+  const hasUserVotedInChallenge = (videoSubmissions: VideoSubmissionModel[], userId?: string) => {
+    if (!userId) return false;
+    return videoSubmissions.some(submission => 
+      submission.voters?.includes(userId)
+    );
+  };
+
+  // Add this helper function at the component level
+
+
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
       <div className="flex-1">
@@ -365,15 +359,20 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                 src={`http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.challengevideo}`}
                 controls
                 className="w-full h-full object-cover"
-                poster={imageUrl} // Use image as fallback poster
+                playsInline // Add playsinline for better mobile support
               />
-            ) : (
+            ) : challenge.image ? (
               <Image
                 src={imageUrl}
                 alt={challenge.title}
                 fill
                 className="object-cover"
               />
+            ) : (
+              // Fallback when neither video nor image is available
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <Video className="h-12 w-12 text-gray-400" />
+              </div>
             )}
           </div>
         </div>
@@ -418,20 +417,15 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
               <Button 
                 variant="destructive"
                 onClick={handleReportChallenge}
-                disabled={isReporting}
+                disabled={isReporting || isCreator}
                 className="flex items-center"
+                title={isCreator ? "You cannot report your own challenge" : "Report this challenge"}
               >
                 <AlertTriangle className="h-4 w-4 mr-1" />
                 {isReporting ? "Reporting..." : "Report"}
               </Button>
             </div>
           </div>
-          {reportError && (
-            <div className="text-red-500 text-sm mb-2">{reportError}</div>
-          )}
-          {reportSuccess && (
-            <div className="text-green-500 text-sm mb-2">{reportSuccess}</div>
-          )}
           <div className="flex items-center gap-6 mb-3">
             <div className="flex items-center gap-2 text-primary">
               <User className="h-5 w-5" />
@@ -439,11 +433,15 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Users className="h-5 w-5" />
-              <span>{challenge.participants.length}/{challenge.maxparticipats}</span>
+              <span>{challenge.participants.length}/{challenge.maxparticipants}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Coins className="h-5 w-5" />
               <span>{challenge.reward} CPT</span>
+            </div>
+            <div className="flex items-center gap-2 text-primary">
+              <Ticket className="h-5 w-5" />
+              <span>{challenge.voting_fee} CPT</span>
             </div>
           </div>
           <p className="text-gray-600">
@@ -463,107 +461,136 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           ) : videoSubmissions.length > 0 ? (
             <div className="space-y-4">
               {videoSubmissions.map((submission) => (
-                <div key={submission.id} className="flex gap-4 border border-[#9A9A9A] rounded-xl p-4">
-                  <div className="w-full md:w-1/3 flex flex-col">
-                    <div className="aspect-video bg-gray-200 rounded-xl overflow-hidden relative">
-                      {submission.video && (
-                        <>
-                          <video 
-                            src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
-                            className="w-full h-full object-cover rounded-xl"
-                            controls
-                          />
-                        </>
-                      )}
-                    </div>
-                    {/* Like/Dislike buttons under thumbnail */}
-                    <div className="flex justify-start items-center gap-6 mt-2 pl-1">
-                      <div className="flex items-center gap-1">
-                        <ThumbsUp 
-                          className={`h-5 w-5 cursor-pointer ${
-                            Array.isArray(submission.likes) && submission.likes.includes(auth.user?.id) 
-                              ? 'text-primary fill-primary' 
-                              : 'text-gray-500 hover:text-primary'
-                          }`}
-                          onClick={() => handleLikeVideo(submission.id)}
-                        />
-                        <span className="text-sm">
-                          {Array.isArray(submission.likes) ? submission.likes.length : 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ThumbsDown 
-                          className={`h-5 w-5 cursor-pointer ${
-                            Array.isArray(submission.dislikes) && submission.dislikes.includes(auth.user?.id)
-                              ? 'text-primary fill-primary' 
-                              : 'text-gray-500 hover:text-primary'
-                          }`}
-                          onClick={() => handleDislikeVideo(submission.id)}
-                        />
-                        <span className="text-sm">
-                          {Array.isArray(submission.dislikes) ? submission.dislikes.length : 0}
-                        </span>
-                      </div>
-                    </div>
+              <div key={submission.id} className="flex gap-4 border border-[#9A9A9A] rounded-xl p-4">
+                <div className="w-full md:w-1/3 flex flex-col">
+                <div className="aspect-video bg-gray-200 rounded-xl overflow-hidden relative">
+                  {submission.video && (
+                  <>
+                    <video 
+                    src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
+                    className="w-full h-full object-cover rounded-xl"
+                    controls
+                    />
+                  </>
+                  )}
+                </div>
+                {/* Like/Dislike buttons under thumbnail */}
+                <div className="flex justify-start items-center gap-6 mt-2 pl-1">
+                  <div className="flex items-center gap-1">
+                  <ThumbsUp 
+                    className={`h-5 w-5 cursor-pointer ${
+                    Array.isArray(submission.likes) && submission.likes.includes(auth.user?.id) 
+                      ? 'text-primary fill-primary' 
+                      : 'text-gray-500 hover:text-primary'
+                    }`}
+                    onClick={() => handleLikeVideo(submission.id)}
+                  />
+                  <span className="text-sm">
+                    {Array.isArray(submission.likes) ? submission.likes.length : 0}
+                  </span>
                   </div>
-                  <div className="flex-1 flex flex-col">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Avatar className="h-6 w-6">
-                        {submission.expand?.participant?.avatar ? (
-                          <Image
-                            src={`http://127.0.0.1:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
-                            alt={submission.expand.participant.username || 'User avatar'}
-                            width={24}
-                            height={24}
-                            className="rounded-full object-cover"
-                          />
-                        ) : (
-                          <AvatarFallback>
-                            {((submission.expand?.participant?.username || 'A')).charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <span className="font-medium text-sm">
-                        {submission.expand?.participant?.username || 'Participant'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">
-                      {submission.description}
-                    </p>
-                    <div className="text-xs text-gray-500 mb-auto">
-                      Submitted {new Date(submission.created).toLocaleDateString()}
-                    </div>
-                    <div className="flex justify-end items-center gap-4 mt-4">
+                  <div className="flex items-center gap-1">
+                  <ThumbsDown 
+                    className={`h-5 w-5 cursor-pointer ${
+                    Array.isArray(submission.dislikes) && submission.dislikes.includes(auth.user?.id)
+                      ? 'text-primary fill-primary' 
+                      : 'text-gray-500 hover:text-primary'
+                    }`}
+                    onClick={() => handleDislikeVideo(submission.id)}
+                  />
+                  <span className="text-sm">
+                    {Array.isArray(submission.dislikes) ? submission.dislikes.length : 0}
+                  </span>
+                  </div>
+                </div>
+                </div>
+                <div className="flex-1 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <Avatar className="h-6 w-6">
+                  {submission.expand?.participant?.avatar ? (
+                    <Image
+                    src={`http://127.0.0.1:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
+                    alt={submission.expand.participant.username || 'User avatar'}
+                    width={24}
+                    height={24}
+                    className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <AvatarFallback>
+                    {((submission.expand?.participant?.username || 'A')).charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                  </Avatar>
+                  <span className="font-medium text-sm">
+                  {submission.expand?.participant?.username || 'Participant'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 mb-2">
+                  {submission.description}
+                </p>
+                <div className="text-xs text-gray-500 mb-auto">
+                  Submitted {new Date(submission.created).toLocaleDateString()}
+                </div>
+                <div className="flex justify-end items-center gap-4 mt-4">
+                    {!auth.user ? (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-[#b3731d]/40 hover:bg-[#b3731d]/40 cursor-not-allowed"
+                        disabled={true}
+                        title="Sign in to vote"
+                      >
+                        Sign in to vote
+                      </Button>
+                    ) : !isParticipant ? (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-[#b3731d]/40 hover:bg-[#b3731d]/40 cursor-not-allowed"
+                        disabled={true}
+                        title="Join challenge to vote"
+                      >
+                        Join to vote
+                      </Button>
+                    ) : isVoter ? (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
+                        disabled={true}
+                        title="You've already voted in this challenge"
+                      >
+                        Already a voter in this challenge
+                      </Button>
+                    ) : hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
+                        disabled={true}
+                        title="You've already voted in this challenge"
+                      >
+                        Already voted in challenge
+                      </Button>
+                    ) : (
                       <Button 
                         variant="default" 
                         size="sm"
                         onClick={() => handleVote(submission.id)}
-                        disabled={isVoting || (submission.voters || []).includes(auth.user?.id)}
+                        disabled={isVoting}
                         className={`${
-                          (submission.voters || []).includes(auth.user?.id)
-                            ? 'bg-gray-300 hover:bg-gray-300 cursor-not-allowed text-gray-600'
-                            : 'bg-primary hover:bg-primary/90'
+                          isVoting 
+                            ? 'bg-[#b3731d]/40 cursor-not-allowed' 
+                            : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
                         }`}
-                        title={
-                          !auth.user 
-                            ? "Sign up to vote" 
-                            : (submission.voters || []).includes(auth.user?.id)
-                              ? "Already voted"
-                              : "Vote for this submission"
-                        }
+                        title={`Vote ${challenge.voting_fee} CPT`}
                       >
-                        {isVoting 
-                          ? "Voting..." 
-                          : (submission.voters || []).includes(auth.user?.id)
-                            ? "Already voted"
-                            : "Vote"}
+                        {isVoting ? "Voting..." : `Vote ${challenge.voting_fee} CPT`}
                       </Button>
-                      {!isVoting && voteError && (
-                        <div className="text-red-500 text-xs">{voteError}</div>
-                      )}
-                    </div>
-                  </div>
+                    )}
                 </div>
+                </div>
+              </div>
               ))}
             </div>
           ) : (
@@ -580,11 +607,23 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
         <Button 
           className="w-full mb-4"
           onClick={() => setIsSubmitDialogOpen(true)}
-          disabled={!isParticipant && !isCreator}
-          title={!isParticipant && !isCreator ? "Join the challenge to submit videos" : "Submit your video"}
+          disabled={!isParticipant || isCreator}
+          title={
+            !auth.user 
+              ? "Sign up to submit videos" 
+              : isCreator 
+                ? "You cannot submit videos to your own challenge" 
+                : !isParticipant 
+                  ? "Join the challenge to submit videos" 
+                  : "Submit your video"
+          }
         >
           <Video className="h-4 w-4 mr-2" />
-          <span className="text-sm">Submit My Video (5 $CPT)</span>
+          <span className="text-sm">
+            {isCreator 
+              ? "Can't submit to own challenge"
+              : "Submit My Video (5 $CPT)"}
+          </span>
         </Button>
 
         <div className="border border-[#9A9A9A] rounded-xl flex flex-col h-[calc(100vh-200px)]">
@@ -641,24 +680,43 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           <div className="p-3 border-t border-[#9A9A9A]">
             <div className="flex gap-2">
               <Input 
-                placeholder="Type your message" 
+                placeholder={
+                  !auth.user 
+                    ? "Sign in to chat" 
+                    : !isParticipant 
+                      ? "Join challenge to chat" 
+                      : "Type your message"
+                } 
                 className="rounded-full text-sm"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === 'Enter' && isParticipant) {
                     handleSendMessage()
                   }
                 }}
+                disabled={!auth.user || !isParticipant}
               />
               <Button 
                 size="sm"
                 onClick={handleSendMessage}
-                disabled={!auth.isAuthenticated}
+                disabled={!auth.user || !isParticipant}
+                title={
+                  !auth.user 
+                    ? "Sign in to chat" 
+                    : !isParticipant 
+                      ? "Join challenge to chat" 
+                      : "Send message"
+                }
               >
                 Send
               </Button>
             </div>
+            {auth.user && !isParticipant && (
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Join the challenge to participate in the chat
+              </p>
+            )}
           </div>
         </div>
 

@@ -910,7 +910,7 @@
         "id": "number2314127329",
         "max": null,
         "min": null,
-        "name": "maxparticipats",
+        "name": "maxparticipants",
         "onlyInt": false,
         "presentable": false,
         "required": false,
@@ -975,7 +975,7 @@
         "id": "date1750509566",
         "max": "",
         "min": "",
-        "name": "registration_ends",
+        "name": "registration_end",
         "presentable": false,
         "required": false,
         "system": false,
@@ -1083,6 +1083,30 @@
         "system": false,
         "thumbs": [],
         "type": "file"
+      },
+      {
+        "hidden": false,
+        "id": "number1320755876",
+        "max": null,
+        "min": null,
+        "name": "voting_fee",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "number888922779",
+        "max": null,
+        "min": null,
+        "name": "participation_fee",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
         "hidden": false,
@@ -1295,18 +1319,6 @@
         "type": "text"
       },
       {
-        "hidden": false,
-        "id": "number1368095439",
-        "max": null,
-        "min": null,
-        "name": "votesCount",
-        "onlyInt": false,
-        "presentable": false,
-        "required": false,
-        "system": false,
-        "type": "number"
-      },
-      {
         "autogeneratePattern": "",
         "hidden": false,
         "id": "text1843675174",
@@ -1422,6 +1434,18 @@
         "required": false,
         "system": false,
         "type": "relation"
+      },
+      {
+        "hidden": false,
+        "id": "number3568314025",
+        "max": null,
+        "min": null,
+        "name": "vote_count",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
         "hidden": false,

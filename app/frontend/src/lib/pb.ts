@@ -58,9 +58,11 @@ export type ChallengeModel = {
   reward: number;
   description: string;
   keywords: string[];
-  registration_ends: string;
-  submission_end: string;
-  voting_end: string;
+  registration_ends: number;
+  submission_end: number;
+  voting_end: number;
+  voting_fee: number;
+  participation_fee: number;
   image?: string;
   challengevideo?: string; // Add this new field for the video file
   state: 'registration' | 'submission' | 'voting' | 'completed';
@@ -77,6 +79,11 @@ export type ChallengeModel = {
   reports?: string[];
 };
 
+interface VoteModel {
+  id: string;
+  voter: string;
+  votecount: number;
+}
 // Video submission type
 // Update VideoSubmissionModel type to match schema
 export type VideoSubmissionModel = {
@@ -84,12 +91,12 @@ export type VideoSubmissionModel = {
   description: string;
   video: string;
   challenge: string;
-  participant: string;
+  participant: string[];
   sender: string;
-  likes: number;       // Changed from string[] to number
-  dislikes: number;    // Changed from string[] to number
-  likedBy: string[];   // This remains an array (relation field)
-  dislikedBy: string[]; // This remains an array (relation field)
+  likes: number;       
+  dislikes: number;    
+  likedBy: string[];   
+  dislikedBy: string[]; 
   voters?: string[];
   votersCount?: number;
   created: string;
@@ -97,6 +104,7 @@ export type VideoSubmissionModel = {
   collectionId?: string;
   expand?: {
     participant: UserModel;
+    votes?: VoteModel[];
     challenge: ChallengeModel;
     sender?: UserModel;
     voters?: Array<{
@@ -106,6 +114,9 @@ export type VideoSubmissionModel = {
     }>;
   };
 };
+
+
+
 
 // Add chat functions
 export async function createChatForChallenge(challengeId: string) {
@@ -230,76 +241,84 @@ export function signOut() {
   window.location.href = '/'; // Redirect to home page after signout
 }
 
-// Challenge Functions
-export async function createChallenge(data: {
+
+// Update createChallenge function to include creator
+export const createChallenge = async (data: {
   title: string;
   category: string;
   maxParticipants: number;
   reward: number;
   description: string;
   keywords: string[];
-  registrationEnd: string;
-  submissionEnd: string;
-  votingEnd: string;
+  registrationEnd: number;
+  submissionEnd: number;
+  votingEnd: number;
+  voting_fee: number;
+  participation_fee: number;
   image?: File;
-  challengevideo?: File;
-}) {
+  challengevideo?: File; // Add this type
+  creator: string; // Add this field
+}) => {
   try {
     if (!pb.authStore.model) {
-      throw new Error('Must be authenticated to create challenge');
+      throw new Error('Must be authenticated to create a challenge');
     }
 
-    const chatRoom = await pb.collection('chat').create({
-      messages: []
-    });
-
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (key === 'keywords') {
-        formData.append(key, JSON.stringify(value));
-      } else if (value instanceof File) {
-        // Map file field names to match the database schema
-        const fileFieldMap: Record<string, string> = {
-          'image': 'image',
-          'challengevideo': 'challengevideo'
-        };
-        const dbFieldName = fileFieldMap[key] || key;
-        formData.append(dbFieldName, value);
-      } else if (value !== undefined) {
-        // Map the field names to match the database schema
-        const fieldMap: Record<string, string> = {
-          'maxParticipants': 'maxparticipats',
-          'registrationEnd': 'registration_ends',
-          'submissionEnd': 'submission_end',
-          'votingEnd': 'voting_end'
-        };
-        
-        const dbFieldName = fieldMap[key] || key;
-        formData.append(dbFieldName, value.toString());
-      }
-    });
-
-    formData.append('creator', pb.authStore.model.id);
-    formData.append('state', 'registration');
-    formData.append('participants', JSON.stringify([]));
-    formData.append('voters', JSON.stringify([]));
-    formData.append('chat', chatRoom.id);
-
-    const challenge = await pb.collection('challenges').create(formData);
     
-    await pb.collection('chat').update(chatRoom.id, {
-      challenge: challenge.id
+    // Add creator field with current user's ID
+    formData.append('creator', pb.authStore.model.id);
+    
+    // Add all non-file fields
+    formData.append('title', data.title);
+    formData.append('category', data.category);
+    formData.append('maxparticipants', data.maxParticipants.toString());
+    formData.append('reward', data.reward.toString());
+    formData.append('description', data.description);
+    formData.append('keywords', JSON.stringify(data.keywords));
+    formData.append('registration_ends', data.registrationEnd.toString());
+    formData.append('submission_end', data.submissionEnd.toString());
+    formData.append('voting_end', data.votingEnd.toString());
+    formData.append('voting_fee', data.voting_fee.toString());
+    formData.append('participation_fee', data.participation_fee.toString());
+    formData.append('state', 'registration'); // Set initial state
+    
+    // Add file fields if they exist
+    if (data.image) {
+      formData.append('image', data.image);
+    }
+    if (data.challengevideo) {
+      formData.append('challengevideo', data.challengevideo);
+    }
+
+    // Create the challenge
+    const challenge = await pb.collection('challenges').create(formData);
+
+    // Update the user's challenges relation
+    const user = await pb.collection('users').getOne(pb.authStore.model.id);
+    const userChallenges = user.challenges || [];
+    await pb.collection('users').update(pb.authStore.model.id, {
+      challenges: [...userChallenges, challenge.id]
     });
 
-    return { success: true, challenge: challenge as unknown as ChallengeModel };
+    // Create a chat for the challenge
+    const chatResult = await createChatForChallenge(challenge.id);
+    if (chatResult.success && chatResult.chat) {
+      // Update the challenge with the chat reference
+      await pb.collection('challenges').update(challenge.id, {
+        chat: chatResult.chat.id
+      });
+    }
+    
+    return { success: true, challenge };
   } catch (error) {
-    console.error('Error creating challenge:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to create challenge',
+    console.error('Failed to create challenge:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to create challenge' 
     };
   }
-}
+};
 
 export async function joinChallenge(challengeId: string, userId: string) {
   try {
@@ -684,24 +703,31 @@ export const likeVideoSubmission = async (submissionId: string) => {
     if (!pb.authStore.model) throw new Error('User not authenticated');
     const userId = pb.authStore.model.id;
 
-    const submission = await pb.collection('video_submitted').getOne(submissionId);
-    const likedBy = Array.isArray(submission.likedBy) ? submission.likedBy : [];
-    const dislikedBy = Array.isArray(submission.dislikedBy) ? submission.dislikedBy : [];
+    const submission = await pb.collection('video_submitted').getOne(submissionId, {
+      expand: 'likedBy,dislikedBy'
+    });
 
-    // Remove from dislikes if present
-    const newDislikedBy = dislikedBy.filter((id: string) => id !== userId);
-    const newLikedBy = likedBy.includes(userId) 
-      ? likedBy.filter((id: string) => id !== userId) 
-      : [...likedBy, userId];
+    // Get the current relations
+    const likedByIds = submission.likedBy || [];
+    const dislikedByIds = submission.dislikedBy || [];
+    const isLiked = likedByIds.includes(userId);
+    const isDisliked = dislikedByIds.includes(userId);
 
-    const likesDelta = likedBy.includes(userId) ? -1 : 1;
-    const dislikesDelta = dislikedBy.includes(userId) ? -1 : 0;
+    // Calculate new state
+    let newLikedByIds = isLiked 
+      ? likedByIds.filter(id => id !== userId)
+      : [...likedByIds, userId];
+    
+    let newDislikedByIds = isDisliked
+      ? dislikedByIds.filter(id => id !== userId)
+      : dislikedByIds;
 
+    // Update the submission
     const updated = await pb.collection('video_submitted').update(submissionId, {
-      likes: Math.max(0, (submission.likes || 0) + likesDelta),
-      dislikes: Math.max(0, (submission.dislikes || 0) + dislikesDelta),
-      likedBy: newLikedBy,
-      dislikedBy: newDislikedBy
+      likes: newLikedByIds.length,
+      dislikes: newDislikedByIds.length,
+      likedBy: newLikedByIds,
+      dislikedBy: newDislikedByIds
     });
 
     return { success: true, submission: updated };
@@ -716,24 +742,31 @@ export const dislikeVideoSubmission = async (submissionId: string) => {
     if (!pb.authStore.model) throw new Error('User not authenticated');
     const userId = pb.authStore.model.id;
 
-    const submission = await pb.collection('video_submitted').getOne(submissionId);
-    const likedBy = Array.isArray(submission.likedBy) ? submission.likedBy : [];
-    const dislikedBy = Array.isArray(submission.dislikedBy) ? submission.dislikedBy : [];
+    const submission = await pb.collection('video_submitted').getOne(submissionId, {
+      expand: 'likedBy,dislikedBy'
+    });
 
-    // Remove from likes if present
-    const newLikedBy = likedBy.filter((id: string) => id !== userId);
-    const newDislikedBy = dislikedBy.includes(userId) 
-      ? dislikedBy.filter((id: string) => id !== userId) 
-      : [...dislikedBy, userId];
+    // Get the current relations
+    const likedByIds = submission.likedBy || [];
+    const dislikedByIds = submission.dislikedBy || [];
+    const isLiked = likedByIds.includes(userId);
+    const isDisliked = dislikedByIds.includes(userId);
 
-    const dislikesDelta = dislikedBy.includes(userId) ? -1 : 1;
-    const likesDelta = likedBy.includes(userId) ? -1 : 0;
+    // Calculate new state
+    let newDislikedByIds = isDisliked
+      ? dislikedByIds.filter(id => id !== userId)
+      : [...dislikedByIds, userId];
 
+    let newLikedByIds = isLiked
+      ? likedByIds.filter(id => id !== userId)
+      : likedByIds;
+
+    // Update the submission
     const updated = await pb.collection('video_submitted').update(submissionId, {
-      likes: Math.max(0, (submission.likes || 0) + likesDelta),
-      dislikes: Math.max(0, (submission.dislikes || 0) + dislikesDelta),
-      likedBy: newLikedBy,
-      dislikedBy: newDislikedBy
+      likes: newLikedByIds.length,
+      dislikes: newDislikedByIds.length,
+      likedBy: newLikedByIds,
+      dislikedBy: newDislikedByIds
     });
 
     return { success: true, submission: updated };
@@ -751,35 +784,79 @@ const handleError = (error: unknown) => {
   };
 };
 
-
-export async function voteForSubmission(submissionId: string, userId: string) {
+export const voteForSubmission = async (submissionId: string, userId: string) => {
   try {
-    const submission = await pb.collection('video_submitted').getOne(submissionId);
-    const voters = submission.voters || [];
-    
-    // Check if user already voted
-    if (voters.includes(userId)) {
-      return {
-        success: false,
-        error: 'You have already voted for this submission'
-      };
-    }
-
-    // Add user to voters array and increment votersCount
-    const updatedSubmission = await pb.collection('video_submitted').update(submissionId, {
-      voters: [...voters, userId],
-      votersCount: (voters.length + 1) // Increment voters count
+    // Specify the collection name 'video_submitted' when updating the record
+    const record = await pb.collection('video_submitted').update(submissionId, {
+      voters: [userId]
     });
 
     return {
       success: true,
-      submission: updatedSubmission
+      submission: record
     };
   } catch (error) {
-    console.error('Error voting:', error);
+    console.error('Error voting for submission:', error);
     return {
       success: false,
-      error: 'Failed to vote'
+      error: error instanceof Error ? error.message : 'Failed to vote'
     };
   }
-}
+};
+
+// Add these functions to handle profile updates and deletion
+export const updateUserProfile = async (
+  userId: string, 
+  data: {
+    username?: string;
+    email?: string;
+    xProfile?: string;
+    telegram?: string;
+    avatar?: File;
+  }, 
+  password: string
+) => {
+  try {
+    // Verify password first
+    await pb.collection('users').authWithPassword(
+      pb.authStore.model?.email || '',
+      password
+    );
+
+    const formData = new FormData();
+    if (data.username) formData.append('username', data.username);
+    if (data.email) formData.append('email', data.email);
+    if (data.xProfile) formData.append('xProfile', data.xProfile);
+    if (data.telegram) formData.append('telegram', data.telegram);
+    if (data.avatar) formData.append('avatar', data.avatar);
+
+    const record = await pb.collection('users').update(userId, formData);
+    return { success: true, user: record };
+  } catch (error) {
+    console.error('Failed to update profile:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to update profile' 
+    };
+  }
+};
+
+export const deleteUserAccount = async (userId: string, password: string) => {
+  try {
+    // Verify password first
+    await pb.collection('users').authWithPassword(
+      pb.authStore.model?.email || '',
+      password
+    );
+
+    await pb.collection('users').delete(userId);
+    pb.authStore.clear();
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to delete account:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to delete account' 
+    };
+  }
+};

@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Video, Clock, Ticket, User, Coins, Users } from "lucide-react"
+import { Search, User, Users, Coins, Ticket, Video, Clock } from "lucide-react"
+
 import ChallengeCard from "@/components/challenge-card"
 import mountImage from "@/assets/mount.png"
 import { useState, useEffect , use } from "react"
@@ -30,7 +31,6 @@ export default function Home() {
     let isSubscribed = true;
 
     const fetchChallenges = async () => {
-      setIsLoading(true);
       try {
         const result = await getChallenges(undefined, abortController.signal);
         if (isSubscribed && result.success && result.challenges) {
@@ -49,13 +49,19 @@ export default function Home() {
       }
     };
 
+    // Initial fetch
     fetchChallenges();
 
+    // Set up interval for subsequent fetches
+    const intervalId = setInterval(fetchChallenges, 5000); // 5000ms = 5 seconds
+
+    // Cleanup function
     return () => {
       isSubscribed = false;
       abortController.abort();
+      clearInterval(intervalId); // Clear the interval when component unmounts
     };
-  }, []);
+  }, []); // Empty dependency array since we want this to run only once on mount
   const totalItems = challenges.length
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const handlePageChange = (page: number) => {
@@ -116,6 +122,7 @@ export default function Home() {
                               alt="Mountain Climbing"
                               fill
                               className="object-cover"
+                              draggable={false}
                             />
                           </div>
 
@@ -123,50 +130,31 @@ export default function Home() {
                           <div className="mb-4">
                             <div className="flex items-start justify-between mb-2">
                               <h3 className="text-lg font-semibold text-gray-800 leading-tight max-w-[180px]">
-                                Mountain Climbing Challenge
+                                500 Push ups
                               </h3>
                               <div className="h-2.5 w-2.5 rounded-full bg-green-400 flex-shrink-0 ml-2 mt-1.5" />
                             </div>
                             <p className="text-sm text-gray-500 leading-normal line-clamp-3 break-words">
-                              Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                              Sed do eiusmod tempor incididunt ut labore et dolore magna
-                              aliqua. Ut enim ad minim veniam, quis nostrud exercitation.
+                              The 500 Push-Up Challenge is a grueling test of physical and mental endurance, 
+                              requiring participants to complete 500 push-ups in a single session. This challenge
+                              pushes the limits of muscular endurance, stamina, and willpower, making it a 
+                              demanding feat for even the most experienced fitness enthusiasts.
                             </p>
                           </div>
 
                           {/* Stats */}
-                          <div className="flex items-center text-xs text-gray-500 mt-auto">
+                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
                             <div className="flex items-center gap-1">
-                              <Video className="h-4 w-4" />
-                              <span>1500</span>
+                              <Coins className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span>100 CPT</span>
                             </div>
-                            <span className="mx-2 text-gray-300">|</span>
                             <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              <span>15M+</span>
+                              <Ticket className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span>5 CPT</span>
                             </div>
-                            <span className="mx-2 text-gray-300">|</span>
                             <div className="flex items-center gap-1">
-                              <svg
-                                className="w-4 h-4"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  d="M12 8V12L14 14M12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                              <span>15M+</span>
-                            </div>
-                            <span className="mx-2 text-gray-300">|</span>
-                            <div className="flex items-center gap-1">
-                              <Ticket className="h-4 w-4" />
-                              <span>15M+</span>
+                              <Users className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span>24</span>
                             </div>
                           </div>
                         </div>

@@ -1,62 +1,75 @@
 import { Card } from "@/components/ui/card"
-import { Eye, ThumbsUp, MessageSquare } from "lucide-react"
+import {User, Users, Coins, Ticket } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import mountain from "@/assets/mount.png"
-// Add these imports if not already present
-import { User, Users, Coins } from "lucide-react"
 
 interface ChallengeCardProps {
   challenge: {
-    id: string;  // Changed from number to string to match PocketBase's ID type
+    id: string;
     title: string;
     description: string;
     creator?: string;
     reward?: number;
     participants?: number;
     image?: string;
+    voting_fee?: number;  // Add this
+    views?: number;       // Add this
   }
 }
 
 const ChallengeCard = ({ challenge }: ChallengeCardProps) => {
   return (
     <Link href={`/challenge/${challenge.id}`}>
-      <Card className="flex w-full max-w-md overflow-hidden bg-white p-4 gap-4 rounded-[30px] hover:shadow-lg transition-shadow border border-[#9A9A9A]">
-        <div className="relative w-1/3 min-w-[100px] aspect-square rounded-2xl overflow-hidden">
+      <Card className="flex h-[180px] w-[400px] overflow-hidden bg-white p-4 gap-4 rounded-[30px] hover:shadow-lg transition-shadow border border-[#9A9A9A]">
+        {/* Image container with fixed dimensions */}
+        <div className="relative w-[120px] h-[140px] flex-shrink-0 rounded-2xl overflow-hidden">
           <Image
             src={challenge.image || mountain}
             alt={challenge.title}
             fill
+            sizes="120px"
             className="object-cover"
+            priority
+            draggable={false}
           />
         </div>
-        {/* Content Section */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between rounded-xl p-2">
+
+        {/* Content Section with fixed width and ellipsis */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between">
           <div>
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-base sm:text-lg truncate pr-4">{challenge.title}</h3>
+            <div className="flex justify-between items-start mb-2 gap-2">
+              <h3 className="font-semibold text-base text-ellipsis overflow-hidden whitespace-nowrap max-w-[180px]">
+                {challenge.title}
+              </h3>
               <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
             </div>
 
-            <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
+            <p className="text-sm text-muted-foreground line-clamp-2 h-[40px] overflow-hidden">
               {challenge.description}
             </p>
           </div>
 
-          <div className="pt-2">
-            <div className="flex items-center mb-3">
-              <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 mr-1" />
-              <span className="text-xs sm:text-sm text-orange-500">{challenge.creator || 'Anonymous'}</span>
+          <div className="mt-auto">
+            <div className="flex items-center mb-2">
+              <User className="w-3.5 h-3.5 text-orange-500 mr-1 flex-shrink-0" />
+              <span className="text-xs text-orange-500 truncate">
+                {challenge.creator || 'Anonymous'}
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 text-muted-foreground text-xs rounded-lg p-1.5">
-              <div className="flex items-center gap-0.5">
-                <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span>{challenge.participants || 0}</span>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs flex-wrap">
+              <div className="flex items-center gap-1">
+                <Coins className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{challenge.reward || 0} CPT</span>
               </div>
-              <div className="flex items-center gap-0.5">
-                <Coins className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span>{challenge.reward || 0}</span>
+              <div className="flex items-center gap-1">
+                <Ticket className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{challenge.voting_fee || 0} CPT</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{challenge.participants || 0}</span>
               </div>
             </div>
           </div>
@@ -65,5 +78,6 @@ const ChallengeCard = ({ challenge }: ChallengeCardProps) => {
     </Link>
   );
 };
-export default ChallengeCard
+
+export default ChallengeCard;
 

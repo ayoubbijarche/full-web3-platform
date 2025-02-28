@@ -105,14 +105,6 @@ export default function ProfilePage() {
                   <span className="font-semibold">{createdChallenges.length}</span>{" "}
                   <span className="text-gray-500">challenges</span>
                 </div>
-                <div>
-                  <span className="font-semibold">245</span>{" "}
-                  <span className="text-gray-500">points</span>
-                </div>
-                <div>
-                  <span className="font-semibold">3</span>{" "}
-                  <span className="text-gray-500">active</span>
-                </div>
               </div>
 
               {/* Social Links */}
@@ -132,7 +124,7 @@ export default function ProfilePage() {
                     target="_blank"
                     className="text-sm text-[#b3731d] hover:underline"
                   >
-                    Telegram
+                    @{user.telegram}
                   </Link>
                 )}
               </div>
@@ -142,7 +134,7 @@ export default function ProfilePage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto py-8">
         {/* Tabs */}
         <div className="flex justify-center mb-8 border-b border-[#8a8a8a]">
           <button className="flex items-center gap-2 px-8 py-4 text-sm font-medium border-b-2 border-[#b3731d] text-[#b3731d]">
@@ -151,8 +143,8 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Challenge Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Challenge Grid with increased spacing */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-40 px-4">
           {createdChallenges.map((challenge) => (
             <ChallengeCard 
               key={challenge.id} 

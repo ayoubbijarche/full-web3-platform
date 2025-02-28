@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { User, Lock } from "lucide-react";
 import Image from "next/image";
+import { updateUserProfile, deleteUserAccount } from "@/lib/pb";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -32,10 +33,72 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [password, setPassword] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDeletePasswordConfirm, setShowDeletePasswordConfirm] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setShowPasswordConfirm(true);
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedAvatar(file);
+    }
+  };
+
+  const handleConfirmChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const result = await updateUserProfile(user.id, {
+        username: formData.username,
+        email: formData.email,
+        xProfile: formData.xProfile,
+        telegram: formData.telegram,
+        avatar: selectedAvatar || undefined,
+      }, password);
+
+      if (result.success) {
+        onOpenChange(false);
+        window.location.reload(); // Refresh to show updated profile
+      } else {
+        setError("Incorrect password. Please try again.");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(false);
+    setShowDeletePasswordConfirm(true);
+  };
+
+  const handleConfirmDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const result = await deleteUserAccount(user.id, password);
+      if (result.success) {
+        window.location.href = '/';
+      } else {
+        setError("Incorrect password. Please try again.");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const avatarUrl = user.avatar 
@@ -52,11 +115,7 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
               Please enter your password to save changes
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            // Handle password verification and save changes
-            onOpenChange(false);
-          }}>
+          <form onSubmit={handleConfirmChanges}>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -69,15 +128,82 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-9 border-[#9A9A9A]"
                     placeholder="Enter your password"
+                    disabled={isLoading}
                   />
                 </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
               </div>
               <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setShowPasswordConfirm(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowPasswordConfirm(false)}
+                  disabled={isLoading}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-[#b3731d] hover:bg-[#b3731d]/90">
-                  Confirm
+                <Button 
+                  type="submit" 
+                  className="bg-[#b3731d] hover:bg-[#b3731d]/90"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Confirm"}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (showDeletePasswordConfirm) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Account Deletion</DialogTitle>
+            <DialogDescription className="text-red-600">
+              Please enter your password to delete your account
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleConfirmDelete}>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="delete-password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Input
+                    id="delete-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-9 border-[#9A9A9A]"
+                    placeholder="Enter your password"
+                    disabled={isLoading}
+                  />
+                </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowDeletePasswordConfirm(false);
+                    setPassword("");
+                    setError("");
+                  }}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="destructive"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Deleting..." : "Delete Account"}
                 </Button>
               </div>
             </div>
@@ -101,11 +227,8 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={() => {
-              // Handle delete account
-              onOpenChange(false);
-            }}>
-              Delete Account
+            <Button variant="destructive" onClick={handleDeleteClick}>
+              Continue
             </Button>
           </div>
         </DialogContent>
@@ -123,7 +246,15 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
           {/* Avatar Upload */}
           <div className="flex flex-col items-center gap-4">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-[#9A9A9A]">
-              {avatarUrl ? (
+              {selectedAvatar ? (
+                <Image
+                  src={URL.createObjectURL(selectedAvatar)}
+                  alt="Profile"
+                  width={96}
+                  height={96}
+                  className="object-cover"
+                />
+              ) : avatarUrl ? (
                 <Image
                   src={avatarUrl}
                   alt="Profile"
@@ -135,9 +266,23 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
                 <User className="w-12 h-12 text-gray-400" />
               )}
             </div>
-            <Button variant="default" size="sm" type="button" className="bg-[#b3731d] hover:bg-[#b3731d]/90">
-              Change Avatar
-            </Button>
+            <label htmlFor="avatar-upload">
+              <Button 
+                variant="default" 
+                size="sm" 
+                type="button" 
+                className="bg-[#b3731d] hover:bg-[#b3731d]/90"
+              >
+                Change Avatar
+              </Button>
+              <Input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
+            </label>
           </div>
 
           {/* Username */}
@@ -212,4 +357,4 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
   );
 }
 
-export default EditProfileDialog; 
+export default EditProfileDialog;
