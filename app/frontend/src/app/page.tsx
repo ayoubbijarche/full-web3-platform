@@ -12,7 +12,7 @@ import {
 import { Search, User, Users, Coins, Ticket, Video, Clock } from "lucide-react"
 
 import ChallengeCard from "@/components/challenge-card"
-import mountImage from "@/assets/mount.png"
+import mountImage from "@/assets/mount.webp"
 import { useState, useEffect , use } from "react"
 import Link from "next/link"
 import { getChallenges, type ChallengeModel } from "@/lib/pb"
@@ -24,6 +24,10 @@ export default function Home() {
   const [challenges, setChallenges] = useState<ChallengeModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [featuredChallenge, setFeaturedChallenge] = useState<ChallengeModel | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedState, setSelectedState] = useState("all")
+  const [sortBy, setSortBy] = useState("date")
   
   const itemsPerPage = 6
   useEffect(() => {
@@ -62,13 +66,54 @@ export default function Home() {
       clearInterval(intervalId); // Clear the interval when component unmounts
     };
   }, []); // Empty dependency array since we want this to run only once on mount
-  const totalItems = challenges.length
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
   }
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
+
+  const getFilteredChallenges = () => {
+    let filtered = [...challenges]
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(challenge => 
+        challenge.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        challenge.description.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    // Category filter
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(challenge => 
+        challenge.category.toLowerCase() === selectedCategory.toLowerCase()
+      )
+    }
+
+    // State filter
+    if (selectedState !== "all") {
+      filtered = filtered.filter(challenge => 
+        challenge.state.toLowerCase() === selectedState.toLowerCase()
+      )
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      if (sortBy === "date") {
+        return new Date(b.created).getTime() - new Date(a.created).getTime()
+      } else if (sortBy === "popular") {
+        return (b.participants?.length || 0) - (a.participants?.length || 0)
+      }
+      return 0
+    })
+
+    return filtered
+  }
+
+  const filteredChallenges = getFilteredChallenges()
+  const totalItems = filteredChallenges.length
+  const totalPages = Math.ceil(filteredChallenges.length / itemsPerPage)
+
   return (
     <div className="min-h-screen flex flex-col">
       <main>
@@ -100,6 +145,8 @@ export default function Home() {
                     type="search"
                     placeholder="Search Challenge"
                     className="w-[400px] rounded-[50px] border-[#898989] pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
@@ -130,15 +177,12 @@ export default function Home() {
                           <div className="mb-4">
                             <div className="flex items-start justify-between mb-2">
                               <h3 className="text-lg font-semibold text-gray-800 leading-tight max-w-[180px]">
-                                500 Push ups
+                                Let us Carry the logs & the boats !
                               </h3>
                               <div className="h-2.5 w-2.5 rounded-full bg-green-400 flex-shrink-0 ml-2 mt-1.5" />
                             </div>
                             <p className="text-sm text-gray-500 leading-normal line-clamp-3 break-words">
-                              The 500 Push-Up Challenge is a grueling test of physical and mental endurance, 
-                              requiring participants to complete 500 push-ups in a single session. This challenge
-                              pushes the limits of muscular endurance, stamina, and willpower, making it a 
-                              demanding feat for even the most experienced fitness enthusiasts.
+                            Carrying logs is a physically and mentally demanding challenge that tests raw strength, endurance, and resilience. Whether it’s part of military-style training, survival exercises, or extreme fitness routines, the log carry pushes the body to its limits by requiring participants to transport heavy, awkwardly shaped logs over a set distance or duration.
                             </p>
                           </div>
 
@@ -174,7 +218,11 @@ export default function Home() {
           <div className="mb-8 flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Category</span>
-              <Select defaultValue="all">
+              <Select 
+                defaultValue="all" 
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+              >
                 <SelectTrigger className="w-[180px] rounded-[50px] border-[#8a8a8a]">
                   <SelectValue placeholder="All Category" />
                 </SelectTrigger>
@@ -191,15 +239,19 @@ export default function Home() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">State</span>
-              <Select defaultValue="all">
+              <Select 
+                defaultValue="all"
+                value={selectedState}
+                onValueChange={setSelectedState}
+              >
                 <SelectTrigger className="w-[180px] rounded-[50px] border-[#8a8a8a]">
                   <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="registration">Open</SelectItem>
                   <SelectItem value="voting">Voting</SelectItem>
-                  <SelectItem value="finallised">Finallised</SelectItem>
+                  <SelectItem value="completed">Finalized</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
@@ -207,7 +259,11 @@ export default function Home() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Sort By</span>
-              <Select defaultValue="date">
+              <Select 
+                defaultValue="date"
+                value={sortBy}
+                onValueChange={setSortBy}
+              >
                 <SelectTrigger className="w-[180px] rounded-[50px] border-[#8a8a8a]">
                   <SelectValue placeholder="Created Date" />
                 </SelectTrigger>
@@ -229,7 +285,7 @@ export default function Home() {
               <div className="col-span-3 text-center py-12">
                 <p>Loading challenges...</p>
               </div>
-            ) : challenges.length === 0 ? (
+            ) : filteredChallenges.length === 0 ? (
               <div className="col-span-3 text-center py-12">
                 <h3 className="text-xl font-medium text-gray-600 mb-4">
                   No challenges found
@@ -244,7 +300,7 @@ export default function Home() {
                 </Link>
               </div>
             ) : (
-              challenges.slice(startIndex, endIndex).map((challenge) => (
+              filteredChallenges.slice(startIndex, endIndex).map((challenge) => (
                 <ChallengeCard
                   key={challenge.id}
                   challenge={{

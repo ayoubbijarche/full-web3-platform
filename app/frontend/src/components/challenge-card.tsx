@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card"
 import {User, Users, Coins, Ticket } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import mountain from "@/assets/mount.png"
+import mountain from "@/assets/mount.webp"
 
 interface ChallengeCardProps {
   challenge: {

@@ -48,6 +48,59 @@ export default function CreateChallengePage() {
     votersNickname: "",
   })
 
+  // Add this validation function after your state declarations
+  const validateForm = () => {
+    const requiredFields = {
+      challengetitle: "Challenge Name",
+      category: "Category",
+      maxparticipants: "Participants",
+      reward: "Reward",
+      description: "Description",
+      registration_end: "Registration Period",
+      submission_end: "Submission Period",
+      voting_end: "Voting Period",
+      votingFees: "Voting Fee",
+      participation_fee: "Participation Fee"
+    }
+
+    const emptyFields = Object.entries(requiredFields).filter(
+      ([key]) => !formData[key as keyof typeof formData]
+    )
+
+    if (!selectedImage) {
+      return "Challenge image is required"
+    }
+
+    if (emptyFields.length > 0) {
+      return `Please fill in the following required fields: ${emptyFields
+        .map(([_, label]) => label)
+        .join(", ")}`
+    }
+
+    // Validate numeric fields are greater than 0
+    if (Number(formData.maxparticipants) <= 0) {
+      return "Number of participants must be greater than 0"
+    }
+
+    if (Number(formData.reward) <= 0) {
+      return "Reward must be greater than 0"
+    }
+
+    if (Number(formData.registration_end) <= 0) {
+      return "Registration period must be greater than 0 days"
+    }
+
+    if (Number(formData.submission_end) <= 0) {
+      return "Submission period must be greater than 0 days"
+    }
+
+    if (Number(formData.voting_end) <= 0) {
+      return "Voting period must be greater than 0 days"
+    }
+
+    return null
+  }
+
   if (!auth.isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -77,9 +130,18 @@ export default function CreateChallengePage() {
     }
   }
 
+  // Update your handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault()
     setError("")
+
+    // Validate form before submission
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -210,6 +272,7 @@ export default function CreateChallengePage() {
                   value={formData.challengetitle}
                   onChange={(e) => setFormData(prev => ({ ...prev, challengetitle: e.target.value }))}
                   className="border-[#8a8a8a] rounded-[50px]"
+                  required
                 />
               </div>
               <div>
@@ -217,6 +280,7 @@ export default function CreateChallengePage() {
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  required
                 >
                   <SelectTrigger className="border-[#8a8a8a] rounded-[50px]">
                     <SelectValue placeholder="Select One" />
@@ -244,6 +308,7 @@ export default function CreateChallengePage() {
                     }))}
                     placeholder="Enter days"
                     className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
+                    required
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
@@ -261,6 +326,7 @@ export default function CreateChallengePage() {
                     }))}
                     placeholder="Enter days"
                     className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
+                    required
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
@@ -278,6 +344,7 @@ export default function CreateChallengePage() {
                     }))}
                     placeholder="Enter days"
                     className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
+                    required
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
@@ -293,6 +360,7 @@ export default function CreateChallengePage() {
                     value={formData.maxparticipants}
                     onChange={(e) => setFormData(prev => ({ ...prev, maxparticipants: e.target.value }))}
                     className="border-[#8a8a8a] rounded-[50px]"
+                    required
                   />
                   <Input 
                     placeholder="To"
@@ -331,6 +399,7 @@ export default function CreateChallengePage() {
                   }))}
                   className="border-[#8a8a8a] rounded-[50px]"
                   placeholder="0.000 CPT"
+                  required
                 />
               </div>
               <div>
@@ -346,6 +415,7 @@ export default function CreateChallengePage() {
                   }))}
                   className="border-[#8a8a8a] rounded-[50px]"
                   placeholder="0.000 CPT"
+                  required
                 />
               </div>
               <div>
@@ -361,6 +431,7 @@ export default function CreateChallengePage() {
                   }))}
                   className="border-[#8a8a8a] rounded-[50px]"
                   placeholder="0.000 CPT"
+                  required
                 />
               </div>
             </div>
@@ -372,6 +443,7 @@ export default function CreateChallengePage() {
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 className="h-32 border-[#8a8a8a] rounded-[20px]"
+                required
               />
             </div>
 

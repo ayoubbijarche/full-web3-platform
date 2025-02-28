@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import Image from "next/image"
-import mountImage from '@/assets/mount.png'
+import mountImage from '@/assets/mount2.png'
 import { useState, useRef } from "react"
 import { submitVideo, useAuth } from "@/lib/pb"
 import { useRouter } from "next/navigation"
