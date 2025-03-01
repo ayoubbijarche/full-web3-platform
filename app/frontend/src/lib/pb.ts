@@ -99,6 +99,8 @@ export type VideoSubmissionModel = {
   dislikedBy: string[]; 
   voters?: string[];
   votersCount?: number;
+  vote_count: number;
+  voters: string[];
   created: string;
   updated: string;
   collectionId?: string;
@@ -152,24 +154,24 @@ export async function sendMessage(chatId: string, text: string) {
     };
   }
 }
-export const getChatMessages = async (chatId: string) => {
+export const getChatMessages = async (chatId: string, signal?: AbortSignal) => {
   try {
-    const messages = await pb.collection('messages').getList(1, 50, {
-      filter: `chat = "${chatId}"`,
-      sort: '+created',
-      expand: 'sender'
+    const records = await pb.collection('messages').getFullList({
+      filter: `chat="${chatId}"`,
+      sort: 'created',
+      expand: 'sender',
+      signal, // Pass the AbortSignal
+      $cancelKey: `chat-messages-${chatId}-${Date.now()}` // Add unique cancel key
     });
     
-    return {
-      success: true,
-      messages: messages.items
-    };
+    return { success: true, messages: records };
   } catch (error) {
+    // Ignore auto-cancellation errors
+    if (error instanceof Error && error.message.includes('autocancelled')) {
+      return { success: true, messages: [] };
+    }
     console.error('Error fetching messages:', error);
-    return {
-      success: false,
-      messages: []
-    };
+    return { success: false, error: 'Failed to fetch messages' };
   }
 };
 // Add a simple event system
@@ -786,21 +788,20 @@ const handleError = (error: unknown) => {
 
 export const voteForSubmission = async (submissionId: string, userId: string) => {
   try {
-    // Specify the collection name 'video_submitted' when updating the record
-    const record = await pb.collection('video_submitted').update(submissionId, {
-      voters: [userId]
+    const submission = await pb.collection('video_submitted').getOne(submissionId);
+    const currentVoters = submission.voters || [];
+    const currentVoteCount = submission.vote_count || 0;
+
+    // Update the submission with incremented vote count
+    const updated = await pb.collection('video_submitted').update(submissionId, {
+      voters: [...currentVoters, userId],
+      vote_count: currentVoteCount + 1
     });
 
-    return {
-      success: true,
-      submission: record
-    };
+    return { success: true, submission: updated };
   } catch (error) {
     console.error('Error voting for submission:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to vote'
-    };
+    return { success: false, error: 'Failed to vote for submission' };
   }
 };
 

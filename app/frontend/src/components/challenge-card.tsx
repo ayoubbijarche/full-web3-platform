@@ -3,20 +3,13 @@ import {User, Users, Coins, Ticket } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import mountain from "@/assets/mount.webp"
+import { ChallengeModel } from "@/lib/pb"
+import { ChallengeDetailsProps } from "./challenge-details"
 
 interface ChallengeCardProps {
-  challenge: {
-    id: string;
-    title: string;
-    description: string;
-    creator?: string;
-    reward?: number;
-    participants?: number;
-    image?: string;
-    voting_fee?: number;  // Add this
-    views?: number;       // Add this
-  }
+  challenge: ChallengeModel;
 }
+
 
 const ChallengeCard = ({ challenge }: ChallengeCardProps) => {
   return (
@@ -69,7 +62,7 @@ const ChallengeCard = ({ challenge }: ChallengeCardProps) => {
               </div>
               <div className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>{challenge.participants || 0}</span>
+                <span>{challenge.participants.length || 0}</span>
               </div>
             </div>
           </div>

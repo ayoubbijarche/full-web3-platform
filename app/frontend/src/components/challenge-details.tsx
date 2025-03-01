@@ -12,7 +12,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 
-interface ChallengeDetailsProps {
+export interface ChallengeDetailsProps {
   challenge: ChallengeModel;
 }
 
@@ -45,11 +45,17 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   }, [challenge]);
   
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
     const fetchMessages = async () => {
       try {
-        const result = await getChatMessages(challenge.chat)
+        const result = await getChatMessages(challenge.chat, controller.signal);
+        
+        // Check if component is still mounted
+        if (!isMounted) return;
+
         if (result.success && Array.isArray(result.messages)) {
-          // Sort messages by creation date if available
           const sortedMessages = result.messages.map(record => ({
             id: record.id,
             text: record.text || '',
@@ -61,19 +67,29 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           })).sort((a, b) => 
             new Date(a.created).getTime() - new Date(b.created).getTime()
           );
-          setMessages(sortedMessages)
-        } else {
-          console.error('Failed to fetch messages or invalid response format')
+          setMessages(sortedMessages);
         }
       } catch (error) {
-        console.error('Error fetching messages:', error)
+        // Only log errors if component is still mounted and error isn't cancellation
+        if (isMounted && error instanceof Error && !error.message.includes('autocancelled')) {
+          console.error('Error fetching messages:', error);
+        }
       }
-    }
-    
-    fetchMessages()
-    const interval = setInterval(fetchMessages, 5000)
-    return () => clearInterval(interval)
-  }, [challenge.chat])
+    };
+
+    // Initial fetch
+    fetchMessages();
+
+    // Set up polling with cleanup
+    const intervalId = setInterval(fetchMessages, 5000);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearInterval(intervalId);
+    };
+  }, [challenge.chat]);
   
   // Fetch video submissions
   useEffect(() => {
@@ -307,13 +323,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       if (!result.success) {
         setVoteError(result.error || 'Failed to vote');
       } else {
-        // Update local state
+        // Update local state with new vote count
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => 
             sub.id === submissionId 
               ? { 
                   ...sub, 
                   voters: [...(sub.voters || []), auth.user!.id],
+                  vote_count: (sub.vote_count || 0) + 1,
                   ...result.submission 
                 }
               : sub
@@ -433,7 +450,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Users className="h-5 w-5" />
-              <span>{challenge.participants.length}/{challenge.maxparticipants}</span>
+              <span>{challenge.participants.length}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Coins className="h-5 w-5" />
@@ -525,6 +542,12 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                   {submission.expand?.participant?.username || 'Participant'}
                   </span>
                 </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="h-4 w-4 text-[#b3731d]" />
+                  <span className="text-sm text-gray-600">
+                    {submission.vote_count || 0} votes
+                  </span>
+                </div>
                 <p className="text-sm text-gray-700 mb-2">
                   {submission.description}
                 </p>
@@ -546,7 +569,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                       <Button 
                         variant="default" 
                         size="sm"
-                        className="bg-[#b3731d]/40 hover:bg-[#b3731d]/40 cursor-not-allowed"
+                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
                         disabled={true}
                         title="Join challenge to vote"
                       >

@@ -1,4 +1,6 @@
 'use client'
+
+import * as React from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,14 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Search, User, Users, Coins, Ticket, Video, Clock } from "lucide-react"
-
 import ChallengeCard from "@/components/challenge-card"
 import mountImage from "@/assets/mount.webp"
-import { useState, useEffect , use } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { getChallenges, type ChallengeModel } from "@/lib/pb"
 import { Navbar } from "@/components/navbar"
-
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1)
@@ -304,13 +304,11 @@ export default function Home() {
                 <ChallengeCard
                   key={challenge.id}
                   challenge={{
-                    id: challenge.id,
-                    title: challenge.title,
-                    description: challenge.description,
-                    creator: challenge.expand?.creator?.username,
-                    reward: challenge.reward,
-                    participants: challenge.participants?.length || 0,
-                    image: challenge.image ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
+                    ...challenge,
+                    creator: challenge.expand?.creator?.username || 'Anonymous',
+                    image: challenge.image 
+                      ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` 
+                      : undefined
                   }}
                 />
               ))

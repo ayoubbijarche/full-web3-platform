@@ -9,6 +9,7 @@ import {
 } from './ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface UserAvatarMenuProps {
   user: {
@@ -20,6 +21,13 @@ interface UserAvatarMenuProps {
 }
 
 export function UserAvatarMenu({ user, onSignOut }: UserAvatarMenuProps) {
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await onSignOut();
+    router.refresh(); // Refresh the page after signing out
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -54,11 +62,11 @@ export function UserAvatarMenu({ user, onSignOut }: UserAvatarMenuProps) {
         </DropdownMenuItem>
         <DropdownMenuItem 
           className="focus:bg-[#b3731d]/10 focus:text-[#b3731d]"
-          onClick={onSignOut}
+          onClick={handleSignOut}
         >
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
-} 
+}
