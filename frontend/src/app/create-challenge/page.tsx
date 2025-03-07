@@ -11,6 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link"
 import Image from "next/image"
 import { Calendar, Upload } from "lucide-react"
+import { useSolanaProgram } from '@/lib/solana';
+
+// Add type definitions here
+type PaymentResult = {
+  success: boolean;
+  signature?: string;
+  error?: string;
+  logs?: string[];
+};
+
+type ChallengeResult = {
+  success: boolean;
+  challenge?: any;
+  error?: string;
+};
 
 const categories = [
   "Food",
@@ -47,6 +62,8 @@ export default function CreateChallengePage() {
     participantsNickname: "",
     votersNickname: "",
   })
+
+  const { payChallengeFee } = useSolanaProgram();
 
   // Add this validation function after your state declarations
   const validateForm = () => {
@@ -132,22 +149,29 @@ export default function CreateChallengePage() {
 
   // Update your handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
-    if (e) e.preventDefault()
-    setError("")
+    if (e) e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    // Validate form before submission
-    const validationError = validateForm()
+    const validationError = validateForm();
     if (validationError) {
-      setError(validationError)
-      return
+      setError(validationError);
+      setIsLoading(false);
+      return;
     }
 
-    setIsLoading(true)
-
     try {
-      // Convert days to timestamps (milliseconds since epoch)
-      const now = Date.now()
-      const msPerDay = 24 * 60 * 60 * 1000 // milliseconds in a day
+      // First attempt the Solana transaction
+      const paymentResult = await payChallengeFee();
+      console.log('Payment result:', paymentResult);
+
+      if (!paymentResult.success) {
+        throw new Error(paymentResult.error || 'Failed to process payment');
+      }
+
+      // Only proceed with challenge creation if payment was successful
+      const now = Date.now();
+      const msPerDay = 24 * 60 * 60 * 1000;
 
       const result = await createChallenge({
         title: formData.challengetitle,
@@ -163,20 +187,23 @@ export default function CreateChallengePage() {
         challengevideo: formData.demoVideo || undefined,
         voting_fee: Number(formData.votingFees),
         participation_fee: Number(formData.participation_fee),
-        creator: auth.user?.id || '', // Add creator ID from auth
-      })
+        creator: auth.user?.id || '',
+        // Store the Solana transaction signature for reference
+        transaction_signature: paymentResult.signature
+      });
 
       if (result.success && result.challenge) {
-        router.push(`/challenge/${result.challenge.id}`)
+        router.push(`/challenge/${result.challenge.id}`);
       } else {
-        setError(result.error || "Failed to create challenge")
+        setError(result.error || "Failed to create challenge");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      console.error('Challenge creation error:', error);
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {

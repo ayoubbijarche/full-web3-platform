@@ -5,13 +5,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-coinpetitive = "565ocoMP5XxVpFhAVMED6Zh7V9qXd8qy1meeZ5oqzfyK"
+coinpetitive = "CZ9rbEqcWAibvYdrJoFWKWqRhn2PHwWocRZU4erTcGfJ"
 
 [registry]
-url = "https://api.apr.dev"
+url = "http://localhost:8899"
 
 [provider]
-cluster = "devnet"
+cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

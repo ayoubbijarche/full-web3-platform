@@ -2,8 +2,9 @@ use anchor_lang::prelude::*;
 pub mod instructions;
 use instructions::token::*;
 use instructions::initialdistro::*;
+use instructions::challenge::*;
 
-declare_id!("565ocoMP5XxVpFhAVMED6Zh7V9qXd8qy1meeZ5oqzfyK");
+declare_id!("CZ9rbEqcWAibvYdrJoFWKWqRhn2PHwWocRZU4erTcGfJ");
 
 #[program]
 pub mod coinpetitive {
@@ -44,6 +45,38 @@ pub mod coinpetitive {
     )-> Result<()> {
         do_marketing_transfer(ctx, amount);
         Ok(())
+    }
+
+    pub fn create_challenge(
+        ctx: Context<CreateChallenge>,
+        description: String,
+        reward: u64,
+    ) -> Result<()> {
+        instructions::challenge::create_challenge(ctx, description, reward)
+    }
+
+    pub fn join_challenge(ctx: Context<JoinChallenge>) -> Result<()> {
+        instructions::challenge::join_challenge(ctx)
+    }
+
+    pub fn submit_video(
+        ctx: Context<SubmitVideo>,
+        video_url: String,
+    ) -> Result<()> {
+        instructions::challenge::submit_video(ctx, video_url)
+    }
+
+    pub fn vote_submission(
+        ctx: Context<VoteSubmission>,
+        submission_index: u64,
+    ) -> Result<()> {
+        instructions::challenge::vote_submission(ctx, submission_index)
+    }
+
+    pub fn pay_challenge(
+        ctx: Context<PayChallenge>,
+    ) -> Result<()> {
+        pay_challenge(ctx)
     }
 }
 

@@ -4,6 +4,8 @@ import "./globals.css";
 import { Poppins } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
 import { Navbar } from "@/components/navbar";
+import { Providers } from "@/components/providers";
+import "@solana/wallet-adapter-react-ui/styles.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,10 +38,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} font-poppins antialiased`}
       >
-        <AuthProvider>
-          <Navbar />
-          {children}
-        </AuthProvider>
+        <Providers>
+          <AuthProvider>
+            <Navbar />
+            {children}
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );
