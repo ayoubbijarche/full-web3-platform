@@ -189,7 +189,7 @@ export default function CreateChallengePage() {
         participation_fee: Number(formData.participation_fee),
         creator: auth.user?.id || '',
         // Store the Solana transaction signature for reference
-        transaction_signature: paymentResult.signature
+        //transaction_signature: paymentResult.signature
       });
 
       if (result.success && result.challenge) {

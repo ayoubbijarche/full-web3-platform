@@ -52,7 +52,7 @@ describe("coinpetitive", () => {
   
   
   //initialize the token & token metadata and it willskip if the token exists already
-  init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
+  //init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata)
   //it will mint 21M tokens 
   //mint_cpv(mint, payer, program, metadata, 21000000)
   //transfer tokens to the parties mentioned in the doc
@@ -72,7 +72,52 @@ describe("coinpetitive", () => {
   //milestone_7(mint, payer, program, metadata, 5000000)
   //milestone_8(mint, payer, program, metadata, 5000000)
   
+  pay_challenge(program);
+
 })
+
+
+
+
+function pay_challenge(program){
+  it("pays for challenge creation", async () => {
+    const payer = program.provider.publicKey;
+    const recipientWallet = new web3.PublicKey("wa7YMAsw23DkXEhV2F5Lqs6w7aHhNdeWB1cUFVMXeRr"); // Your specific wallet address
+    
+    const context = {
+      user: payer,
+      recipientWallet: recipientWallet,
+      systemProgram: web3.SystemProgram.programId,
+    };
+    
+    // Optional: Increase compute budget if needed
+    const modifyComputeUnits = web3.ComputeBudgetProgram.setComputeUnitLimit({
+      units: 400000 // Request more compute units
+    });
+    
+    try {
+      const txHash = await program.methods
+        .payChallenge()
+        .accounts(context)
+        .preInstructions([modifyComputeUnits]) // Optional: Include this line if needed
+        .rpc();
+      
+      await program.provider.connection.confirmTransaction(txHash);
+      console.log(`Transaction: https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
+    } catch (error) {
+      console.error("Full error details:", error);
+      throw error;
+    }
+  });
+}
+
+
+
+
+
+
+
+
 
 
 

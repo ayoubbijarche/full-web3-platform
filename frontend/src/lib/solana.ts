@@ -285,6 +285,19 @@ export const useSolanaProgram = () => {
     if (!program || !wallet) throw new Error('Wallet not connected');
 
     try {
+      // First check account balance
+      const balance = await program.provider.connection.getBalance(wallet.publicKey);
+      const paymentAmount = 100000000; // 0.1 SOL for challenge fee
+      const minimumBalance = paymentAmount + 5000; // Add some extra for transaction fee
+      
+      if (balance < minimumBalance) {
+        return { 
+          success: false, 
+          error: `Insufficient funds. Required: ${minimumBalance/1e9} SOL (including fees), Current balance: ${balance/1e9} SOL`
+        };
+      }
+
+      // Add preflight commitment to ensure transaction validity
       const txHash = await program.methods
         .payChallenge()
         .accounts({
@@ -294,31 +307,63 @@ export const useSolanaProgram = () => {
         })
         .rpc();
 
-      await program.provider.connection.confirmTransaction(txHash, 'processed');
-      console.log(`Transaction: http://localhost:8899/tx/${txHash}?cluster=localnet`);
+      // Wait for transaction confirmation with retry
+      const maxRetries = 3;
+      let retries = 0;
+      
+      while (retries < maxRetries) {
+        try {
+          const confirmation = await program.provider.connection.confirmTransaction(
+            txHash,
+            'confirmed'
+          );
+          
+          if (confirmation.value.err) {
+            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          }
+          
+          console.log(`Transaction successful: http://localhost:8899/tx/${txHash}?cluster=localnet`);
+          return { success: true, signature: txHash };
+          
+        } catch (confirmError) {
+          retries++;
+          if (retries === maxRetries) {
+            console.error('Max retries reached:', confirmError);
+            return {
+              success: false,
+              error: 'Transaction confirmation failed after multiple attempts',
+              logs: confirmError instanceof Error ? [confirmError.message] : []
+            };
+          }
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
 
-      return { success: true, signature: txHash };
     } catch (error) {
+      console.error('Payment error:', error);
+
       if (error instanceof SendTransactionError) {
-        console.error('Transaction Error Details:', {
-          logs: error.logs,  
-          message: error.message
-        });
+        try {
+          const logs = await error.getLogs(program.provider.connection);
+          console.error('Transaction Error Details:', {
+            logs,
+            message: error.message
+          });
+          return {
+            success: false,
+            error: 'Transaction failed - Insufficient funds or invalid instruction',
+            logs
+          };
+        } catch (logError) {
+          console.error('Error fetching logs:', logError);
+        }
       }
       
-      if (error instanceof Error && error.message.includes('Simulation failed')) {
-        const simError = error as any;
-        console.error('Simulation Error Details:', {
-          logs: simError.logs,
-          details: simError.details,
-          errorMessage: simError.message
-        });
-      }
-
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error',
-        logs: (error as any)?.logs || [] 
+        logs: (error as any)?.logs || []
       };
     }
   };
@@ -342,11 +387,16 @@ export const useSolanaProgram = () => {
 
       return { success: true, signature: txHash };
     } catch (error) {
+      let detailedLogs: string[] = [];
+      if (error instanceof SendTransactionError && typeof error.getLogs === 'function') {
+        detailedLogs = await error.getLogs(connection);
+        console.error('Error creating challenge (detailed logs):', detailedLogs);
+      }
       console.error('Error creating challenge:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error',
-        logs: (error as any)?.logs || [] 
+        logs: detailedLogs.length ? detailedLogs : (error as any)?.logs || [] 
       };
     }
   };

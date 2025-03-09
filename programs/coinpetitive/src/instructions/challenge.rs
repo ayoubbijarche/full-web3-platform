@@ -64,9 +64,9 @@ pub struct VoteSubmission<'info> {
 pub struct PayChallenge<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-    /// CHECK: This is safe because we only transfer SOL to this account
+    /// CHECK: This is the specific wallet that receives the fee
     #[account(mut)]
-    pub program_wallet: AccountInfo<'info>,
+    pub recipient_wallet: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -191,24 +191,22 @@ pub fn vote_submission(ctx: Context<VoteSubmission>, submission_index: u64) -> R
 }
 
 pub fn pay_challenge(ctx: Context<PayChallenge>) -> Result<()> {
-    let amount = 2_000_000; // 0.002 SOL fee
+    let amount = 2_000_000; // 0.002 SOL in lamports
     
-    // Transfer SOL from user to program wallet
-    let ix = anchor_lang::solana_program::system_instruction::transfer(
-        &ctx.accounts.user.key(),
-        &ctx.accounts.program_wallet.key(),
-        amount,
-    );
-    
+    // Transfer SOL from user to the specific recipient wallet
     anchor_lang::solana_program::program::invoke(
-        &ix,
+        &anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.user.key(),
+            &ctx.accounts.recipient_wallet.key(),
+            amount,
+        ),
         &[
             ctx.accounts.user.to_account_info(),
-            ctx.accounts.program_wallet.to_account_info(),
+            ctx.accounts.recipient_wallet.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
         ],
     )?;
-
+    
     Ok(())
 }
 

@@ -8,11 +8,13 @@ skip-lint = false
 coinpetitive = "CZ9rbEqcWAibvYdrJoFWKWqRhn2PHwWocRZU4erTcGfJ"
 
 [registry]
-url = "http://localhost:8899"
+url = "https://api.devnet.solana.com"
 
 [provider]
-cluster = "Localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
+url = "https://api.devnet.solana.com"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
