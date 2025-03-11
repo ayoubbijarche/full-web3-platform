@@ -1,26 +1,33 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Coinpetitive } from "../target/types/coinpetitive";
-import { web3 } from "@coral-xyz/anchor";
-import BN = require("@coral-xyz/anchor");
+import { BN } from "@coral-xyz/anchor";
 import { assert } from "chai";
-import { ComputeBudgetProgram } from "@solana/web3.js";
+import { ComputeBudgetProgram, PublicKey } from "@solana/web3.js";
 import { 
   getAssociatedTokenAddressSync, 
   createAssociatedTokenAccountInstruction 
 } from "@solana/spl-token";
+import { web3 } from "@project-serum/anchor";
+import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
+import { Connection } from '@solana/web3.js';
+
+// Configure the local cluster connection
+const connection = new Connection('http://localhost:8899', 'confirmed');
 
 describe("coinpetitive", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const program = anchor.workspace.Coinpetitive as Program<Coinpetitive>;
   
   const metadata_seed = "metadata"
-  const token_metadata_program_id = new web3.PublicKey(
+  const token_metadata_program_id = new anchor.web3.PublicKey(
     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
   )
   
+  
   const mint_seed = "mint";
   const payer = program.provider.publicKey;
+
   const metadata = {
     name : "Coinpetitive",
     symbol : "CPV",
@@ -30,12 +37,12 @@ describe("coinpetitive", () => {
   
 
 
-  const [mint] = web3.PublicKey.findProgramAddressSync(
+  const [mint] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from(mint_seed)], 
     program.programId
   );
   
-  const [metadataAddress] = web3.PublicKey
+  const [metadataAddress] = anchor.web3.PublicKey
     .findProgramAddressSync([
       Buffer.from("metadata"),
       token_metadata_program_id.toBuffer(),
@@ -72,8 +79,185 @@ describe("coinpetitive", () => {
   //milestone_7(mint, payer, program, metadata, 5000000)
   //milestone_8(mint, payer, program, metadata, 5000000)
   
-  pay_challenge(program);
+    
+  /*
+  it("pays for challenge creation", async () => {
+      // Generate keypairs
+      const fromWallet = web3.Keypair.generate();
+      const toWallet = new PublicKey("8zhGg2MhHb4aGDa62jymyUTT3mkzQAyqPJme4Cyn6iYh");
+      console.log("\n=== Generated Wallet Addresses ===");
+      console.log("From wallet:", fromWallet.publicKey.toString());
+      console.log("To wallet:", toWallet.toString());
+      console.log("================================\n");
+      console.log("Generated keypairs, waiting 20 seconds before proceeding...");
+      
+      await new Promise(resolve => setTimeout(resolve, 20000));
+      
+      console.log("Wait complete, proceeding with transaction...");
+  
+      const amount = new anchor.BN(1 * web3.LAMPORTS_PER_SOL);
+    
+      try {
+        const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+          units: 400000
+        });
+    
+        const tx = await program.methods
+          .payChallenge(amount)
+          .accounts({
+            from: fromWallet.publicKey,
+            to: toWallet,
+          })
+          .signers([fromWallet])
+          .transaction();
+          
+        const txhash = await web3.sendAndConfirmTransaction(program.provider.connection, tx, [fromWallet]);
+        console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+  
+        const toBalance = await program.provider.connection.getBalance(toWallet);
+        
+        assert.strictEqual(
+          toBalance,
+          amount.toNumber(),
+          "Recipient should have received exactly 1 SOL"
+        );
+      } catch (error) {
+        console.error("Transfer failed:", error);
+        throw error;
+      }
+  });
 
+  it("creates a challenge", async () => {
+    // Generate a keypair for the challenge account
+    const challengeKeypair = web3.Keypair.generate();
+    
+    console.log("\n=== Generated Challenge Account ===");
+    console.log("Challenge account:", challengeKeypair.publicKey.toString());
+    console.log("================================\n");
+    
+    console.log("Waiting 2 minutes before proceeding with transaction...");
+    await new Promise(resolve => setTimeout(resolve, 30000));
+    
+    console.log("Proceeding with challenge creation...");
+  
+    try {
+      const description = "Test Challenge Description";
+      const reward = new BN(0.0001 * web3.LAMPORTS_PER_SOL); // 0.0001 SOL reward
+  
+      const tx = await program.methods
+        .createChallenge(description, reward)
+        .accounts({
+          user: program.provider.publicKey,
+          challenge: challengeKeypair.publicKey,
+ 
+        })
+        .signers([challengeKeypair])
+        .rpc();
+  
+      console.log(`Transaction URL: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+  
+
+      const challengeAccount = await program.account.challenge.fetch(
+        challengeKeypair.publicKey
+      );
+  
+      // Verify the challenge was created correctly
+      assert.equal(
+        challengeAccount.creator.toBase58(),
+        program.provider.publicKey.toBase58(),
+        "Incorrect challenge creator"
+      );
+      assert.equal(
+        challengeAccount.description,
+        description,
+        "Incorrect challenge description"
+      );
+      assert.equal(
+        challengeAccount.reward.toNumber(),
+        reward.toNumber(),
+        "Incorrect challenge reward"
+      );
+      assert.equal(
+        challengeAccount.isActive,
+        true,
+        "Challenge should be active"
+      );
+      assert.equal(
+        challengeAccount.participants.length,
+        0,
+        "Challenge should start with no participants"
+      );
+  
+    } catch (error) {
+      console.error("Challenge creation failed:", error);
+      throw error;
+    }
+  });
+*/
+/*
+  it("creates & joins a challenge", async () => {
+      // Generate keypair for participant only - we'll reuse existing challenge
+      const participantKeypair = web3.Keypair.generate();
+      // Create a challenge first
+      const challengeKeypair = web3.Keypair.generate();
+      
+      console.log("\n=== Generated Accounts ===");
+      console.log("Participant account:", participantKeypair.publicKey.toString());
+      console.log("Challenge account:", challengeKeypair.publicKey.toString());
+      console.log("=======================\n");
+      
+      try {
+          // First create the challenge
+          const description = "Test Challenge Description";
+          const reward = new BN(0.0001 * web3.LAMPORTS_PER_SOL);
+  
+          console.log("Creating challenge first...");
+          await program.methods
+              .createChallenge(description, reward)
+              .accounts({
+                  user: program.provider.publicKey,
+                  challenge: challengeKeypair.publicKey,
+              })
+              .signers([challengeKeypair])
+              .rpc();
+  
+          console.log("Challenge created, waiting 30 seconds before joining...");
+          await new Promise(resolve => setTimeout(resolve, 30000));
+  
+          // Now join the challenge
+          console.log("Attempting to join challenge...");
+          const tx = await program.methods
+              .joinChallenge()
+              .accounts({
+                  user: participantKeypair.publicKey,
+                  challenge: challengeKeypair.publicKey,
+              })
+              .signers([participantKeypair])
+              .rpc();
+  
+          console.log(`Transaction URL: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+  
+          // Verify participation
+          const challengeAccount = await program.account.challenge.fetch(
+              challengeKeypair.publicKey
+          );
+  
+          assert.include(
+              challengeAccount.participants.map(p => p.toBase58()),
+              participantKeypair.publicKey.toBase58(),
+              "Participant should be added to challenge"
+          );
+          
+      } catch (error) {
+          console.error("Challenge operation failed:", error);
+          throw error;
+      }
+  });*/
+
+
+  
+    
+  
 })
 
 
@@ -82,16 +266,16 @@ describe("coinpetitive", () => {
 function pay_challenge(program){
   it("pays for challenge creation", async () => {
     const payer = program.provider.publicKey;
-    const recipientWallet = new web3.PublicKey("wa7YMAsw23DkXEhV2F5Lqs6w7aHhNdeWB1cUFVMXeRr"); // Your specific wallet address
+    const recipientWallet = new anchor.web3.PublicKey("wa7YMAsw23DkXEhV2F5Lqs6w7aHhNdeWB1cUFVMXeRr"); // Your specific wallet address
     
     const context = {
       user: payer,
       recipientWallet: recipientWallet,
-      systemProgram: web3.SystemProgram.programId,
+      systemProgram: anchor.web3.SystemProgram.programId,
     };
     
     // Optional: Increase compute budget if needed
-    const modifyComputeUnits = web3.ComputeBudgetProgram.setComputeUnitLimit({
+    const modifyComputeUnits = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
       units: 400000 // Request more compute units
     });
     
@@ -134,8 +318,8 @@ function init_token(program , mint , metadataAddress , payer , token_metadata_pr
         metadata: metadataAddress,
         mint,
         payer,
-        rent: web3.SYSVAR_RENT_PUBKEY,
-        systemProgram: web3.SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
         tokenMetadataProgram: token_metadata_program_id,
       };
@@ -174,8 +358,8 @@ function mint_cpv(mint , payer , program , metadata , supply){
           mint,
           destination,
           payer,
-          rent: web3.SYSVAR_RENT_PUBKEY,
-          systemProgram: web3.SystemProgram.programId,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
           associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
         };
@@ -209,7 +393,7 @@ function mint_cpv(mint , payer , program , metadata , supply){
 function transfer_to_founder(mint_addr , program , payer , metadata , senderTokenAccount , tk){
   it("transfers tokens to the founder's ATA", async () => {
     
-    const founderWallet = new web3.PublicKey("5w3VpTacYmcCBXygAxFoCDfG4R11q9dbj4WGLVswweKE");
+    const founderWallet = new anchor.web3.PublicKey("5w3VpTacYmcCBXygAxFoCDfG4R11q9dbj4WGLVswweKE");
     const recipientAta = getAssociatedTokenAddressSync(mint_addr, founderWallet);
     
       try {
@@ -222,7 +406,7 @@ function transfer_to_founder(mint_addr , program , payer , metadata , senderToke
             founderWallet,  // owner of the ATA
             mint_addr       // token mint
           );
-          const createAtaTx = new web3.Transaction().add(createAtaIx);
+          const createAtaTx = new anchor.web3.Transaction().add(createAtaIx);
           await program.provider.sendAndConfirm(createAtaTx);
           console.log("Created founder's associated token account");
         } else {
@@ -236,7 +420,7 @@ function transfer_to_founder(mint_addr , program , payer , metadata , senderToke
           founderWallet,
           mint_addr
         );
-        const createAtaTx = new web3.Transaction().add(createAtaIx);
+        const createAtaTx = new anchor.web3.Transaction().add(createAtaIx);
         await program.provider.sendAndConfirm(createAtaTx);
       }
     
@@ -263,7 +447,7 @@ function transfer_to_founder(mint_addr , program , payer , metadata , senderToke
 function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAccount , tk){
   it("transfers tokens to the dev's ATA", async () => {
     
-      const founderWallet = new web3.PublicKey("DhCu49epRCawP9Yp2ZoatzSvfmTewi2x73xEM6Vb2kh2");
+      const founderWallet = new anchor.web3.PublicKey("DhCu49epRCawP9Yp2ZoatzSvfmTewi2x73xEM6Vb2kh2");
       const recipientAta = getAssociatedTokenAddressSync(mint_addr, founderWallet);
       
         try {
@@ -271,12 +455,12 @@ function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAcc
           if (!accountInfo) {
             console.log("ATA does not exist. Creating ATA...");
             const createAtaIx = createAssociatedTokenAccountInstruction(
-              payer,          // payer of the transaction
+              payer,          
               recipientAta,   // the ATA to be created
               founderWallet,  // owner of the ATA
               mint_addr       // token mint
             );
-            const createAtaTx = new web3.Transaction().add(createAtaIx);
+            const createAtaTx = new anchor.web3.Transaction().add(createAtaIx);
             await program.provider.sendAndConfirm(createAtaTx);
             console.log("Created founder's associated token account");
           } else {
@@ -290,7 +474,7 @@ function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAcc
             founderWallet,
             mint_addr
           );
-          const createAtaTx = new web3.Transaction().add(createAtaIx);
+          const createAtaTx = new anchor.web3.Transaction().add(createAtaIx);
           await program.provider.sendAndConfirm(createAtaTx);
         }
       
@@ -321,7 +505,7 @@ function transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenA
       units: 600000  // Increased from 400000 to 600000
     });
     
-    const marketingWallet = new web3.PublicKey("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh");
+    const marketingWallet = new anchor.web3.PublicKey("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh");
     const recipientAta = getAssociatedTokenAddressSync(mint_addr, marketingWallet);
     
     try {
@@ -334,7 +518,7 @@ function transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenA
           marketingWallet,
           mint_addr
         );
-        const createAtaTx = new web3.Transaction().add(modifyComputeUnits, createAtaIx);
+        const createAtaTx = new anchor.web3.Transaction().add(modifyComputeUnits, createAtaIx);
         await program.provider.sendAndConfirm(createAtaTx);
         console.log("Created marketing's associated token account");
       } else {
@@ -348,7 +532,7 @@ function transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenA
         marketingWallet,
         mint_addr
       );
-      const createAtaTx = new web3.Transaction().add(modifyComputeUnits, createAtaIx);
+      const createAtaTx = new anchor.web3.Transaction().add(modifyComputeUnits, createAtaIx);
       await program.provider.sendAndConfirm(createAtaTx);
     }
 
@@ -479,3 +663,217 @@ function milestone_8(mint , payer , program , metadata , supply){
   }
   
 }
+
+describe("Challenge Flow", () => {
+  // Set up the provider to use local validator
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.Coinpetitive as Program<Coinpetitive>;
+
+  // Ensure we're using local connection
+  before(async () => {
+    // Wait for validator to be ready
+    await connection.getVersion();
+    console.log("Local validator is ready");
+  });
+
+  async function airdropSol(connection: Connection, address: PublicKey, amount: number) {
+    const signature = await connection.requestAirdrop(
+      address,
+      amount * web3.LAMPORTS_PER_SOL
+    );
+    await connection.confirmTransaction(signature);
+  }
+
+  it("complete challenge flow with submissions and voting", async () => {
+    // Generate keypairs for all participants
+    const creator = web3.Keypair.generate();
+    const participant1 = web3.Keypair.generate();
+    const participant2 = web3.Keypair.generate();
+    const voter1 = web3.Keypair.generate();
+    const voter2 = web3.Keypair.generate();
+    const challengeKeypair = web3.Keypair.generate();
+
+    // Log generated accounts
+    console.log("\n=== Generated Accounts ===");
+    console.log("Creator:", creator.publicKey.toString());
+    console.log("Participant 1:", participant1.publicKey.toString());
+    console.log("Participant 2:", participant2.publicKey.toString());
+    console.log("Challenge:", challengeKeypair.publicKey.toString());
+    console.log("===========================\n");
+
+    // Fund accounts
+    await airdropSol(connection, creator.publicKey, 5); // Increased from 2
+    await airdropSol(connection, participant1.publicKey, 2); // Increased from 1
+    await airdropSol(connection, participant2.publicKey, 2); // Increased from 1
+    await airdropSol(connection, voter1.publicKey, 1); // Increased from 0.1
+    await airdropSol(connection, voter2.publicKey, 1); // Increased from 0.1
+
+    try {
+      // 1. Create challenge
+      console.log("Creating challenge...");
+      const reward = new BN(1 * web3.LAMPORTS_PER_SOL);
+      const registrationFee = new BN(0.1 * web3.LAMPORTS_PER_SOL);
+      const submissionFee = new BN(0.2 * web3.LAMPORTS_PER_SOL);
+      const votingFee = new BN(0.05 * web3.LAMPORTS_PER_SOL);
+
+      const createTx = await program.methods
+      .createChallenge(
+        reward,            // reward amount
+        registrationFee,   // registration fee
+        submissionFee,     // submission fee
+        votingFee         // voting fee
+      )
+      .accounts({
+        user: creator.publicKey,
+        challenge: challengeKeypair.publicKey,
+
+      })
+      .signers([creator, challengeKeypair])
+      .rpc();
+
+      console.log(`Challenge created: ${createTx}`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 2. Participants join challenge
+      console.log("\nParticipants joining challenge...");
+      const join1Tx = await program.methods
+        .joinChallenge()
+        .accounts({
+          user: participant1.publicKey,
+          challenge: challengeKeypair.publicKey,
+
+        })
+        .signers([participant1])
+        .rpc();
+
+      const join2Tx = await program.methods
+        .joinChallenge()
+        .accounts({
+          user: participant2.publicKey,
+          challenge: challengeKeypair.publicKey,
+
+        })
+        .signers([participant2])
+        .rpc();
+
+      console.log(`Participants joined: ${join1Tx}, ${join2Tx}`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 3. Submit videos
+      console.log("\nSubmitting videos...");
+      const video1Url = "https://example.com/video1";
+      const video2Url = "https://example.com/video2";
+
+      const submit1Tx = await program.methods
+        .submitVideo(video1Url)
+        .accounts({
+          participant: participant1.publicKey,
+          challenge: challengeKeypair.publicKey,
+        })
+        .signers([participant1])
+        .rpc();
+
+      console.log("First submission complete");
+
+      const submit2Tx = await program.methods
+        .submitVideo(video2Url)
+        .accounts({
+          participant: participant2.publicKey,
+          challenge: challengeKeypair.publicKey,
+
+        })
+        .signers([participant2])
+        .rpc();
+
+      console.log("Second submission complete");
+
+      // Add verification after submissions
+      const afterSubmissions = await program.account.challenge.fetch(
+        challengeKeypair.publicKey
+      );
+      assert.equal(
+        afterSubmissions.videoSubmissions.length, 
+        2, 
+        "Should have exactly 2 submissions"
+      );
+
+      // 4. Vote for videos
+      console.log("\nVoting for submissions...");
+      const vote1Tx = await program.methods
+        .voteForVideo(new anchor.BN(0))  // Vote for first submission (index 0)
+        .accounts({
+          voter: voter1.publicKey,
+          challenge: challengeKeypair.publicKey,
+        })
+        .signers([voter1])
+        .rpc();
+
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Add delay between votes
+
+      const vote2Tx = await program.methods
+        .voteForVideo(new anchor.BN(0))  // Vote for first submission (index 0)
+        .accounts({
+          voter: voter2.publicKey,
+          challenge: challengeKeypair.publicKey,
+        })
+        .signers([voter2])
+        .rpc();
+
+      console.log(`Votes cast: ${vote1Tx}, ${vote2Tx}`);
+
+      // Verify votes were counted
+      const afterVoting = await program.account.challenge.fetch(
+        challengeKeypair.publicKey
+      );
+
+      // Log vote state for debugging
+      console.log("\nVote state:", {
+        submission0Votes: afterVoting.videoSubmissions[0].voteCount.toNumber(),
+        submission1Votes: afterVoting.videoSubmissions[1].voteCount.toNumber(),
+        totalVotes: afterVoting.totalVotes?.toNumber() || 0,
+        voters: afterVoting.videoSubmissions[0].voters.map(v => v.toString())
+      });
+
+      // 5. Verify final state
+      const challengeAccount = await program.account.challenge.fetch(
+        challengeKeypair.publicKey
+      );
+
+      // Add verification assertions
+      assert.equal(
+        challengeAccount.videoSubmissions.length, 
+        2, 
+        "Should have 2 video submissions"
+      );
+      assert.equal(
+        challengeAccount.videoSubmissions[0].voteCount.toNumber(), 
+        2, 
+        "First video should have 2 votes"
+      );
+      assert.equal(
+        challengeAccount.videoSubmissions[1].voteCount.toNumber(), 
+        0, 
+        "Second video should have 0 votes"
+      );
+
+
+      if (!challengeAccount) {
+        throw new Error("Challenge account not initialized");
+      }
+
+
+      assert.equal(challengeAccount.videoSubmissions.length, 2, "Should have 2 video submissions");
+      assert.equal(challengeAccount.videoSubmissions[0].voteCount.toNumber(), 2, "First video should have 2 votes");
+      assert.equal(challengeAccount.videoSubmissions[1].voteCount.toNumber(), 0, "Second video should have 0 votes");
+      assert.equal(challengeAccount.winner.toString(), participant1.publicKey.toString(), "Winner should be participant1");
+      assert.equal(challengeAccount.isActive, false, "Challenge should be completed");
+
+      console.log("\nChallenge flow completed successfully!");
+
+    } catch (error) {
+      console.error("Challenge flow failed:", error);
+      throw error;
+    }
+  });
+});

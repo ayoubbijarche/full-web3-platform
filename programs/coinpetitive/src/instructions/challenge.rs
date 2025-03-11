@@ -1,24 +1,27 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program; // Add this import
+use anchor_lang::solana_program::{self, system_instruction};
 use std::str::FromStr;
 
 #[account]
 pub struct Challenge {
     pub creator: Pubkey,
-    pub description: String,
-    pub reward: u64,
-    pub participants: Vec<Pubkey>,
-    pub submissions: Vec<Submission>,
+    pub video_submissions: Vec<VideoSubmission>,
     pub is_active: bool,
     pub winner: Option<Pubkey>,
+    pub registration_fee: u64,
+    pub submission_fee: u64,
+    pub voting_fee: u64,
+    pub reward: u64,
     pub total_votes: u64,
+    pub voting_treasury: u64,  // Add this field for voting treasury
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct Submission {
+pub struct VideoSubmission {
     pub participant: Pubkey,
+    pub vote_count: u64,
+    pub voters: Vec<Pubkey>,
     pub video_url: String,
-    pub votes: u64,
 }
 
 #[derive(Accounts)]
@@ -28,7 +31,17 @@ pub struct CreateChallenge<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 32 + 200 + 8 + 32 * 50 + 8 + 32 + 1 + 32 + 8
+        space = 8      // discriminator
+            + 32       // creator pubkey
+            + 4 + (340 * 10)  // video submissions vec (max 10)
+            + 1        // is_active
+            + 33       // winner option
+            + 8        // registration_fee
+            + 8        // submission_fee
+            + 8        // voting_fee
+            + 8        // reward
+            + 8        // total_votes
+            + 8        // voting_treasury
     )]
     pub challenge: Account<'info, Challenge>,
     pub system_program: Program<'info, System>,
@@ -49,91 +62,90 @@ pub struct SubmitVideo<'info> {
     pub participant: Signer<'info>,
     #[account(mut)]
     pub challenge: Account<'info, Challenge>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct VoteSubmission<'info> {
+pub struct VoteForVideo<'info> {
     #[account(mut)]
     pub voter: Signer<'info>,
+    /// CHECK: This is the creator of the challenge
     #[account(mut)]
+    pub creator: AccountInfo<'info>,
+    #[account(
+        mut,
+        has_one = creator @ ErrorCode::InvalidCreator,
+    )]
     pub challenge: Account<'info, Challenge>,
     pub system_program: Program<'info, System>,
 }
 
-/* 
 #[derive(Accounts)]
 pub struct PayChallenge<'info> {
     #[account(mut)]
-    pub user: Signer<'info>,
-    /// CHECK: This is the wallet that receives the fee
-    #[account(
-        mut,
-        constraint = recipient_wallet.key() == Pubkey::from_str("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh").unwrap()    
-    )]
-    pub recipient_wallet: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
-}
-*/
-
-#[derive(Accounts)]
-pub struct PayChallenge<'info> {
+    pub from: Signer<'info>,
+    /// CHECK: This is the recipient account that will receive the payment
     #[account(mut)]
-    pub user: Signer<'info>,
-    /// CHECK: This is the wallet that receives the fee
-    #[account(mut)]
-    pub recipient_wallet: AccountInfo<'info>,
+    pub to: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
+pub fn pay_challenge(ctx: Context<PayChallenge> , amount : u64) -> Result<()> {
+    let from_account = &ctx.accounts.from;
+    let to_account = &ctx.accounts.to;
+    let transfer_instruction = system_instruction::transfer(from_account.key, to_account.key, amount);
 
-pub fn create_challenge(ctx: Context<CreateChallenge>, description: String, reward: u64) -> Result<()> {
-    // First pay the challenge fee
-    let ix = anchor_lang::solana_program::system_instruction::transfer(
-        &ctx.accounts.user.key(),
-        &ctx.accounts.challenge.key(),
-        2_000_000, // 0.002 SOL fee
-    );
-    
-    anchor_lang::solana_program::program::invoke(
-        &ix,
+    anchor_lang::solana_program::program::invoke_signed(
+        &transfer_instruction,
         &[
-            ctx.accounts.user.to_account_info(),
-            ctx.accounts.challenge.to_account_info(),
+            from_account.to_account_info(),
+            to_account.clone(),
             ctx.accounts.system_program.to_account_info(),
         ],
+        &[],
     )?;
 
-    // Initialize challenge
+    Ok(())
+}
+
+pub fn create_challenge(
+    ctx: Context<CreateChallenge>, 
+    reward: u64,
+    registration_fee: u64,
+    submission_fee: u64,
+    voting_fee: u64
+) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
     challenge.creator = *ctx.accounts.user.key;
-    challenge.description = description;
     challenge.reward = reward;
-    challenge.participants = Vec::new();
-    challenge.submissions = Vec::new();
+    challenge.video_submissions = Vec::new();
     challenge.is_active = true;
     challenge.winner = None;
+    challenge.registration_fee = registration_fee;
+    challenge.submission_fee = submission_fee;
+    challenge.voting_fee = voting_fee;
     challenge.total_votes = 0;
-
+    challenge.voting_treasury = 0;  // Initialize voting treasury
     Ok(())
 }
 
 pub fn join_challenge(ctx: Context<JoinChallenge>) -> Result<()> {
     require!(ctx.accounts.challenge.is_active, ErrorCode::ChallengeNotActive);
     
-    // Check if user hasn't already joined
+    // Only check if they've already joined through video submissions
     require!(
-        !ctx.accounts.challenge.participants.contains(ctx.accounts.user.key),
+        !ctx.accounts.challenge.video_submissions.iter().any(|s| s.participant == *ctx.accounts.user.key),
         ErrorCode::AlreadyJoined
     );
 
-    // Pay participation fee
-    let ix = anchor_lang::solana_program::system_instruction::transfer(
+    // Transfer registration fee
+    let ix = system_instruction::transfer(
         &ctx.accounts.user.key(),
         &ctx.accounts.challenge.key(),
-        1_000_000, // 0.001 SOL participation fee
+        ctx.accounts.challenge.registration_fee
     );
     
-    anchor_lang::solana_program::program::invoke(
+    solana_program::program::invoke(
         &ix,
         &[
             ctx.accounts.user.to_account_info(),
@@ -142,47 +154,75 @@ pub fn join_challenge(ctx: Context<JoinChallenge>) -> Result<()> {
         ],
     )?;
 
-    let challenge = &mut ctx.accounts.challenge;
-    challenge.participants.push(*ctx.accounts.user.key);
     Ok(())
 }
 
 pub fn submit_video(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
-    
-    require!(challenge.is_active, ErrorCode::ChallengeNotActive);
+    let participant = ctx.accounts.participant.key();
+    let submission_fee = challenge.submission_fee;
+
+    // Check if participant has already submitted
     require!(
-        challenge.participants.contains(ctx.accounts.participant.key),
-        ErrorCode::NotAParticipant
+        !challenge.video_submissions.iter().any(|s| s.participant == participant),
+        ErrorCode::AlreadySubmitted
     );
 
-    let submission = Submission {
-        participant: *ctx.accounts.participant.key,
-        video_url,
-        votes: 0,
-    };
+    // Transfer submission fee
+    let ix = system_instruction::transfer(
+        &ctx.accounts.participant.key(),
+        &challenge.key(),
+        submission_fee
+    );
+    
+    solana_program::program::invoke(
+        &ix,
+        &[
+            ctx.accounts.participant.to_account_info(),
+            challenge.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+    )?;
 
-    challenge.submissions.push(submission);
+    // Add submission with video URL
+    challenge.video_submissions.push(VideoSubmission {
+        participant,
+        vote_count: 0,
+        voters: Vec::new(),
+        video_url,
+    });
+
     Ok(())
 }
 
-pub fn vote_submission(ctx: Context<VoteSubmission>, submission_index: u64) -> Result<()> {
+pub fn vote_for_video(ctx: Context<VoteForVideo>, submission_index: u64) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
     
-    require!(challenge.is_active, ErrorCode::ChallengeNotActive);
+    // Validate submission index
     require!(
-        submission_index < challenge.submissions.len() as u64,
+        submission_index < challenge.video_submissions.len() as u64,
         ErrorCode::InvalidSubmissionIndex
     );
 
-    // Pay voting fee
-    let ix = anchor_lang::solana_program::system_instruction::transfer(
+    let voting_fee = challenge.voting_fee;
+    let voter = ctx.accounts.voter.key();
+
+    // Check if voter has already voted
+    require!(
+        !challenge.video_submissions[submission_index as usize]
+            .voters
+            .contains(&voter),
+        ErrorCode::AlreadyVoted
+    );
+
+    // Transfer voting fee to challenge account
+    let ix = system_instruction::transfer(
         &ctx.accounts.voter.key(),
         &challenge.key(),
-        500_000, // 0.0005 SOL voting fee
+        voting_fee
     );
     
-    anchor_lang::solana_program::program::invoke(
+    solana_program::program::invoke(
         &ix,
         &[
             ctx.accounts.voter.to_account_info(),
@@ -191,40 +231,27 @@ pub fn vote_submission(ctx: Context<VoteSubmission>, submission_index: u64) -> R
         ],
     )?;
 
-    challenge.submissions[submission_index as usize].votes += 1;
+    // Update total votes and treasury first
     challenge.total_votes += 1;
+    challenge.voting_treasury += voting_fee;
+
+    // Store total votes before mutable borrow
+    let total_votes = challenge.total_votes;
+
+    // Update submission vote count and add voter
+    let submission = &mut challenge.video_submissions[submission_index as usize];
+    submission.vote_count += 1;
+    submission.voters.push(voter);
 
     // Check if this submission is now the winner
-    let current_votes = challenge.submissions[submission_index as usize].votes;
-    let winner_participant = challenge.submissions[submission_index as usize].participant;
-    
-    if current_votes > challenge.total_votes / 2 {
-        challenge.winner = Some(winner_participant);
+    if submission.vote_count > total_votes / 2 {
+        challenge.winner = Some(submission.participant);
         challenge.is_active = false;
     }
 
     Ok(())
 }
 
-pub fn pay_challenge(ctx: Context<PayChallenge>) -> Result<()> {
-    let amount = 100_000_000; // 0.1 SOL
-    
-    // Simple transfer instruction
-    anchor_lang::solana_program::program::invoke(
-        &anchor_lang::solana_program::system_instruction::transfer(
-            &ctx.accounts.user.key(),
-            &ctx.accounts.recipient_wallet.key(),
-            amount,
-        ),
-        &[
-            ctx.accounts.user.to_account_info(),
-            ctx.accounts.recipient_wallet.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-        ],
-    )?;
-    
-    Ok(())
-}
 #[error_code]
 pub enum ErrorCode {
     #[msg("Challenge is not active")]
@@ -235,6 +262,12 @@ pub enum ErrorCode {
     NotAParticipant,
     #[msg("Invalid submission index")]
     InvalidSubmissionIndex,
+    #[msg("User has already voted for this submission")]
+    AlreadyVoted,
+    #[msg("Invalid creator")]
+    InvalidCreator,
+    #[msg("User has already submitted a video")]
+    AlreadySubmitted,
 }
 
 

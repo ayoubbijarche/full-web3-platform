@@ -4,15 +4,17 @@
 resolution = true
 skip-lint = false
 
-[programs.devnet]
-coinpetitive = "3aGvnvvFebPJt52wEuVsCHjwqDeVYzTNrmWmKMZ4Uu72"
+[programs.localnet]
+coinpetitive = "J39RNWHB4Tc4utSGSE8fnmyLngMtYR6A2Mrz4j1hFirQ"
 
 [registry]
-url = "https://api.devnet.solana.com"
+url = "http://localhost:8899"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+start-validator = "solana-test-validator --reset --bpf-program J39RNWHB4Tc4utSGSE8fnmyLngMtYR6A2Mrz4j1hFirQ ./target/deploy/coinpetitive.so"
+test-local = "anchor test --provider.cluster localnet"

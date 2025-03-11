@@ -11,9 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link"
 import Image from "next/image"
 import { Calendar, Upload } from "lucide-react"
-import { useSolanaProgram } from '@/lib/solana';
+import { useAnchorContext } from "@/lib/anchor-context"
 
-// Add type definitions here
 type PaymentResult = {
   success: boolean;
   signature?: string;
@@ -38,6 +37,7 @@ const categories = [
 export default function CreateChallengePage() {
   const router = useRouter()
   const auth = useAuth()
+  const { payChallenge } = useAnchorContext()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
@@ -51,21 +51,18 @@ export default function CreateChallengePage() {
     maxparticipants: "",
     voters: "",
     votingFees: "0",
-    participation_fee: "0", // Add this line
+    participation_fee: "0",
     reward: "0",
     description: "",
-    demoVideo: null as File | null, // Replace demoVideoLink with this
+    demoVideo: null as File | null,
     keywords: "",
-    registration_end: "", // Will store number of days
-    submission_end: "",   // Will store number of days
-    voting_end: "",      // Will store number of days
+    registration_end: "",
+    submission_end: "",
+    voting_end: "",
     participantsNickname: "",
     votersNickname: "",
   })
 
-  const { payChallengeFee } = useSolanaProgram();
-
-  // Add this validation function after your state declarations
   const validateForm = () => {
     const requiredFields = {
       challengetitle: "Challenge Name",
@@ -94,7 +91,6 @@ export default function CreateChallengePage() {
         .join(", ")}`
     }
 
-    // Validate numeric fields are greater than 0
     if (Number(formData.maxparticipants) <= 0) {
       return "Number of participants must be greater than 0"
     }
@@ -147,7 +143,6 @@ export default function CreateChallengePage() {
     }
   }
 
-  // Update your handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();
     setError("");
@@ -161,15 +156,9 @@ export default function CreateChallengePage() {
     }
 
     try {
-      // First attempt the Solana transaction
-      const paymentResult = await payChallengeFee();
+      const paymentResult = await payChallenge();
       console.log('Payment result:', paymentResult);
 
-      if (!paymentResult.success) {
-        throw new Error(paymentResult.error || 'Failed to process payment');
-      }
-
-      // Only proceed with challenge creation if payment was successful
       const now = Date.now();
       const msPerDay = 24 * 60 * 60 * 1000;
 
@@ -188,8 +177,6 @@ export default function CreateChallengePage() {
         voting_fee: Number(formData.votingFees),
         participation_fee: Number(formData.participation_fee),
         creator: auth.user?.id || '',
-        // Store the Solana transaction signature for reference
-        //transaction_signature: paymentResult.signature
       });
 
       if (result.success && result.challenge) {
@@ -213,7 +200,6 @@ export default function CreateChallengePage() {
       if (newKeyword && keywords.length < 5 && !keywords.includes(newKeyword)) {
         setKeywords([...keywords, newKeyword])
         setKeywordInput("")
-        // Update formData with the new keywords
         setFormData(prev => ({ 
           ...prev, 
           keywords: [...keywords, newKeyword].join(',')
@@ -223,7 +209,6 @@ export default function CreateChallengePage() {
       e.preventDefault()
       const newKeywords = keywords.slice(0, -1)
       setKeywords(newKeywords)
-      // Update formData with the new keywords
       setFormData(prev => ({ 
         ...prev, 
         keywords: newKeywords.join(',')
@@ -234,7 +219,6 @@ export default function CreateChallengePage() {
   const removeKeyword = (indexToRemove: number) => {
     const newKeywords = keywords.filter((_, index) => index !== indexToRemove)
     setKeywords(newKeywords)
-    // Update formData with the new keywords
     setFormData(prev => ({ 
       ...prev, 
       keywords: newKeywords.join(',')
@@ -248,7 +232,6 @@ export default function CreateChallengePage() {
         <h1 className="text-3xl font-semibold mb-8">Lets Challenge People</h1>
 
         <div className="grid grid-cols-[300px,1fr] gap-8">
-          {/* Image Upload Section */}
           <div className="bg-gray-100 rounded-3xl flex items-center justify-center h-[300px] relative overflow-hidden group border border-[#8a8a8a]">
             {previewUrl ? (
               <>
@@ -287,7 +270,6 @@ export default function CreateChallengePage() {
             )}
           </div>
 
-          {/* Form Section */}
           <div className="space-y-6">
             <h2 className="text-xl font-semibold mb-4">Basic Details</h2>
             
