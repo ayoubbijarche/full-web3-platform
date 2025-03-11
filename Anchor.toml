@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-coinpetitive = "CZ9rbEqcWAibvYdrJoFWKWqRhn2PHwWocRZU4erTcGfJ"
+coinpetitive = "3aGvnvvFebPJt52wEuVsCHjwqDeVYzTNrmWmKMZ4Uu72"
 
 [registry]
 url = "https://api.devnet.solana.com"
@@ -13,8 +13,6 @@ url = "https://api.devnet.solana.com"
 [provider]
 cluster = "devnet"
 wallet = "~/.config/solana/id.json"
-url = "https://api.devnet.solana.com"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-

@@ -10,7 +10,7 @@ import { WalletModalButton } from '@solana/wallet-adapter-react-ui'
 
 export function WalletConnectionDialog() {
   const { connection } = useConnection()
-  const { publicKey, connecting } = useWallet()
+  const { publicKey, connecting, disconnect } = useWallet()
   const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
@@ -28,22 +28,38 @@ export function WalletConnectionDialog() {
     }
   }, [publicKey])
 
+  const handleDisconnect = async () => {
+    await disconnect();
+    toast({
+      title: "Wallet Disconnected",
+      description: "Your wallet has been disconnected",
+    });
+  };
+
   if (!mounted) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {publicKey ? (
-          <Button 
-            className="bg-[#b3731d] text-white hover:bg-[#b3731d]/80"
-            onClick={(e) => {
-              e.preventDefault()
-              setIsOpen(true)
-            }}
-          >
-            <Wallet className="mr-2 h-4 w-4" />
-            {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              className="bg-[#b3731d] text-white hover:bg-[#b3731d]/80"
+              onClick={(e) => {
+                e.preventDefault()
+                setIsOpen(true)
+              }}
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}
+            </Button>
+            <Button 
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={handleDisconnect}
+            >
+              Disconnect
+            </Button>
+          </div>
         ) : (
           <Button 
             className="bg-[#b3731d] text-white hover:bg-[#b3731d]/80"

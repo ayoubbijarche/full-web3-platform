@@ -1,10 +1,12 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, SystemProgram, SendTransactionError } from '@solana/web3.js';
+import { PublicKey, SystemProgram, SendTransactionError, ComputeBudgetProgram, Commitment } from '@solana/web3.js';
 import { Coinpetitive } from '../../../target/types/coinpetitive';
+import { program } from '@project-serum/anchor/dist/cjs/native/system';
 
-const PROGRAM_ID = new PublicKey("CZ9rbEqcWAibvYdrJoFWKWqRhn2PHwWocRZU4erTcGfJ");
+
+const PROGRAM_ID = new PublicKey("3aGvnvvFebPJt52wEuVsCHjwqDeVYzTNrmWmKMZ4Uu72");
 
 interface ProgramIDL {
   version: "0.1.0";
@@ -280,93 +282,25 @@ export const useSolanaProgram = () => {
     );
   };
 
-  const payChallengeFee = async () => {
-    const program = getProgram();
-    if (!program || !wallet) throw new Error('Wallet not connected');
-
-    try {
-      // First check account balance
-      const balance = await program.provider.connection.getBalance(wallet.publicKey);
-      const paymentAmount = 100000000; // 0.1 SOL for challenge fee
-      const minimumBalance = paymentAmount + 5000; // Add some extra for transaction fee
-      
-      if (balance < minimumBalance) {
-        return { 
-          success: false, 
-          error: `Insufficient funds. Required: ${minimumBalance/1e9} SOL (including fees), Current balance: ${balance/1e9} SOL`
-        };
-      }
-
-      // Add preflight commitment to ensure transaction validity
-      const txHash = await program.methods
-        .payChallenge()
-        .accounts({
-          user: wallet.publicKey,
-          programWallet: PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      // Wait for transaction confirmation with retry
-      const maxRetries = 3;
-      let retries = 0;
-      
-      while (retries < maxRetries) {
-        try {
-          const confirmation = await program.provider.connection.confirmTransaction(
-            txHash,
-            'confirmed'
-          );
-          
-          if (confirmation.value.err) {
-            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
-          }
-          
-          console.log(`Transaction successful: http://localhost:8899/tx/${txHash}?cluster=localnet`);
-          return { success: true, signature: txHash };
-          
-        } catch (confirmError) {
-          retries++;
-          if (retries === maxRetries) {
-            console.error('Max retries reached:', confirmError);
-            return {
-              success: false,
-              error: 'Transaction confirmation failed after multiple attempts',
-              logs: confirmError instanceof Error ? [confirmError.message] : []
-            };
-          }
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-    } catch (error) {
-      console.error('Payment error:', error);
-
-      if (error instanceof SendTransactionError) {
-        try {
-          const logs = await error.getLogs(program.provider.connection);
-          console.error('Transaction Error Details:', {
-            logs,
-            message: error.message
-          });
-          return {
-            success: false,
-            error: 'Transaction failed - Insufficient funds or invalid instruction',
-            logs
-          };
-        } catch (logError) {
-          console.error('Error fetching logs:', logError);
-        }
+  const payChallengeFee = () => {
+    it("pays for challenge", async ()=>
+    {
+      const program = getProgram();
+      const payer = anchor.workspace.provider.wallet.publicKey;
+      const context = {
+        user: payer,
+        programWallet: new anchor.web3.PublicKey("8zhGg2MhHb4aGDa62jymyUTT3mkzQAyqPJme4Cyn6iYh"),
+        systemProgram: anchor.web3.SystemProgram.programId,
       }
       
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        logs: (error as any)?.logs || []
-      };
-    }
+      try{
+        const txHash = await program?.methods
+      }
+
+
+    })
   };
+
 
   const createChallenge = async (challengeAccount: PublicKey, description: string, reward: number) => {
     const program = getProgram();
@@ -484,12 +418,26 @@ export const useSolanaProgram = () => {
     }
   };
 
+  const validateConnection = async () => {
+    const { connection } = useConnection();
+    try {
+      const version = await connection.getVersion();
+      console.log('Connected to:', connection.rpcEndpoint);
+      console.log('Solana version:', version);
+      return true;
+    } catch (error) {
+      console.error('RPC Connection failed:', error);
+      return false;
+    }
+  };
+
   return {
     program: getProgram(),
     payChallengeFee,
     createChallenge,
     joinChallenge,
     submitVideo,
-    voteSubmission
+    voteSubmission,
+    validateConnection  // Add this
   };
 };

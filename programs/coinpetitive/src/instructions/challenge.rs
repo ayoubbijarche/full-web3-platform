@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer, Mint};
-use std::collections::BTreeMap;
+use anchor_lang::solana_program; // Add this import
+use std::str::FromStr;
 
 #[account]
 pub struct Challenge {
@@ -60,15 +60,31 @@ pub struct VoteSubmission<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/* 
 #[derive(Accounts)]
 pub struct PayChallenge<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-    /// CHECK: This is the specific wallet that receives the fee
+    /// CHECK: This is the wallet that receives the fee
+    #[account(
+        mut,
+        constraint = recipient_wallet.key() == Pubkey::from_str("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh").unwrap()    
+    )]
+    pub recipient_wallet: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+*/
+
+#[derive(Accounts)]
+pub struct PayChallenge<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    /// CHECK: This is the wallet that receives the fee
     #[account(mut)]
     pub recipient_wallet: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
+
 
 pub fn create_challenge(ctx: Context<CreateChallenge>, description: String, reward: u64) -> Result<()> {
     // First pay the challenge fee
@@ -191,9 +207,9 @@ pub fn vote_submission(ctx: Context<VoteSubmission>, submission_index: u64) -> R
 }
 
 pub fn pay_challenge(ctx: Context<PayChallenge>) -> Result<()> {
-    let amount = 2_000_000; // 0.002 SOL in lamports
+    let amount = 100_000_000; // 0.1 SOL
     
-    // Transfer SOL from user to the specific recipient wallet
+    // Simple transfer instruction
     anchor_lang::solana_program::program::invoke(
         &anchor_lang::solana_program::system_instruction::transfer(
             &ctx.accounts.user.key(),
@@ -209,7 +225,6 @@ pub fn pay_challenge(ctx: Context<PayChallenge>) -> Result<()> {
     
     Ok(())
 }
-
 #[error_code]
 pub enum ErrorCode {
     #[msg("Challenge is not active")]

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Wallet, User } from "lucide-react"
 import { subscribeToAuth } from '@/lib/pb'
 import { WalletConnectionDialog } from './wallet-connection-dialog'
+import { WalletConnection } from './wallet-connection'
 
 export function Navbar() {
   const { user, signOut } = useAuth()
@@ -45,7 +46,7 @@ export function Navbar() {
           </Link>
 
           <div className="ml-auto flex items-center space-x-4">
-            <WalletConnectionDialog />
+            <WalletConnection />
             {user ? (
               <UserAvatarMenu 
                 user={{
