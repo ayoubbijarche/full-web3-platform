@@ -11,14 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link"
 import Image from "next/image"
 import { Calendar, Upload } from "lucide-react"
-import { useAnchorContext } from "@/lib/anchor-context"
 
-type PaymentResult = {
-  success: boolean;
-  signature?: string;
-  error?: string;
-  logs?: string[];
-};
 
 type ChallengeResult = {
   success: boolean;
@@ -37,7 +30,7 @@ const categories = [
 export default function CreateChallengePage() {
   const router = useRouter()
   const auth = useAuth()
-  const { payChallenge } = useAnchorContext()
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
@@ -48,19 +41,22 @@ export default function CreateChallengePage() {
   const [formData, setFormData] = useState({
     challengetitle: "",
     category: "",
+    minparticipants: "0",
     maxparticipants: "",
     voters: "",
     votingFees: "0",
     participation_fee: "0",
     reward: "0",
     description: "",
-    demoVideo: null as File | null,
+    challengevideo: "", // Changed from File to string
     keywords: "",
     registration_end: "",
     submission_end: "",
     voting_end: "",
     participantsNickname: "",
     votersNickname: "",
+    minvoters: "0",
+    maxvoters: "0",
   })
 
   const validateForm = () => {
@@ -111,6 +107,17 @@ export default function CreateChallengePage() {
       return "Voting period must be greater than 0 days"
     }
 
+    const minVoters = parseInt(formData.minvoters) || 0;
+    const maxVoters = parseInt(formData.maxvoters) || 0;
+
+    if (minVoters < 0) {
+      return "Minimum voters cannot be negative";
+    }
+
+    if (maxVoters < minVoters) {
+      return "Maximum voters must be greater than or equal to minimum voters";
+    }
+
     return null
   }
 
@@ -136,13 +143,6 @@ export default function CreateChallengePage() {
     }
   }
 
-  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData(prev => ({ ...prev, demoVideo: file }))
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();
     setError("");
@@ -156,24 +156,32 @@ export default function CreateChallengePage() {
     }
 
     try {
-      const paymentResult = await payChallenge();
-      console.log('Payment result:', paymentResult);
-
-      const now = Date.now();
-      const msPerDay = 24 * 60 * 60 * 1000;
+      const now = new Date();
+      
+      // Calculate the end dates
+      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 24 * 60 * 60 * 1000));
+      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 24 * 60 * 60 * 1000));
+      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 24 * 60 * 60 * 1000));
 
       const result = await createChallenge({
         title: formData.challengetitle,
         category: formData.category,
-        maxParticipants: Number(formData.maxparticipants),
+        minparticipants: parseInt(formData.minparticipants) || 1,
+        maxparticipants: parseInt(formData.maxparticipants) || 0,  // Convert to number
+        minvoters: parseInt(formData.minvoters) || 0,
+        maxvoters: parseInt(formData.maxvoters) || 0,
         reward: Number(formData.reward),
         description: formData.description,
         keywords: formData.keywords.split(",").map(k => k.trim()).filter(k => k),
-        registrationEnd: now + (Number(formData.registration_end) * msPerDay),
-        submissionEnd: now + (Number(formData.submission_end) * msPerDay),
-        votingEnd: now + (Number(formData.voting_end) * msPerDay),
+        // Match the expected parameter names from createChallenge function
+        registration_end: parseInt(formData.registration_end),
+        submission_end: parseInt(formData.submission_end),
+        voting_end: parseInt(formData.voting_end),
+        registrationEnd: registrationEndDate,
+        submissionEnd: submissionEndDate,
+        votingEnd: votingEndDate,
         image: selectedImage || undefined,
-        challengevideo: formData.demoVideo || undefined,
+        challengevideo: formData.challengevideo || undefined,
         voting_fee: Number(formData.votingFees),
         participation_fee: Number(formData.participation_fee),
         creator: auth.user?.id || '',
@@ -365,15 +373,31 @@ export default function CreateChallengePage() {
                 <Label>Participants</Label>
                 <div className="flex gap-2">
                   <Input 
-                    placeholder="From"
-                    value={formData.maxparticipants}
-                    onChange={(e) => setFormData(prev => ({ ...prev, maxparticipants: e.target.value }))}
+                    type="number"
+                    min="1"
+                    placeholder="Min"
+                    value={formData.minparticipants}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      minparticipants: Math.max(1, parseInt(e.target.value) || 0).toString() 
+                    }))}
                     className="border-[#8a8a8a] rounded-[50px]"
                     required
                   />
                   <Input 
-                    placeholder="To"
+                    type="number"
+                    min="1"
+                    placeholder="Max"
+                    value={formData.maxparticipants}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      maxparticipants: Math.max(
+                        parseInt(formData.minparticipants) || 1,
+                        parseInt(e.target.value) || 0
+                      ).toString() 
+                    }))}
                     className="border-[#8a8a8a] rounded-[50px]"
+                    required
                   />
                 </div>
               </div>
@@ -381,14 +405,31 @@ export default function CreateChallengePage() {
                 <Label>Voters</Label>
                 <div className="flex gap-2">
                   <Input 
-                    placeholder="From"
-                    value={formData.voters}
-                    onChange={(e) => setFormData(prev => ({ ...prev, voters: e.target.value }))}
+                    type="number"
+                    min="0"
+                    placeholder="Min"
+                    value={formData.minvoters}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      minvoters: Math.max(0, parseInt(e.target.value) || 0).toString() 
+                    }))}
                     className="border-[#8a8a8a] rounded-[50px]"
+                    required
                   />
                   <Input 
-                    placeholder="To"
+                    type="number"
+                    min="0"
+                    placeholder="Max"
+                    value={formData.maxvoters}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      maxvoters: Math.max(
+                        parseInt(formData.minvoters) || 0,
+                        parseInt(e.target.value) || 0
+                      ).toString() 
+                    }))}
                     className="border-[#8a8a8a] rounded-[50px]"
+                    required
                   />
                 </div>
               </div>
@@ -460,30 +501,20 @@ export default function CreateChallengePage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Demo Video</Label>
-                <div className="relative">
-                  <Input 
-                    type="file"
-                    accept="video/*"
-                    onChange={handleVideoSelect}
-                    className="hidden"
-                    id="video-upload"
-                  />
-                  <label 
-                    htmlFor="video-upload" 
-                    className="flex items-center gap-2 px-4 h-10 border border-[#8a8a8a] rounded-[50px] cursor-pointer hover:bg-gray-50"
-                  >
-                    <Upload className="h-4 w-4" />
-                    <span className="text-gray-600">
-                      {formData.demoVideo ? formData.demoVideo.name : 'Upload Video'}
-                    </span>
-                  </label>
-                  {formData.demoVideo && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Selected: {formData.demoVideo.name}
-                    </p>
-                  )}
-                </div>
+                <Label>Challenge Video URL</Label>
+                <Input 
+                  type="url"
+                  placeholder="Paste video URL from YouTube, Twitter, Instagram, etc."
+                  value={formData.challengevideo}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    challengevideo: e.target.value 
+                  }))}
+                  className="border-[#8a8a8a] rounded-[50px]"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported platforms: YouTube, Twitter, Instagram, TikTok, etc.
+                </p>
               </div>
               <div>
                 <Label>Keywords</Label>

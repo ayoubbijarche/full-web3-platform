@@ -53,18 +53,21 @@ export type ChallengeModel = {
   title: string;
   category: string;
   participants: string[];
+  minparticipats: number;
   maxparticipats: number;
+  minvoters: number;
+  maxvoters: number;
   voters: string[];
   reward: number;
   description: string;
   keywords: string[];
-  registration_ends: number;
-  submission_end: number;
-  voting_end: number;
+  registration_ends: Date; // Change to string since PocketBase stores dates as ISO strings
+  submission_end: Date;
+  voting_end: Date;
   voting_fee: number;
   participation_fee: number;
   image?: string;
-  challengevideo?: string; // Add this new field for the video file
+  challengevideo?: string; // Changed from File to string for video URL
   state: 'registration' | 'submission' | 'voting' | 'completed';
   creator: string;
   chat: string; // Chat ID
@@ -97,7 +100,6 @@ export type VideoSubmissionModel = {
   dislikes: number;    
   likedBy: string[];   
   dislikedBy: string[]; 
-  voters?: string[];
   votersCount?: number;
   vote_count: number;
   voters: string[];
@@ -248,18 +250,24 @@ export function signOut() {
 export const createChallenge = async (data: {
   title: string;
   category: string;
-  maxParticipants: number;
+  minparticipants: number;    // Add this field
+  maxparticipants: number;    // Match DB field name
   reward: number;
   description: string;
   keywords: string[];
-  registrationEnd: number;
-  submissionEnd: number;
-  votingEnd: number;
+  registration_end: number;
+  registrationEnd: Date;
+  submissionEnd: Date;
+  votingEnd: Date;
+  submission_end: number;
+  voting_end: number;
   voting_fee: number;
   participation_fee: number;
   image?: File;
-  challengevideo?: File; // Add this type
-  creator: string; // Add this field
+  challengevideo?: string; // Changed from File to string
+  creator: string;
+  minvoters: number;
+  maxvoters: number;
 }) => {
   try {
     if (!pb.authStore.model) {
@@ -268,19 +276,26 @@ export const createChallenge = async (data: {
 
     const formData = new FormData();
     
-    // Add creator field with current user's ID
+    // Calculate dates based on days
+    const now = new Date();
+    const registrationEndDate = new Date(now.getTime() + (data.registration_end * 24 * 60 * 60 * 1000));
+    const submissionEndDate = new Date(registrationEndDate.getTime() + (data.submission_end * 24 * 60 * 60 * 1000));
+    const votingEndDate = new Date(submissionEndDate.getTime() + (data.voting_end * 24 * 60 * 60 * 1000));
+
+    // Add all fields to formData
     formData.append('creator', pb.authStore.model.id);
-    
-    // Add all non-file fields
     formData.append('title', data.title);
     formData.append('category', data.category);
-    formData.append('maxparticipants', data.maxParticipants.toString());
+    formData.append('maxparticipants', data.maxparticipants.toString());
+    formData.append('minparticipants', data.minparticipants.toString());
+    formData.append('minvoters', data.minvoters.toString());
+    formData.append('maxvoters', data.maxvoters.toString());
     formData.append('reward', data.reward.toString());
     formData.append('description', data.description);
     formData.append('keywords', JSON.stringify(data.keywords));
-    formData.append('registration_ends', data.registrationEnd.toString());
-    formData.append('submission_end', data.submissionEnd.toString());
-    formData.append('voting_end', data.votingEnd.toString());
+    formData.append('registration_ends', data.registrationEnd.toISOString());
+    formData.append('submission_end', data.submissionEnd.toISOString());
+    formData.append('voting_end', data.votingEnd.toISOString());
     formData.append('voting_fee', data.voting_fee.toString());
     formData.append('participation_fee', data.participation_fee.toString());
     formData.append('state', 'registration'); // Set initial state
@@ -289,6 +304,7 @@ export const createChallenge = async (data: {
     if (data.image) {
       formData.append('image', data.image);
     }
+    // Add video URL instead of file
     if (data.challengevideo) {
       formData.append('challengevideo', data.challengevideo);
     }

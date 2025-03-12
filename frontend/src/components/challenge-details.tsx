@@ -1,5 +1,4 @@
 "use client"
-
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -365,6 +364,34 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
 
   // Add this helper function at the component level
 
+  // Add this helper function to extract video ID and platform
+  const getEmbedUrl = (url: string) => {
+    try {
+      // YouTube
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        const videoId = url.includes('youtube.com') 
+          ? url.split('v=')[1]?.split('&')[0]
+          : url.split('youtu.be/')[1]?.split('?')[0];
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+      // Twitter
+      else if (url.includes('twitter.com')) {
+        return `https://twitframe.com/show?url=${encodeURIComponent(url)}`;
+      }
+      // Instagram
+      else if (url.includes('instagram.com')) {
+        return `https://www.instagram.com/embed/${url.split('/p/')[1]?.split('/')[0]}`;
+      }
+      // TikTok
+      else if (url.includes('tiktok.com')) {
+        return `https://www.tiktok.com/embed/${url.split('/video/')[1]}`;
+      }
+      // Return original URL if no matches
+      return url;
+    } catch {
+      return url;
+    }
+  };
 
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
@@ -372,11 +399,12 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
         <div className="border border-[#9A9A9A] rounded-xl overflow-hidden mb-4">
           <div className="aspect-video relative">
             {challenge.challengevideo ? (
-              <video
-                src={`http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.challengevideo}`}
-                controls
-                className="w-full h-full object-cover"
-                playsInline // Add playsinline for better mobile support
+              <iframe
+                src={getEmbedUrl(challenge.challengevideo)}
+                className="w-full h-full"
+                allowFullScreen
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               />
             ) : challenge.image ? (
               <Image
