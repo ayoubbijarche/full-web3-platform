@@ -71,6 +71,7 @@ export type ChallengeModel = {
   state: 'registration' | 'submission' | 'voting' | 'completed';
   creator: string;
   chat: string; // Chat ID
+  onchain_id : string;
   video_submited?: string;
   created: string;
   updated: string;
@@ -250,8 +251,8 @@ export function signOut() {
 export const createChallenge = async (data: {
   title: string;
   category: string;
-  minparticipants: number;    // Add this field
-  maxparticipants: number;    // Match DB field name
+  minparticipants: number;
+  maxparticipants: number;
   reward: number;
   description: string;
   keywords: string[];
@@ -264,10 +265,11 @@ export const createChallenge = async (data: {
   voting_fee: number;
   participation_fee: number;
   image?: File;
-  challengevideo?: string; // Changed from File to string
+  challengevideo?: string;
   creator: string;
   minvoters: number;
   maxvoters: number;
+  onchain_id: string; // This is now required and must be a string
 }) => {
   try {
     if (!pb.authStore.model) {
@@ -298,6 +300,7 @@ export const createChallenge = async (data: {
     formData.append('voting_end', data.votingEnd.toISOString());
     formData.append('voting_fee', data.voting_fee.toString());
     formData.append('participation_fee', data.participation_fee.toString());
+    formData.append('onchain_id', data.onchain_id.toString());
     formData.append('state', 'registration'); // Set initial state
     
     // Add file fields if they exist

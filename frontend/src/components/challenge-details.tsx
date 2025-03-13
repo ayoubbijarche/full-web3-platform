@@ -324,16 +324,23 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       } else {
         // Update local state with new vote count
         setVideoSubmissions(prevSubmissions => 
-          prevSubmissions.map(sub => 
-            sub.id === submissionId 
-              ? { 
-                  ...sub, 
-                  voters: [...(sub.voters || []), auth.user!.id],
-                  vote_count: (sub.vote_count || 0) + 1,
-                  ...result.submission 
+          prevSubmissions.map(sub => {
+            if (sub.id === submissionId) {
+              const updatedSubmission: VideoSubmissionModel = {
+                ...sub,
+                voters: [...(sub.voters || []), auth.user!.id],
+                vote_count: (sub.vote_count || 0) + 1,
+                ...result.submission,
+                expand: {
+                  participant: sub.expand?.participant || result.submission?.expand?.participant || null,
+                  challenge: sub.expand?.challenge || result.submission?.expand?.challenge || null,
+                  sender: sub.expand?.sender || result.submission?.expand?.sender || null,
                 }
-              : sub
-          )
+              };
+              return updatedSubmission;
+            }
+            return sub;
+          })
         );
       }
     } catch (error) {
@@ -734,7 +741,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                 placeholder={
                   !auth.user 
                     ? "Sign in to chat" 
-                    : !isParticipant 
+                    : (!isParticipant && !isCreator)
                       ? "Join challenge to chat" 
                       : "Type your message"
                 } 
@@ -742,20 +749,20 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter' && isParticipant) {
+                  if (e.key === 'Enter' && (isParticipant || isCreator)) {
                     handleSendMessage()
                   }
                 }}
-                disabled={!auth.user || !isParticipant}
+                disabled={!auth.user || (!isParticipant && !isCreator)}
               />
               <Button 
                 size="sm"
                 onClick={handleSendMessage}
-                disabled={!auth.user || !isParticipant}
+                disabled={!auth.user || (!isParticipant && !isCreator)}
                 title={
                   !auth.user 
                     ? "Sign in to chat" 
-                    : !isParticipant 
+                    : (!isParticipant && !isCreator)
                       ? "Join challenge to chat" 
                       : "Send message"
                 }
@@ -763,7 +770,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                 Send
               </Button>
             </div>
-            {auth.user && !isParticipant && (
+            {auth.user && !isParticipant && !isCreator && (
               <p className="text-xs text-gray-500 mt-2 text-center">
                 Join the challenge to participate in the chat
               </p>

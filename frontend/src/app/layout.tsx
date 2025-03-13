@@ -5,6 +5,7 @@ import { Poppins } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
 import { Navbar } from "@/components/navbar";
 import { Providers } from "@/components/providers";
+import { AnchorProvider } from "@/lib/anchor-provider";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const geistSans = Geist({
@@ -40,8 +41,10 @@ export default function RootLayout({
       >
         <Providers>
           <AuthProvider>
-            <Navbar />
-            {children}
+            <AnchorProvider>
+              <Navbar />
+              {children}
+            </AnchorProvider>
           </AuthProvider>
         </Providers>
       </body>

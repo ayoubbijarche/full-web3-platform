@@ -44,6 +44,9 @@ pub struct CreateChallenge<'info> {
             + 8        // voting_treasury
     )]
     pub challenge: Account<'info, Challenge>,
+    /// CHECK: This is the program account that will receive the creation fee
+    #[account(mut)]
+    pub program_account: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -80,34 +83,6 @@ pub struct VoteForVideo<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[derive(Accounts)]
-pub struct PayChallenge<'info> {
-    #[account(mut)]
-    pub from: Signer<'info>,
-    /// CHECK: This is the recipient account that will receive the payment
-    #[account(mut)]
-    pub to: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-pub fn pay_challenge(ctx: Context<PayChallenge> , amount : u64) -> Result<()> {
-    let from_account = &ctx.accounts.from;
-    let to_account = &ctx.accounts.to;
-    let transfer_instruction = system_instruction::transfer(from_account.key, to_account.key, amount);
-
-    anchor_lang::solana_program::program::invoke_signed(
-        &transfer_instruction,
-        &[
-            from_account.to_account_info(),
-            to_account.clone(),
-            ctx.accounts.system_program.to_account_info(),
-        ],
-        &[],
-    )?;
-
-    Ok(())
-}
-
 pub fn create_challenge(
     ctx: Context<CreateChallenge>, 
     reward: u64,
@@ -116,6 +91,25 @@ pub fn create_challenge(
     voting_fee: u64
 ) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
+    
+    // Transfer 0.002 SOL (2_000_000 lamports) from creator to program account
+    let creation_fee = 2_000_000;
+    let ix = system_instruction::transfer(
+        &ctx.accounts.user.key(),
+        &ctx.accounts.program_account.key(),
+        creation_fee
+    );
+    
+    solana_program::program::invoke(
+        &ix,
+        &[
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.program_account.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+    )?;
+
+    // Initialize challenge state
     challenge.creator = *ctx.accounts.user.key;
     challenge.reward = reward;
     challenge.video_submissions = Vec::new();
@@ -125,7 +119,8 @@ pub fn create_challenge(
     challenge.submission_fee = submission_fee;
     challenge.voting_fee = voting_fee;
     challenge.total_votes = 0;
-    challenge.voting_treasury = 0;  // Initialize voting treasury
+    challenge.voting_treasury = 0;
+
     Ok(())
 }
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth, createChallenge } from "@/lib/pb"
+import { useAuth, createChallenge as createChallengeDB } from "@/lib/pb"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link"
 import Image from "next/image"
 import { Calendar, Upload } from "lucide-react"
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { useAnchor } from "@/lib/anchor-context";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PublicKey } from "@solana/web3.js";
+import { toast } from "@/hooks/use-toast"
 
 
 type ChallengeResult = {
@@ -29,7 +34,7 @@ const categories = [
 
 export default function CreateChallengePage() {
   const router = useRouter()
-  const auth = useAuth()
+  const auth = useAuth();
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -143,6 +148,9 @@ export default function CreateChallengePage() {
     }
   }
 
+  // Get Anchor context for blockchain interactions
+  const { createChallenge: createOnChainChallenge, wallet } = useAnchor();
+
   const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();
     setError("");
@@ -155,7 +163,38 @@ export default function CreateChallengePage() {
       return;
     }
 
+    // Check if wallet is connected
+    if (!wallet) {
+      setError("Please connect your wallet to create a challenge");
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      // First create the challenge on the blockchain
+      console.log("Creating challenge on the blockchain...");
+      
+      // Convert values to correct format for blockchain
+      const rewardLamports = Number(formData.reward) * LAMPORTS_PER_SOL;
+      const registrationFeeLamports = Number(formData.participation_fee) * LAMPORTS_PER_SOL;
+      const submissionFeeLamports = 0; // No separate submission fee in the UI, use 0
+      const votingFeeLamports = Number(formData.votingFees) * LAMPORTS_PER_SOL;
+      
+      // Send the transaction to the blockchain
+      const onChainResult = await createOnChainChallenge({
+        reward: rewardLamports,
+        registrationFee: registrationFeeLamports,
+        submissionFee: submissionFeeLamports,
+        votingFee: votingFeeLamports
+      });
+      
+      if (!onChainResult.success) {
+        throw new Error(onChainResult.error || "Failed to create challenge on blockchain");
+      }
+      
+      console.log("Challenge created on blockchain:", onChainResult);
+
+      // Now create the challenge in your database
       const now = new Date();
       
       // Calculate the end dates
@@ -163,7 +202,8 @@ export default function CreateChallengePage() {
       const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 24 * 60 * 60 * 1000));
       const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 24 * 60 * 60 * 1000));
 
-      const result = await createChallenge({
+      // Then create the challenge in your database
+      const result = await createChallengeDB({
         title: formData.challengetitle,
         category: formData.category,
         minparticipants: parseInt(formData.minparticipants) || 1,
@@ -185,16 +225,33 @@ export default function CreateChallengePage() {
         voting_fee: Number(formData.votingFees),
         participation_fee: Number(formData.participation_fee),
         creator: auth.user?.id || '',
+        onchain_id: onChainResult.challengeId || '' // Store the on-chain challenge ID
+        // The transaction signature is logged but not stored since there's no field for it in the API
       });
 
       if (result.success && result.challenge) {
+        toast({
+          title: "Challenge Created",
+          description: "Your challenge has been created successfully!"
+        });
         router.push(`/challenge/${result.challenge.id}`);
       } else {
-        setError(result.error || "Failed to create challenge");
+        setError(result.error || "Failed to create challenge in database");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Challenge creation error:', error);
-      setError(error instanceof Error ? error.message : "An error occurred");
+      
+      // Better handling of Solana errors
+      if (error && typeof error === 'object' && 'logs' in error && Array.isArray(error.logs)) {
+        console.error('Transaction logs:', error.logs);
+        // Extract the specific error from Solana logs if possible
+        const errorMessage = error.logs.find((log: string) => log.includes('Error:'));
+        setError(errorMessage || (error instanceof Error ? error.message : "An error occurred"));
+      } else if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("An error occurred during challenge creation");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -236,6 +293,12 @@ export default function CreateChallengePage() {
   return (
     <div className="p-8 max-w-[1200px] mx-auto">
       <div className="bg-white rounded-3xl p-8 shadow-sm">
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="text-[#B3731D] mb-1">Great!</div>
         <h1 className="text-3xl font-semibold mb-8">Lets Challenge People</h1>
 

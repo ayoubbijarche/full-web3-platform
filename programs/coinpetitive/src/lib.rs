@@ -5,7 +5,7 @@ use instructions::*;
 use instructions::token::*;
 use instructions::challenge::*;
 
-declare_id!("J39RNWHB4Tc4utSGSE8fnmyLngMtYR6A2Mrz4j1hFirQ");
+declare_id!("7RUA3ry7n4ELZpMA4TwQBMmiHTKEhwSqML5xywM4m2pr");
 
 #[program]
 pub mod coinpetitive {
@@ -80,11 +80,6 @@ pub mod coinpetitive {
         instructions::challenge::vote_for_video(ctx, submission_index)
     }
 
-    pub fn pay_challenge(
-        ctx: Context<PayChallenge>,
-        amount: u64,
-    ) -> Result<()> {
-        instructions::challenge::pay_challenge(ctx, amount)
-    }
+
 }
 

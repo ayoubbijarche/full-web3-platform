@@ -685,6 +685,9 @@ describe("Challenge Flow", () => {
     await connection.confirmTransaction(signature);
   }
 
+  // First, add this constant at the top of your test file after other imports
+  const PROGRAM_ACCOUNT = new web3.PublicKey("wa7YMAsw23DkXEhV2F5Lqs6w7aHhNdeWB1cUFVMXeRr");
+
   it("complete challenge flow with submissions and voting", async () => {
     // Generate keypairs for all participants
     const creator = web3.Keypair.generate();
@@ -727,7 +730,7 @@ describe("Challenge Flow", () => {
       .accounts({
         user: creator.publicKey,
         challenge: challengeKeypair.publicKey,
-
+        programAccount: PROGRAM_ACCOUNT, // Add this line
       })
       .signers([creator, challengeKeypair])
       .rpc();
