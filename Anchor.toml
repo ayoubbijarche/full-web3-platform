@@ -11,10 +11,10 @@ coinpetitive = "7RUA3ry7n4ELZpMA4TwQBMmiHTKEhwSqML5xywM4m2pr"
 coinpetitive = "7RUA3ry7n4ELZpMA4TwQBMmiHTKEhwSqML5xywM4m2pr"
 
 [registry]
-url = "http://localhost:8899"
+url = "https://api.devnet.solana.com"
 
 [provider]
-cluster = "devnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

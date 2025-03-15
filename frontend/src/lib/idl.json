@@ -37,6 +37,19 @@
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "creator_token_account"
+        },
+        {
+          "name": "challenge_token_account"
         }
       ],
       "args": [
@@ -45,15 +58,69 @@
           "type": "u64"
         },
         {
-          "name": "registration_fee",
-          "type": "u64"
-        },
-        {
-          "name": "submission_fee",
+          "name": "participation_fee",
           "type": "u64"
         },
         {
           "name": "voting_fee",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "finalize_challenge",
+      "discriminator": [
+        184,
+        38,
+        132,
+        51,
+        103,
+        143,
+        203,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "challenge",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "winner",
+          "writable": true
+        },
+        {
+          "name": "winner_token_account",
+          "writable": true
+        },
+        {
+          "name": "winning_voters_treasury",
+          "writable": true
+        },
+        {
+          "name": "creator_token_account",
+          "writable": true
+        },
+        {
+          "name": "challenge_token_account",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "winner_pubkey",
+          "type": "pubkey"
+        },
+        {
+          "name": "winning_votes",
           "type": "u64"
         }
       ]
@@ -93,6 +160,30 @@
           }
         },
         {
+          "name": "token_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "payer",
           "writable": true,
           "signer": true
@@ -124,35 +215,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "join_challenge",
-      "discriminator": [
-        41,
-        104,
-        214,
-        73,
-        32,
-        168,
-        76,
-        79
-      ],
-      "accounts": [
-        {
-          "name": "user",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "challenge",
-          "writable": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
     },
     {
       "name": "marketing_transfer",
@@ -312,6 +374,30 @@
           }
         },
         {
+          "name": "token_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "payer",
           "writable": true,
           "signer": true
@@ -341,6 +427,43 @@
       ]
     },
     {
+      "name": "pay_participation_fee",
+      "discriminator": [
+        209,
+        203,
+        94,
+        195,
+        189,
+        66,
+        122,
+        180
+      ],
+      "accounts": [
+        {
+          "name": "participant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "challenge",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "participant_token_account",
+          "writable": true
+        },
+        {
+          "name": "challenge_token_account",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "submit_video",
       "discriminator": [
         26,
@@ -363,8 +486,19 @@
           "writable": true
         },
         {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "participant_token_account",
+          "writable": true
+        },
+        {
+          "name": "challenge_token_account",
+          "writable": true
+        },
+        {
+          "name": "video_reference"
         }
       ],
       "args": [
@@ -449,16 +583,16 @@
       ]
     },
     {
-      "name": "vote_for_video",
+      "name": "vote_for_submission",
       "discriminator": [
-        210,
-        28,
-        141,
-        255,
-        68,
-        20,
-        214,
-        226
+        3,
+        100,
+        69,
+        41,
+        43,
+        102,
+        125,
+        172
       ],
       "accounts": [
         {
@@ -467,27 +601,26 @@
           "signer": true
         },
         {
-          "name": "creator",
-          "writable": true,
-          "relations": [
-            "challenge"
-          ]
-        },
-        {
           "name": "challenge",
           "writable": true
         },
         {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "voter_token_account",
+          "writable": true
+        },
+        {
+          "name": "challenge_token_account",
+          "writable": true
+        },
+        {
+          "name": "submission_id"
         }
       ],
-      "args": [
-        {
-          "name": "submission_index",
-          "type": "u64"
-        }
-      ]
+      "args": []
     }
   ],
   "accounts": [
@@ -502,6 +635,19 @@
         81,
         22,
         208
+      ]
+    },
+    {
+      "name": "TokenState",
+      "discriminator": [
+        218,
+        112,
+        6,
+        149,
+        55,
+        186,
+        168,
+        163
       ]
     }
   ],
@@ -523,18 +669,28 @@
             "type": "pubkey"
           },
           {
-            "name": "video_submissions",
-            "type": {
-              "vec": {
-                "defined": {
-                  "name": "VideoSubmission"
-                }
-              }
-            }
-          },
-          {
             "name": "is_active",
             "type": "bool"
+          },
+          {
+            "name": "reward",
+            "type": "u64"
+          },
+          {
+            "name": "participation_fee",
+            "type": "u64"
+          },
+          {
+            "name": "voting_fee",
+            "type": "u64"
+          },
+          {
+            "name": "challenge_treasury",
+            "type": "u64"
+          },
+          {
+            "name": "voting_treasury",
+            "type": "u64"
           },
           {
             "name": "winner",
@@ -543,28 +699,16 @@
             }
           },
           {
-            "name": "registration_fee",
-            "type": "u64"
-          },
-          {
-            "name": "submission_fee",
-            "type": "u64"
-          },
-          {
-            "name": "voting_fee",
-            "type": "u64"
-          },
-          {
-            "name": "reward",
-            "type": "u64"
-          },
-          {
             "name": "total_votes",
             "type": "u64"
           },
           {
-            "name": "voting_treasury",
+            "name": "winning_votes",
             "type": "u64"
+          },
+          {
+            "name": "reward_token_mint",
+            "type": "pubkey"
           }
         ]
       }
@@ -594,27 +738,42 @@
       }
     },
     {
-      "name": "VideoSubmission",
+      "name": "TokenState",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "participant",
-            "type": "pubkey"
-          },
-          {
-            "name": "vote_count",
+            "name": "current_supply",
             "type": "u64"
           },
           {
-            "name": "voters",
+            "name": "last_mint_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "challenges_completed",
+            "type": "u64"
+          },
+          {
+            "name": "total_entry_fees",
+            "type": "u64"
+          },
+          {
+            "name": "unique_wallets",
+            "type": "u64"
+          },
+          {
+            "name": "mint_conditions_used",
             "type": {
-              "vec": "pubkey"
+              "array": [
+                "bool",
+                8
+              ]
             }
           },
           {
-            "name": "video_url",
-            "type": "string"
+            "name": "is_self_sustaining",
+            "type": "bool"
           }
         ]
       }

@@ -1,0 +1,19 @@
+use anchor_lang::prelude::*;
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Challenge is not active")]
+    ChallengeNotActive,
+    #[msg("Challenge is still active")]
+    ChallengeStillActive,
+    #[msg("Invalid creator")]
+    InvalidCreator,
+    #[msg("Invalid submission ID")]
+    InvalidSubmissionId,
+    #[msg("Voting period has not ended")]
+    VotingPeriodActive,
+    #[msg("Invalid vote count")]
+    InvalidVoteCount,
+    #[msg("Invalid winner")]
+    InvalidWinner,
+}

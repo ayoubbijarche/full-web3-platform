@@ -9,7 +9,9 @@ import { SubmitVideoDialog } from "@/components/submit-video-dialog"
 import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel } from "@/lib/pb"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-
+import { useAnchor } from '@/lib/anchor-context'
+import { PublicKey } from '@solana/web3.js'
+import { toast } from "sonner"; // Use Sonner toast instead
 
 export interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -36,6 +38,9 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
+  const { payParticipationFee } = useAnchor()
+  const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
+  const [onChainError, setOnChainError] = useState<string | null>(null)
   
   useEffect(() => {
     console.log('Challenge in component:', challenge);
@@ -198,26 +203,74 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   
   const handleJoinChallenge = async () => {
     if (!auth.user) {
-      router.push('/signup');
-      return;
+      router.push('/signup')
+      return
     }
     
-    setIsJoining(true);
-    setJoinError(null);
+    setIsJoining(true)
+    setJoinError(null)
+    setOnChainStatus(null)
+    setOnChainError(null)
+    
+    // Debug log for on-chain ID
+    console.log("Challenge on-chain ID:", challenge.onchain_id)
+    
     try {
-      const result = await joinChallenge(challenge.id, auth.user.id);
-      if (!result.success) {
-        setJoinError(result.error || 'Failed to join challenge');
+      // 1. First - Join on-chain if ID is available
+      if (challenge.onchain_id) {
+        try {
+          const challengePublicKey = new PublicKey(challenge.onchain_id)
+          console.log("Converting to PublicKey:", challengePublicKey.toString())
+          
+          // Call the on-chain function
+          const onChainResult = await payParticipationFee(challengePublicKey)
+          
+          if (onChainResult.success) {
+            console.log("On-chain join successful!")
+            console.log("Transaction signature:", onChainResult.signature)
+            setOnChainStatus(`Success! Tx: ${onChainResult.signature.slice(0, 8)}...`)
+            toast({
+              title: "Successfully joined on-chain",
+              variant: "success"
+            })
+          } else {
+            console.error("On-chain join error:", onChainResult.error)
+            setOnChainError(onChainResult.error)
+            toast({
+              title: `On-chain error: ${onChainResult.error}`,
+              variant: "destructive"
+            })
+            return // Stop if on-chain fails
+          }
+        } catch (error) {
+          console.error("On-chain join error:", error)
+          setOnChainError(error instanceof Error ? error.message : "Unknown error")
+          toast({
+            title: `On-chain error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            variant: "destructive"
+          })
+          return // Stop if on-chain fails
+        }
       } else {
-        // Force a hard refresh of the page
-        window.location.reload();
+        console.warn("No on-chain ID available for this challenge")
+        setOnChainError("No on-chain ID available")
+      }
+
+      // 2. Then - Join off-chain in PocketBase
+      const result = await joinChallenge(challenge.id, auth.user.id)
+      if (!result.success) {
+        setJoinError(result.error || 'Failed to join challenge')
+      } else {
+        // Refresh the page to show the updated challenge
+        window.location.reload()
       }
     } catch (error) {
-      setJoinError('Failed to join challenge');
+      setJoinError('Failed to join challenge')
+      console.error("Join error:", error)
     } finally {
-      setIsJoining(false);
+      setIsJoining(false)
     }
-  };
+  }
   
   const handleReportChallenge = async () => {
     if (!auth.user) return;
@@ -369,8 +422,6 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     );
   };
 
-  // Add this helper function at the component level
-
   // Add this helper function to extract video ID and platform
   const getEmbedUrl = (url: string) => {
     try {
@@ -499,6 +550,19 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           <p className="text-gray-600">
             {challenge.description}
           </p>
+          {challenge.onchain_id && (
+            <div className="mt-2 text-xs">
+              <div className="font-mono bg-gray-100 p-1 rounded mb-1">
+                On-chain ID: {challenge.onchain_id}
+              </div>
+              {onChainStatus && (
+                <div className="text-green-600">{onChainStatus}</div>
+              )}
+              {onChainError && (
+                <div className="text-red-600">{onChainError}</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Video Submissions */}

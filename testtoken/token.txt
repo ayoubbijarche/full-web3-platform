@@ -1,0 +1,13 @@
+spl-token create-token \
+--program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb \
+--enable-metadata \
+--decimals 9 \
+mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9.json
+
+
+
+spl-token initialize-metadata \
+mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9 \
+"Coinpetitive" \
+"CPT" \
+https://gateway.pinata.cloud/ipfs/bafkreier252mzmzb5jdmhbiubo6bndnpplnlvh7ynuixargdmrxi4ci2ay

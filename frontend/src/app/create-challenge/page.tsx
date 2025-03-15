@@ -176,15 +176,13 @@ export default function CreateChallengePage() {
       
       // Convert values to correct format for blockchain
       const rewardLamports = Number(formData.reward) * LAMPORTS_PER_SOL;
-      const registrationFeeLamports = Number(formData.participation_fee) * LAMPORTS_PER_SOL;
-      const submissionFeeLamports = 0; // No separate submission fee in the UI, use 0
+      const participationFeeLamports = Number(formData.participation_fee) * LAMPORTS_PER_SOL;
       const votingFeeLamports = Number(formData.votingFees) * LAMPORTS_PER_SOL;
       
-      // Send the transaction to the blockchain
+      // Send the transaction to the blockchain with correct parameter names
       const onChainResult = await createOnChainChallenge({
         reward: rewardLamports,
-        registrationFee: registrationFeeLamports,
-        submissionFee: submissionFeeLamports,
+        participationFee: participationFeeLamports,  // Changed from registrationFee
         votingFee: votingFeeLamports
       });
       
@@ -193,7 +191,12 @@ export default function CreateChallengePage() {
       }
       
       console.log("Challenge created on blockchain:", onChainResult);
+      console.log("Challenge ID from blockchain (for PocketBase):", onChainResult.challengeId);
 
+      if (!onChainResult.challengeId) {
+        console.error("No challenge ID returned from blockchain - this is required for PocketBase");
+      }
+      
       // Now create the challenge in your database
       const now = new Date();
       

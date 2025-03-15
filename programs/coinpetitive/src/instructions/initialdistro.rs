@@ -28,6 +28,7 @@ pub enum TokenErr {
     YouNoTokenOwner,
 }
 
+//transfers to founder team wallet
 pub fn founder_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
     let founder_wallet = Pubkey::from_str("5w3VpTacYmcCBXygAxFoCDfG4R11q9dbj4WGLVswweKE")
         .expect("Failed to parse founder wallet");
@@ -50,6 +51,7 @@ pub fn founder_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
     Ok(())
 }
 
+//transfers to dev team wallet
 pub fn dev_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
     let dev_wallet = Pubkey::from_str("DhCu49epRCawP9Yp2ZoatzSvfmTewi2x73xEM6Vb2kh2")
         .expect("Failed to parse dev wallet");
@@ -74,7 +76,7 @@ pub fn dev_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
 }
 
 
-
+//transfers to marketing team wallet
 pub fn do_marketing_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
     let marketing_wallet = Pubkey::from_str("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh")
             .expect("Failed to parse marketing wallet");
