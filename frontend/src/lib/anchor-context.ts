@@ -15,10 +15,7 @@ import {
 export const PROGRAM_ID = new PublicKey("7RUA3ry7n4ELZpMA4TwQBMmiHTKEhwSqML5xywM4m2pr");
 export const PROGRAM_TREASURY = new PublicKey("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt");
 export const CPT_TOKEN_MINT = new PublicKey("mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9");
-
-
 export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
-
 
 function getAssociatedToken2022AddressSync(mint: PublicKey, owner: PublicKey): PublicKey {
   return getAssociatedTokenAddressSync(
@@ -29,104 +26,96 @@ function getAssociatedToken2022AddressSync(mint: PublicKey, owner: PublicKey): P
   );
 }
 
-// Function to provide Anchor context values
-export function useAnchorContextProvider() {
-  const { connection } = useConnection();
-  const wallet = useAnchorWallet();
+// Define program account types
+type ChallengeAccount = {
+  creator: PublicKey;
+  isActive: boolean;
+  reward: anchor.BN;
+  participationFee: anchor.BN;
+  votingFee: anchor.BN;
+  challengeTreasury: anchor.BN;
+  votingTreasury: anchor.BN;
+  winner: PublicKey | null;
+  totalVotes: anchor.BN;
+  winningVotes: anchor.BN;
+  rewardTokenMint: PublicKey;
+  participants: PublicKey[];
+  maxParticipants: number;
+};
 
-  // Create the program object
+// Define typed program interface
+interface CoinpetitiveProgram extends Program<Idl> {
+  account: {
+    challenge: {
+      fetch(address: PublicKey): Promise<ChallengeAccount>;
+      // Add other methods you might use like fetchMultiple, all, etc.
+    };
+    // Add other account types if needed
+  };
+}
+
+// Function to provide Anchor context values
+export function useAnchorContextProvider(): AnchorContextType {
+  const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
+  
+  // Convert undefined to null for type compatibility
+  const wallet = anchorWallet || null;
+
   const program = useMemo(() => {
     if (!wallet || !connection) return null;
 
     const provider = new AnchorSDKProvider(
       connection,
-      wallet,
+      wallet, // Now this is either an AnchorWallet or null
       AnchorSDKProvider.defaultOptions()
     );
 
-    return new Program(idl as unknown as Idl , provider);
+    return new Program(idl as unknown as Idl,  provider) as unknown as CoinpetitiveProgram;
   }, [wallet, connection]);
 
-  // Create challenge function with defensive coding
-  const createChallenge = async ({
-    reward,
-    participationFee,
-    votingFee,
-  }: {
-    reward: number;
-    participationFee: number;
-    votingFee: number;
+  const createChallenge = async ({ reward, participationFee, votingFee, maxParticipants = 50 }: { 
+    reward: number, 
+    participationFee: number, 
+    votingFee: number,
+    maxParticipants?: number 
   }) => {
-    if (!program || !wallet) return { success: false, error: "Wallet or program not initialized" };
-
+    if (!program || !wallet) {
+      throw new Error("Wallet not connected");
+    }
+  
     try {
-      // Validate inputs - ensure all parameters are valid numbers
-      if (reward === undefined || participationFee === undefined || votingFee === undefined) {
-        return { success: false, error: "Invalid challenge parameters - values cannot be undefined" };
-      }
-
       // Generate a new keypair for the challenge account
       const challengeKeypair = anchor.web3.Keypair.generate();
-      console.log("Generated challenge keypair:", challengeKeypair.publicKey.toString());
-      
-      // Get creator token account
-      const creatorTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
+  
+      // Find challenge token account
+      const challengeTokenAccount = getAssociatedTokenAddressSync(
+        CPT_TOKEN_MINT,
+        challengeKeypair.publicKey,
+        false,  // allowOwnerOffCurve set to false
+        TOKEN_2022_PROGRAM_ID  // use Token-2022 program
+      );
+  
+      // Find user token account
+      const userTokenAccount = getAssociatedToken2022AddressSync(
+        CPT_TOKEN_MINT,
         wallet.publicKey
       );
-      
-      // Derive Token-2022 account address for the challenge
-      const challengeTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        challengeKeypair.publicKey
-      );
-      
-      console.log("Creator token account:", creatorTokenAccount.toString());
-      console.log("Challenge token account:", challengeTokenAccount.toString());
-      
-      // Step 1: Create the challenge Token-2022 account first
-      try {
-        console.log("Creating Token-2022 account for challenge...");
-        const createChallengeAtaIx = createAssociatedTokenAccountInstruction(
-          wallet.publicKey,  // payer
-          challengeTokenAccount,  // ata
-          challengeKeypair.publicKey,  // owner (the challenge)
-          CPT_TOKEN_MINT,  // mint
-          TOKEN_2022_PROGRAM_ID  // Use Token-2022
-        );
-        
-        const accountCreationTx = new Transaction().add(createChallengeAtaIx);
-        
-        // Fix TypeScript error with an additional check
-        if (!program.provider || typeof program.provider.sendAndConfirm !== 'function') {
-          console.error("Program provider not properly initialized");
-          return { success: false, error: "Program provider not properly initialized" };
-        }
-        
-        const createAccountSig = await program.provider.sendAndConfirm(accountCreationTx);
-        console.log("Created challenge Token-2022 account, signature:", createAccountSig);
-      } catch (e) {
-        console.warn("Error creating challenge Token-2022 account:", e);
-        // Continue anyway, as the error might be "account already exists"
-      }
-
-      // Convert to BN
-      const rewardBN = new anchor.BN(reward || 0);
-      const participationFeeBN = new anchor.BN(participationFee || 0);
-      const voteFeeBN = new anchor.BN(votingFee || 0);
-      
-      if (!program.methods) {
-        console.error("Program methods are undefined");
-        return { success: false, error: "Program methods are undefined" };
-      }
-
-      // Step 2: Now create the challenge with the proper token account
-      console.log("Creating challenge transaction with Token-2022 account...");
-      const txObj = program.methods
+  
+      console.log("Creating challenge with parameters:", {
+        reward: reward.toString(),
+        participationFee: participationFee.toString(),
+        votingFee: votingFee.toString(),
+        challengePubkey: challengeKeypair.publicKey.toString(),
+      });
+  
+      // Create the challenge
+      const tx = await program.methods
         .createChallenge(
-          rewardBN,
-          participationFeeBN,
-          voteFeeBN
+          new anchor.BN(reward),
+          new anchor.BN(participationFee),
+          new anchor.BN(votingFee),
+          maxParticipants  // Pass max participants
         )
         .accounts({
           user: wallet.publicKey,
@@ -135,330 +124,173 @@ export function useAnchorContextProvider() {
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
           tokenMint: CPT_TOKEN_MINT,
-          creatorTokenAccount: creatorTokenAccount,
-          challengeTokenAccount: challengeTokenAccount, // Use the actual Token-2022 account
+          creatorTokenAccount: userTokenAccount,
+          challengeTokenAccount: challengeTokenAccount,
+          associatedTokenProgram: new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
         })
-        .signers([challengeKeypair]);
-      
-      // Rest of your function (retry logic, etc.)
-      let attempts = 0;
-      const maxAttempts = 2;
-      let tx;
-      
-      while (attempts < maxAttempts) {
-        try {
-          attempts++;
-          console.log(`Attempt ${attempts} to sign and send challenge creation transaction...`);
-          
-          if (attempts > 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-          
-          tx = await txObj.rpc();
-          console.log("Challenge creation successful! Signature:", tx);
-          break;
-        } catch (signError) {
-          console.error(`Transaction attempt ${attempts} failed:`, signError);
-          
-          if (attempts >= maxAttempts) {
-            throw signError;
-          }
-          
-          console.log(`Retrying transaction (${attempts}/${maxAttempts})...`);
-        }
-      }
-
+        .signers([challengeKeypair])
+        .rpc();
+  
+      console.log("Challenge created! Transaction signature:", tx);
       return {
         success: true,
-        challengeId: challengeKeypair.publicKey.toString(),
-        signature: tx || "[Failed to get transaction signature]",
+        signature: tx,
+        challengePublicKey: challengeKeypair.publicKey.toString(), // This is the key name
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error creating challenge:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   };
 
-  // Update the payParticipationFee function with a more robust approach:
-
-  const payParticipationFee = async (challengePublicKey: PublicKey) => {
-    if (!program || !wallet) return { success: false, error: "Wallet or program not initialized" };
-
+  const participateInChallenge = async (challengePublicKey: string) => {
+    if (!program || !wallet) {
+      throw new Error("Wallet not connected");
+    }
+  
     try {
-      console.log("Challenge ID:", challengePublicKey.toString());
+      // Convert string to PublicKey
+      const challengePubkey = new PublicKey(challengePublicKey);
       
-      // 1. Check if we have mint information
-      console.log("Checking token mint to confirm program type...");
-      const mintInfo = await connection.getAccountInfo(CPT_TOKEN_MINT);
-      if (!mintInfo) {
-        return { success: false, error: "Token mint not found" };
-      }
+      // Get challenge data to verify it exists and check state
+      const challengeAccount = await program.account.challenge.fetch(challengePubkey);
       
-      console.log("Mint owner:", mintInfo.owner.toString());
-      const isToken2022 = mintInfo.owner.toString() === TOKEN_2022_PROGRAM_ID.toString();
-      console.log("Is Token-2022 mint:", isToken2022);
+      // Log actual values for debugging
+      console.log("On-chain challenge data:", {
+        participants: challengeAccount.participants,
+        participantsLength: challengeAccount.participants ? challengeAccount.participants.length : 0
+      });
       
-      if (!isToken2022) {
-        return { 
-          success: false, 
-          error: "Token mint is not owned by Token-2022 program" 
+      // First check if there's a maxParticipants limit on-chain
+      // Default to no limit (0) if not defined
+      const maxParticipantsOnChain = challengeAccount.maxParticipants || 0;
+      
+      // Only check if a limit exists (greater than 0)
+      if (maxParticipantsOnChain > 0 && 
+          challengeAccount.participants && 
+          challengeAccount.participants.length >= maxParticipantsOnChain) {
+        return {
+          success: false,
+          error: "This challenge is already full on-chain."
         };
       }
       
-      // 2. Get both token accounts
-      console.log("Getting token accounts...");
+      // Find the token accounts
       const participantTokenAccount = getAssociatedToken2022AddressSync(
         CPT_TOKEN_MINT,
         wallet.publicKey
       );
       
-      const challengeTokenAccount = getAssociatedToken2022AddressSync(
+      const challengeTokenAccount = getAssociatedTokenAddressSync(
         CPT_TOKEN_MINT,
-        challengePublicKey
+        challengePubkey,
+        false, // allowOwnerOffCurve
+        TOKEN_2022_PROGRAM_ID
       );
       
-      // 3. Check if accounts exist and build required instructions
-      const instructions: anchor.web3.TransactionInstruction[] = [];
+      console.log("Participating in challenge:", challengePublicKey);
+      console.log("Challenge token account:", challengeTokenAccount.toString());
+      console.log("Participant token account:", participantTokenAccount.toString());
       
-      // Check participant token account
-      const participantTokenInfo = await connection.getAccountInfo(participantTokenAccount);
-      if (!participantTokenInfo || participantTokenInfo.owner.toString() !== TOKEN_2022_PROGRAM_ID.toString()) {
-        console.log("Will create participant Token-2022 account");
-        instructions.push(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey,
-            participantTokenAccount,
-            wallet.publicKey,
-            CPT_TOKEN_MINT,
-            TOKEN_2022_PROGRAM_ID
-          )
-        );
-      }
-      
-      // Check challenge token account
-      const challengeTokenInfo = await connection.getAccountInfo(challengeTokenAccount);
-      if (!challengeTokenInfo || challengeTokenInfo.owner.toString() !== TOKEN_2022_PROGRAM_ID.toString()) {
-        console.log("Will create challenge Token-2022 account");
-        instructions.push(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey,
-            challengeTokenAccount,
-            challengePublicKey,
-            CPT_TOKEN_MINT,
-            TOKEN_2022_PROGRAM_ID
-          )
-        );
-      }
-      
-      // 4. Create both accounts in a single transaction if needed
-      if (instructions.length > 0) {
-        console.log(`Creating ${instructions.length} token accounts...`);
-        
-        // Check if provider is properly initialized
-        if (!program.provider || typeof program.provider.sendAndConfirm !== 'function') {
-          return { success: false, error: "Program provider not properly initialized" };
-        }
-        
-        // Send single transaction with all instructions
-        const tx = new Transaction().add(...instructions);
-        await program.provider.sendAndConfirm(tx);
-        console.log("Created token accounts");
-        
-        // Brief pause to ensure accounts are available
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } else {
-        console.log("All token accounts already exist");
-      }
-      
-      // 5. Send participation fee transaction
-      console.log("Sending participation fee transaction...");
+      // Call the payParticipationFee instruction
       const tx = await program.methods
         .payParticipationFee()
         .accounts({
           participant: wallet.publicKey,
-          challenge: challengePublicKey,
+          challenge: challengePubkey,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
           participantTokenAccount: participantTokenAccount,
           challengeTokenAccount: challengeTokenAccount,
+          systemProgram: SystemProgram.programId
         })
         .rpc();
-
-      console.log("Participation fee transaction successful:", tx);
-      return { success: true, signature: tx };
-    } catch (error) {
-      console.error("Error paying participation fee:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
-    }
-  };
-
-  // Submit video function - updated to include token accounts
-  const submitVideo = async (challengePublicKey: PublicKey, videoUrl: string) => {
-    if (!program || !wallet) return { success: false, error: "Wallet or program not initialized" };
-
-    try {
-      // Get token accounts
-      const participantTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        wallet.publicKey
-      );
-      const challengeTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        challengePublicKey
-      );
       
-      // Create a reference for the video (can be a derived PDA)
-      const videoReference = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from('video'),
-          wallet.publicKey.toBuffer(),
-          challengePublicKey.toBuffer(),
-          Buffer.from(videoUrl.slice(0, 32)) // Use part of URL as seed
-        ],
-        program.programId
-      )[0];
-
-      const tx = await program.methods
-        .submitVideo(videoUrl)
-        .accounts({
-          participant: wallet.publicKey,
-          challenge: challengePublicKey,
-          tokenProgram: TOKEN_2022_PROGRAM_ID,
-          participantTokenAccount: participantTokenAccount,
-          challengeTokenAccount: challengeTokenAccount,
-          videoReference: videoReference,
-        })
-        .rpc();
-
-      return { success: true, signature: tx };
-    } catch (error) {
-      console.error("Error submitting video:", error);
+      console.log("Successfully participated in challenge! Transaction signature:", tx);
       return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        success: true,
+        signature: tx
       };
-    }
-  };
-
-  // Vote for submission function (renamed from voteForVideo)
-  const voteForSubmission = async (
-    challengePublicKey: PublicKey,
-    submissionId: PublicKey
-  ) => {
-    if (!program || !wallet) return { success: false, error: "Wallet or program not initialized" };
-
-    try {
-      // Get token accounts
-      const voterTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        wallet.publicKey
-      );
-      const challengeTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        challengePublicKey
-      );
-
-      const tx = await program.methods
-        .voteForSubmission()
-        .accounts({
-          voter: wallet.publicKey,
-          challenge: challengePublicKey,
-          tokenProgram: TOKEN_2022_PROGRAM_ID,
-          voterTokenAccount: voterTokenAccount,
-          challengeTokenAccount: challengeTokenAccount,
-          submissionId: submissionId,
-        })
-        .rpc();
-
-      return { success: true, signature: tx };
-    } catch (error) {
-      console.error("Error voting for submission:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
-    }
-  };
-
-  // New function for finalizing challenge and distributing rewards
-  const finalizeChallenge = async (
-    challengePublicKey: PublicKey,
-    winnerPublicKey: PublicKey,
-    winningVotes: number
-  ) => {
-    if (!program || !wallet) return { success: false, error: "Wallet or program not initialized" };
-
-    try {
-      // Get token accounts
-      const winnerTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        winnerPublicKey
-      );
-      const creatorTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        wallet.publicKey
-      );
-      const challengeTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT, 
-        challengePublicKey
-      );
+    } catch (error: unknown) {
+      console.error("Error participating in challenge:", error);
       
-      // Create treasury for winning voters
-      const winningVotersTreasury = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from('winning_voters'),
-          challengePublicKey.toBuffer()
-        ],
-        program.programId
-      )[0];
-
-      const tx = await program.methods
-        .finalizeChallenge(
-          winnerPublicKey,
-          new anchor.BN(winningVotes)
-        )
-        .accounts({
-          authority: wallet.publicKey,
-          challenge: challengePublicKey,
-          tokenProgram: TOKEN_2022_PROGRAM_ID,
-          winner: winnerPublicKey,
-          winnerTokenAccount: winnerTokenAccount,
-          winningVotersTreasury: winningVotersTreasury,
-          creatorTokenAccount: creatorTokenAccount,
-          challengeTokenAccount: challengeTokenAccount,
-        })
-        .rpc();
-
-      return { success: true, signature: tx };
-    } catch (error) {
-      console.error("Error finalizing challenge:", error);
+      // Extract the specific Anchor error if it exists
+      let errorMessage = "Failed to join challenge";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for specific Anchor errors
+        if (errorMessage.includes("MaxParticipantsReached")) {
+          errorMessage = "This challenge is already full. Please try another challenge.";
+        } else if (errorMessage.includes("AlreadyParticipating")) {
+          errorMessage = "You are already participating in this challenge.";
+        }
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: errorMessage
       };
+    }
+  };
+
+  // Add this debug function to your anchor-context.ts
+  const inspectChallengeAccount = async (challengePublicKey: string) => {
+    if (!program) return null;
+    
+    try {
+      const challengePubkey = new PublicKey(challengePublicKey);
+      const challengeAccount = await program.account.challenge.fetch(challengePubkey);
+      
+      console.log("Challenge Account Details:", {
+        reward: challengeAccount.reward.toString(),
+        participationFee: challengeAccount.participationFee.toString(),
+        votingFee: challengeAccount.votingFee.toString(),
+        isActive: challengeAccount.isActive,
+        maxParticipants: challengeAccount.maxParticipants,
+        participants: challengeAccount.participants?.map(p => p.toString()),
+        participantsCount: challengeAccount.participants?.length || 0
+      });
+      
+      return challengeAccount;
+    } catch (error) {
+      console.error("Error inspecting challenge:", error);
+      return null;
     }
   };
 
   return {
-    wallet,
+    wallet,  // Now this is correctly typed as anchor.Wallet | null
     program,
     createChallenge,
-    payParticipationFee,  // Renamed from joinChallenge
-    submitVideo,
-    voteForSubmission,    // Renamed from voteForVideo
-    finalizeChallenge,    // New function
+    participateInChallenge
   };
 }
 
 // Define the return type for our hook
-export type AnchorContextType = ReturnType<typeof useAnchorContextProvider>;
+export type AnchorContextType = {
+  wallet: ReturnType<typeof useAnchorWallet> | null; // Use AnchorWallet type
+  program: CoinpetitiveProgram | null;
+  createChallenge: ({ reward, participationFee, votingFee }: { 
+    reward: number;
+    participationFee: number; 
+    votingFee: number 
+  }) => Promise<{
+    success: boolean;
+    signature?: string;
+    challengePublicKey?: string;
+    error?: string;
+  }>;
+  participateInChallenge: (challengePublicKey: string) => Promise<{
+    success: boolean;
+    signature?: string;
+    error?: string;
+  }>;
+};
 
-// Create the context
+// Create the context with proper default value
 export const AnchorContext = createContext<AnchorContextType | null>(null);
 
 // Create a hook to use the context

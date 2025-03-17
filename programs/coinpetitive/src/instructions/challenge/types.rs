@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::instructions::challenge::errors::ErrorCode;
 
 #[account]
 pub struct Challenge {
@@ -13,4 +14,8 @@ pub struct Challenge {
     pub total_votes: u64,
     pub winning_votes: u64,           // Votes for the winner
     pub reward_token_mint: Pubkey,    // CPT token mint
+    // New field to track participants (max 50 participants)
+    pub participants: Vec<Pubkey>,    // List of participants
+    pub max_participants: u8,         // Maximum allowed participants
 }
+

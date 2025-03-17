@@ -38,7 +38,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { payParticipationFee } = useAnchor()
+  const { participateInChallenge } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
   
@@ -209,21 +209,34 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     
     setIsJoining(true)
     setJoinError(null)
-    setOnChainStatus(null)
-    setOnChainError(null)
-    
-    // Debug log for on-chain ID
-    console.log("Challenge on-chain ID:", challenge.onchain_id)
     
     try {
-      // 1. First - Join on-chain if ID is available
+      // First check if the challenge is full in PocketBase
+      const participantCount = challenge.participants ? challenge.participants.length : 0;
+      const maxParticipants = challenge.maxparticipats || 0;
+      
+      console.log("PocketBase challenge limits:", {
+        current: participantCount,
+        max: maxParticipants
+      });
+      
+      if (maxParticipants > 0 && participantCount >= maxParticipants) {
+        setJoinError("This challenge is already at max capacity.");
+        setIsJoining(false);
+        return;
+      }
+
+      // Continue with on-chain join if available
       if (challenge.onchain_id) {
+        // Your existing on-chain join code...
+        console.log("Challenge on-chain ID:", challenge.onchain_id)
+    
         try {
           const challengePublicKey = new PublicKey(challenge.onchain_id)
           console.log("Converting to PublicKey:", challengePublicKey.toString())
           
           // Call the on-chain function
-          const onChainResult = await payParticipationFee(challengePublicKey)
+          const onChainResult = await participateInChallenge(challenge.onchain_id)
           
           if (onChainResult.success) {
             console.log("On-chain join successful!")
@@ -451,6 +464,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     }
   };
 
+  const isFull = challenge.maxparticipats > 0 && challenge.participants.length >= challenge.maxparticipats;
+
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
       <div className="flex-1">
@@ -486,12 +501,12 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             <div className="flex gap-2">
               <Button 
                 className={`flex items-center ${
-                  isCreator || isParticipant || isJoining 
+                  isCreator || isParticipant || isJoining || isFull
                     ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
                     : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
                 }`}
                 onClick={handleJoinChallenge}
-                disabled={isCreator || isParticipant || isJoining}
+                disabled={isCreator || isParticipant || isJoining || isFull}
                 title={
                   !auth.user 
                     ? "Sign up to join this challenge" 
@@ -501,7 +516,9 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                         ? "You are already a participant" 
                         : isJoining 
                           ? "Joining..." 
-                          : "Join this challenge"
+                          : isFull
+                            ? "Challenge is full"
+                            : "Join this challenge"
                 }
               >
                 {isJoining 
@@ -511,8 +528,10 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                     : isCreator 
                       ? "Creator can't participate" 
                       : isParticipant 
-                        ? "Already Joined" 
-                        : "Join Challenge 100 CPT"}
+                        ? "Already Joined"
+                        : isFull
+                          ? "Challenge Full"
+                          : `Join Challenge ${challenge.participation_fee} CPT`}
               </Button>
               {joinError && (
                 <div className="text-red-500 text-sm">{joinError}</div>
@@ -536,7 +555,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Users className="h-5 w-5" />
-              <span>{challenge.participants.length}</span>
+              <span>{challenge.participants.length}/{challenge.maxparticipats || "∞"}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Coins className="h-5 w-5" />

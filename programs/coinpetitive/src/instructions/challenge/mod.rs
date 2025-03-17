@@ -19,9 +19,10 @@ pub fn create_challenge(
     ctx: Context<CreateChallenge>,
     reward: u64,
     participation_fee: u64,
-    voting_fee: u64
+    voting_fee: u64,
+    max_participants: u8
 ) -> Result<()> {
-    create_challenge::handle(ctx, reward, participation_fee, voting_fee)
+    create_challenge::handle(ctx, reward, participation_fee, voting_fee , max_participants)
 }
 
 pub fn pay_participation_fee(ctx: Context<PayParticipationFee>) -> Result<()> {

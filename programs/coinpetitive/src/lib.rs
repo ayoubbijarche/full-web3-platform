@@ -51,13 +51,15 @@ pub mod coinpetitive {
         ctx: Context<CreateChallenge>,
         reward: u64,
         participation_fee: u64,
-        voting_fee: u64
+        voting_fee: u64,
+        max_participants: u8
     ) -> Result<()> {
         instructions::challenge::create_challenge(
             ctx,
             reward,
             participation_fee,
-            voting_fee
+            voting_fee,
+            max_participants
         )
     }
 

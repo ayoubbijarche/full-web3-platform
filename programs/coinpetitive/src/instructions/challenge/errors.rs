@@ -16,4 +16,10 @@ pub enum ErrorCode {
     InvalidVoteCount,
     #[msg("Invalid winner")]
     InvalidWinner,
+    #[msg("Invalid token mint")]
+    InvalidTokenMint,
+    #[msg("Maximum participants reached")]
+    MaxParticipantsReached,
+    #[msg("Already participating in this challenge")]
+    AlreadyParticipating,
 }

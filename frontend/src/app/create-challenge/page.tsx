@@ -46,12 +46,12 @@ export default function CreateChallengePage() {
   const [formData, setFormData] = useState({
     challengetitle: "",
     category: "",
-    minparticipants: "0",
+    minparticipants: "",
     maxparticipants: "",
     voters: "",
-    votingFees: "0",
-    participation_fee: "0",
-    reward: "0",
+    votingFees: "",
+    participation_fee: "",
+    reward: "",
     description: "",
     challengevideo: "", // Changed from File to string
     keywords: "",
@@ -60,8 +60,8 @@ export default function CreateChallengePage() {
     voting_end: "",
     participantsNickname: "",
     votersNickname: "",
-    minvoters: "0",
-    maxvoters: "0",
+    minvoters: "",
+    maxvoters: "",
   })
 
   const validateForm = () => {
@@ -191,7 +191,7 @@ export default function CreateChallengePage() {
       }
       
       console.log("Challenge created on blockchain:", onChainResult);
-      console.log("Challenge ID from blockchain (for PocketBase):", onChainResult.challengeId);
+      console.log("Challenge ID from blockchain (for PocketBase):", onChainResult.challengePublicKey);
 
       if (!onChainResult.challengeId) {
         console.error("No challenge ID returned from blockchain - this is required for PocketBase");
@@ -209,10 +209,10 @@ export default function CreateChallengePage() {
       const result = await createChallengeDB({
         title: formData.challengetitle,
         category: formData.category,
-        minparticipants: parseInt(formData.minparticipants) || 1,
-        maxparticipants: parseInt(formData.maxparticipants) || 0,  // Convert to number
-        minvoters: parseInt(formData.minvoters) || 0,
-        maxvoters: parseInt(formData.maxvoters) || 0,
+        minparticipants: parseInt(formData.minparticipants),
+        maxparticipants: parseInt(formData.maxparticipants),  // Convert to number
+        minvoters: parseInt(formData.minvoters),
+        maxvoters: parseInt(formData.maxvoters),
         reward: Number(formData.reward),
         description: formData.description,
         keywords: formData.keywords.split(",").map(k => k.trim()).filter(k => k),
@@ -228,8 +228,7 @@ export default function CreateChallengePage() {
         voting_fee: Number(formData.votingFees),
         participation_fee: Number(formData.participation_fee),
         creator: auth.user?.id || '',
-        onchain_id: onChainResult.challengeId || '' // Store the on-chain challenge ID
-        // The transaction signature is logged but not stored since there's no field for it in the API
+        onchain_id: onChainResult.challengePublicKey || '' // Store the on-chain challenge ID
       });
 
       if (result.success && result.challenge) {
