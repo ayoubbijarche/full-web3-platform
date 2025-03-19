@@ -26,8 +26,12 @@ pub struct CreateChallenge<'info> {
             + 8        // winning_votes
             + 32       // reward_token_mint
             + 1        // max_participants field (u8)
-            + 4        // vector length overhead
+            + 4        // vector length overhead for participants
             + (32 * 50) // space for up to 50 participants (32 bytes per pubkey)
+            + 4        // vector length overhead for submission_votes
+            + (40 * 50) // space for up to 50 submission votes (pubkey + u64)
+            + 4        // vector length overhead for voters
+            + (64 * 100) // space for up to 100 voter records (two pubkeys)
     )]
     pub challenge: Account<'info, Challenge>,
     /// CHECK: This is the program account that will receive the creation fee
@@ -130,6 +134,8 @@ pub fn handle(
     challenge.winning_votes = 0;
     challenge.reward_token_mint = ctx.accounts.token_mint.key();
     challenge.participants = Vec::new();
+    challenge.submission_votes = Vec::new();  // Initialize new field
+    challenge.voters = Vec::new();            // Initialize new field
     
     // Set max_participants with a reasonable default if zero
     challenge.max_participants = if max_participants == 0 { 50 } else { max_participants };

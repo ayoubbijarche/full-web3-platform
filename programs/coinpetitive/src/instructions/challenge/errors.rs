@@ -22,4 +22,10 @@ pub enum ErrorCode {
     MaxParticipantsReached,
     #[msg("Already participating in this challenge")]
     AlreadyParticipating,
+    
+    // Add new error codes
+    #[msg("Already voted for this submission")]
+    AlreadyVoted,
+    #[msg("Submission not found")]
+    SubmissionNotFound,
 }

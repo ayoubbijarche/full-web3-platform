@@ -474,8 +474,11 @@ export function useAuth() {
   };
 }
 
-// Submit a video for a challenge
-export async function submitVideo(challengeId: string, data: { description: string, video: File }) {
+// Update the submitVideo function to accept a URL instead of a file
+export async function submitVideo(challengeId: string, data: { 
+  description: string, 
+  videoUrl: string  // Changed from video: File to videoUrl: string
+}) {
   try {
     if (!pb.authStore.model) {
       return { success: false, error: 'Must be authenticated to submit a video' };
@@ -491,28 +494,25 @@ export async function submitVideo(challengeId: string, data: { description: stri
       return { success: false, error: 'Only participants can submit videos' };
     }
     
-    // Create form data for file upload
+    // Create form data for submission
     const formData = new FormData();
     formData.append('description', data.description);
-    formData.append('video', data.video);
+    formData.append('video', data.videoUrl);  // Store as URL string
     formData.append('challenge', challengeId);
     formData.append('participant', userId);
-    formData.append('sender', userId); // Add the sender field with the current user's ID
+    formData.append('sender', userId);
     formData.append('likes', '0');
     formData.append('dislikes', '0');
     
     // Create the video submission
     const submission = await pb.collection('video_submitted').create(formData);
     
-    // Update the challenge to include this video submission in the video_submited relation
+    // Update the challenge to include this video submission
     await pb.collection('challenges').update(challengeId, {
       video_submited: submission.id
     });
     
-    // Also update the user's videos_submitted relation
-    const user = await pb.collection('users').getOne(userId);
-    const userVideos = user.videos_submitted || [];
-    
+    // Update the user's videos_submitted relation
     await pb.collection('users').update(userId, {
       videos_submitted: submission.id
     });

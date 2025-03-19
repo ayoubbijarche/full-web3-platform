@@ -7,54 +7,81 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import Image from "next/image"
 import mountImage from '@/assets/mount2.png'
-import { useState, useRef } from "react"
+import { useState, useEffect } from "react"
 import { submitVideo, useAuth } from "@/lib/pb"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { useAnchor } from '@/lib/anchor-context';
 
-// Update the interface to include onSubmitSuccess
 interface SubmitVideoDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   challengeId: string
-  onSubmitSuccess?: () => void  // Add this line
+  onChainId?: string  // Add this prop
+  onSubmitSuccess?: () => void
+  participationFee?: number;  // Add this
 }
 
-// Update the component to include the new prop
 export function SubmitVideoDialog({ 
   open, 
   onOpenChange, 
   challengeId,
+  onChainId,  // Add this prop
+  participationFee,  // Add this prop
   onSubmitSuccess 
 }: SubmitVideoDialogProps) {
   const [description, setDescription] = useState("")
-  const [videoFile, setVideoFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [videoUrl, setVideoUrl] = useState("")
+  const [previewUrl, setPreviewUrl] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const auth = useAuth()
   const router = useRouter()
+  const { submitVideoOnChain } = useAnchor();
+  const [onChainSubmitting, setOnChainSubmitting] = useState(false);
+  const [onChainError, setOnChainError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setVideoFile(file)
+  // Generate embed URL from raw URLs (for preview)
+  const getEmbedUrl = (url: string) => {
+    try {
+      if (!url) return "";
       
-      // Create preview URL for video thumbnail
-      const reader = new FileReader()
-      reader.onload = () => {
-        setPreviewUrl(reader.result as string)
+      // YouTube
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        const videoId = url.includes('youtube.com') 
+          ? url.split('v=')[1]?.split('&')[0]
+          : url.split('youtu.be/')[1]?.split('?')[0];
+        return `https://www.youtube.com/embed/${videoId}`;
       }
-      reader.readAsDataURL(file)
+      // Twitter
+      else if (url.includes('twitter.com') || url.includes('x.com')) {
+        return `https://twitframe.com/show?url=${encodeURIComponent(url)}`;
+      }
+      // Instagram
+      else if (url.includes('instagram.com')) {
+        return `https://www.instagram.com/embed/${url.split('/p/')[1]?.split('/')[0]}`;
+      }
+      // TikTok
+      else if (url.includes('tiktok.com')) {
+        return `https://www.tiktok.com/embed/${url.split('/video/')[1]}`;
+      }
+      // Return original URL if no matches
+      return url;
+    } catch {
+      return url || "";
     }
-  }
+  };
+
+  // Update preview when URL changes
+  useEffect(() => {
+    setPreviewUrl(getEmbedUrl(videoUrl));
+  }, [videoUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!videoFile) {
-      setError("Please select a video file")
+    if (!videoUrl.trim()) {
+      setError("Please enter a video URL")
       return
     }
     
@@ -64,18 +91,36 @@ export function SubmitVideoDialog({
     }
     
     setError(null)
+    setOnChainError(null);
     setIsSubmitting(true)
+    setOnChainSubmitting(true);
     
     try {
+      // First submit on-chain if we have an on-chain ID
+      if (onChainId) {  // Use onChainId instead of challenge?.onchain_id
+        const onChainResult = await submitVideoOnChain(
+          onChainId,  // Use onChainId here
+          videoUrl.trim()
+        );
+        
+        if (!onChainResult.success) {
+          setOnChainError(onChainResult.error || "Failed to submit video on-chain");
+          setIsSubmitting(false);
+          setOnChainSubmitting(false);
+          return;
+        }
+      }
+      
+      // Then submit to PocketBase
       const result = await submitVideo(challengeId, {
         description: description.trim(),
-        video: videoFile
+        videoUrl: videoUrl.trim()  // Send URL instead of file
       })
       
       if (result.success) {
         setDescription("")
-        setVideoFile(null)
-        setPreviewUrl(null)
+        setVideoUrl("")
+        setPreviewUrl("")
         onOpenChange(false)
         onSubmitSuccess?.() // Call the success callback
         router.refresh()
@@ -87,11 +132,8 @@ export function SubmitVideoDialog({
       console.error(error)
     } finally {
       setIsSubmitting(false)
+      setOnChainSubmitting(false);
     }
-  }
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click()
   }
 
   return (
@@ -104,10 +146,12 @@ export function SubmitVideoDialog({
         {/* Video Preview */}
         <div className="relative w-full h-40 rounded-lg overflow-hidden mb-2 border border-[#9A9A9A] flex items-center justify-center">
           {previewUrl ? (
-            <video 
+            <iframe 
               src={previewUrl} 
               className="w-full h-full object-cover" 
-              controls
+              allowFullScreen
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full w-full">
@@ -118,32 +162,24 @@ export function SubmitVideoDialog({
                 height={64}
                 className="opacity-50 mb-2"
               />
-              <p className="text-sm text-gray-500">No video selected</p>
+              <p className="text-sm text-gray-500">No video URL entered</p>
             </div>
           )}
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="video">Upload Video</Label>
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              accept="video/*"
-              onChange={handleFileChange}
-              className="hidden"
+            <Label htmlFor="videoUrl">Video URL</Label>
+            <Input 
+              id="videoUrl"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+              className="border-[#9A9A9A]"
             />
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={triggerFileInput}
-              className="w-full border-dashed border-2 h-20 flex flex-col items-center justify-center"
-            >
-              <span className="text-sm">Click to select video file</span>
-              <span className="text-xs text-gray-500 mt-1">
-                {videoFile ? videoFile.name : "MP4, WebM, or other video formats"}
-              </span>
-            </Button>
+            <p className="text-xs text-gray-500">
+              Enter YouTube, Twitter, Instagram, or TikTok video URL
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
@@ -175,7 +211,7 @@ export function SubmitVideoDialog({
                   Submitting...
                 </>
               ) : (
-                "Submit"
+                `Submit (${participationFee || "..."} CPT)`
               )}
             </Button>
           </div>

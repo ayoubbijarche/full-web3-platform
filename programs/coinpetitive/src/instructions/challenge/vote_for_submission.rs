@@ -29,6 +29,13 @@ pub struct VoteForSubmission<'info> {
 
 pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
+    let voter = ctx.accounts.voter.key();
+    let submission_id = ctx.accounts.submission_id.key();
+    
+    // Check if voter has already voted for this submission
+    if challenge.has_voted_for(&voter, &submission_id) {
+        return Err(ErrorCode::AlreadyVoted.into());
+    }
     
     // Transfer voting fee from voter to challenge
     let cpi_accounts = Transfer {
@@ -44,6 +51,11 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
     // Update voting treasury and total votes
     challenge.voting_treasury += challenge.voting_fee;
     challenge.total_votes += 1;
+    
+    // Record the vote in our tracking system
+    challenge.add_vote(voter, submission_id)?;
+    
+    msg!("Vote recorded for submission {}", submission_id);
     
     Ok(())
 }

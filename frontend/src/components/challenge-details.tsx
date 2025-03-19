@@ -555,7 +555,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Users className="h-5 w-5" />
-              <span>{challenge.participants.length}/{challenge.maxparticipats || "∞"}</span>
+              <span>{challenge.participants.length}/{challenge.maxparticipants}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Coins className="h-5 w-5" />
@@ -600,13 +600,23 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                 <div className="w-full md:w-1/3 flex flex-col">
                 <div className="aspect-video bg-gray-200 rounded-xl overflow-hidden relative">
                   {submission.video && (
-                  <>
-                    <video 
-                    src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
-                    className="w-full h-full object-cover rounded-xl"
-                    controls
-                    />
-                  </>
+                    submission.video.startsWith('http') ? (
+                      // For external URL videos, use iframe with embed URL
+                      <iframe 
+                        src={getEmbedUrl(submission.video)}
+                        className="w-full h-full object-cover"
+                        allowFullScreen
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      />
+                    ) : (
+                      // Fallback for legacy directly uploaded videos
+                      <video 
+                        src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
+                        className="w-full h-full object-cover rounded-xl"
+                        controls
+                      />
+                    )
                   )}
                 </div>
                 {/* Like/Dislike buttons under thumbnail */}
@@ -763,7 +773,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           <span className="text-sm">
             {isCreator 
               ? "Can't submit to own challenge"
-              : "Submit My Video (5 $CPT)"}
+              : `Submit My Video (${challenge.participation_fee} CPT)`}
           </span>
         </Button>
 
@@ -865,6 +875,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           open={isSubmitDialogOpen} 
           onOpenChange={setIsSubmitDialogOpen}
           challengeId={challenge.id}
+          onChainId={challenge.onchain_id}  // Pass this property
+          participationFee={challenge.participation_fee}
           onSubmitSuccess={() => {
             setDataVersion(v => v + 1); // Trigger refresh after submission
             setIsSubmitDialogOpen(false);
