@@ -38,7 +38,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { participateInChallenge } = useAnchor()
+  const { participateInChallenge, voteForSubmissionOnChain } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
   
@@ -241,14 +241,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           if (onChainResult.success) {
             console.log("On-chain join successful!")
             console.log("Transaction signature:", onChainResult.signature)
-            setOnChainStatus(`Success! Tx: ${onChainResult.signature.slice(0, 8)}...`)
+            setOnChainStatus(`Success! Tx: ${onChainResult.signature ? onChainResult.signature.slice(0, 8) : 'unknown'}...`)
             toast({
               title: "Successfully joined on-chain",
               variant: "success"
             })
           } else {
             console.error("On-chain join error:", onChainResult.error)
-            setOnChainError(onChainResult.error)
+            setOnChainError(onChainResult.error || 'Unknown error')
             toast({
               title: `On-chain error: ${onChainResult.error}`,
               variant: "destructive"
@@ -320,14 +320,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     if (!submission) return;
     
     const userId = auth.user.id;
-    if (submission.likes.includes(userId)) {
+    if (Array.isArray(submission.likes) && submission.likes.includes(userId)) {
       console.log('User has already liked this submission.');
       return;
     }
     
     try {
       const result = await likeVideoSubmission(submissionId);
-      if (result.success && result.submission) {
+      if (result.success && 'submission' in result) {
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => 
             sub.id === submissionId 
@@ -353,7 +353,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     
     try {
       const result = await dislikeVideoSubmission(submissionId);
-      if (result.success && result.submission) {
+      if (result.success && 'submission' in result) {
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => 
             sub.id === submissionId 
@@ -372,7 +372,12 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   };
 
   const handleVote = async (submissionId: string) => {
-    if (!auth.user) return;
+    if (!auth.user) {
+      toast.error("Please sign in to vote");
+      return;
+    }
+    
+    console.log("🔍 Vote button clicked for submission:", submissionId);
     
     try {
       setIsVoting(true);
@@ -381,37 +386,80 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       const submission = videoSubmissions.find(sub => sub.id === submissionId);
       if (!submission) {
         setVoteError('Submission not found');
+        toast.error('Submission not found');
+        setIsVoting(false);
         return;
       }
   
+      console.log("🔍 Submission found:", {
+        id: submission.id,
+        onchain_id: submission.onchain_id || "missing",
+        description: submission.description?.substring(0, 20)
+      });
+      
+      // Check if challenge has onchain_id
+      if (!challenge.onchain_id) {
+        toast.error("Challenge is not registered on-chain");
+        setVoteError("On-chain voting not available for this challenge");
+        setIsVoting(false);
+        return;
+      }
+      
+      // Use challenge onchain_id for the transaction and create a deterministic submission ID
+      // Instead of generating a complex key, we'll use the submission ID hashed with the challenge ID
+      const submissionReference = new PublicKey(challenge.onchain_id);
+      
+      console.log("🔍 Preparing to vote on-chain:", {
+        challengeId: challenge.onchain_id,
+        submissionId: submissionReference.toString(),
+        fee: challenge.voting_fee
+      });
+      
+      // Show a pre-transaction notification to the user
+      toast.info(`Please approve the transaction in your wallet (fee: ${challenge.voting_fee} CPT)...`);
+      
+      // Call the voteForSubmissionOnChain function with challenge and submission IDs
+      console.log("🔍 About to call voteForSubmissionOnChain");
+      const onChainResult = await voteForSubmissionOnChain(
+        challenge.onchain_id, 
+        submissionReference.toString()
+      );
+      
+      console.log("🔍 voteForSubmissionOnChain result:", onChainResult);
+      
+      if (!onChainResult.success) {
+        setVoteError(onChainResult.error || 'On-chain voting failed');
+        toast.error(onChainResult.error || 'On-chain voting failed');
+        setIsVoting(false);
+        return;
+      }
+      
+      toast.success(`Vote recorded! Transaction: ${onChainResult.signature?.substring(0, 8)}...`);
+  
+      // After successful on-chain vote, update the database
       const result = await voteForSubmission(submissionId, auth.user.id);
       if (!result.success) {
-        setVoteError(result.error || 'Failed to vote');
+        toast.warning("On-chain vote succeeded but couldn't update database");
+        setVoteError(result.error || 'Failed to update database record');
       } else {
         // Update local state with new vote count
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => {
             if (sub.id === submissionId) {
-              const updatedSubmission: VideoSubmissionModel = {
-                ...sub,
+              return {
+                ...sub, 
                 voters: [...(sub.voters || []), auth.user!.id],
-                vote_count: (sub.vote_count || 0) + 1,
-                ...result.submission,
-                expand: {
-                  participant: sub.expand?.participant || result.submission?.expand?.participant || null,
-                  challenge: sub.expand?.challenge || result.submission?.expand?.challenge || null,
-                  sender: sub.expand?.sender || result.submission?.expand?.sender || null,
-                }
+                vote_count: (sub.vote_count || 0) + 1
               };
-              return updatedSubmission;
             }
             return sub;
           })
         );
       }
     } catch (error) {
-      console.error('Error voting:', error);
+      console.error('🔍 Error voting:', error);
       setVoteError('Failed to vote. Please try again.');
+      toast.error('Failed to vote. Please try again.');
     } finally {
       setIsVoting(false);
     }
@@ -555,7 +603,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Users className="h-5 w-5" />
-              <span>{challenge.participants.length}/{challenge.maxparticipants}</span>
+              <span>{challenge.participants.length}/{challenge.maxparticipats}</span>
             </div>
             <div className="flex items-center gap-2 text-primary">
               <Coins className="h-5 w-5" />
@@ -693,17 +741,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                       >
                         Sign in to vote
                       </Button>
-                    ) : !isParticipant ? (
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
-                        disabled={true}
-                        title="Join challenge to vote"
-                      >
-                        Join to vote
-                      </Button>
-                    ) : isVoter ? (
+                    ) : isVoter || hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
                       <Button 
                         variant="default" 
                         size="sm"
@@ -711,17 +749,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                         disabled={true}
                         title="You've already voted in this challenge"
                       >
-                        Already a voter in this challenge
-                      </Button>
-                    ) : hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
-                        disabled={true}
-                        title="You've already voted in this challenge"
-                      >
-                        Already voted in challenge
+                        Already voted
                       </Button>
                     ) : (
                       <Button 

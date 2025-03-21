@@ -12,6 +12,7 @@ import { submitVideo, useAuth } from "@/lib/pb"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useAnchor } from '@/lib/anchor-context';
+import { toast } from "sonner"; // Add this import
 
 interface SubmitVideoDialogProps {
   open: boolean
@@ -78,61 +79,61 @@ export function SubmitVideoDialog({
   }, [videoUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!videoUrl.trim()) {
-      setError("Please enter a video URL")
-      return
-    }
-    
-    if (!description.trim()) {
-      setError("Please provide a description")
-      return
-    }
-    
-    setError(null)
-    setOnChainError(null);
-    setIsSubmitting(true)
-    setOnChainSubmitting(true);
-    
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
     try {
-      // First submit on-chain if we have an on-chain ID
-      if (onChainId) {  // Use onChainId instead of challenge?.onchain_id
+      // First, submit to blockchain if we have an onchain_id
+      let videoReference = null;
+      
+      if (onChainId) {
+        setOnChainSubmitting(true);
         const onChainResult = await submitVideoOnChain(
-          onChainId,  // Use onChainId here
-          videoUrl.trim()
+          onChainId, 
+          videoUrl || ''
         );
         
-        if (!onChainResult.success) {
-          setOnChainError(onChainResult.error || "Failed to submit video on-chain");
+        if (onChainResult.success) {
+          videoReference = onChainResult.videoReference;
+          console.log("Video submitted on-chain with reference:", videoReference);
+        } else {
+          setError(onChainResult.error || 'Failed to submit video on-chain');
           setIsSubmitting(false);
           setOnChainSubmitting(false);
           return;
         }
+        setOnChainSubmitting(false);
       }
       
-      // Then submit to PocketBase
+      // Then submit to database
       const result = await submitVideo(challengeId, {
-        description: description.trim(),
-        videoUrl: videoUrl.trim()  // Send URL instead of file
-      })
+        description,
+        videoUrl: videoUrl || '',
+        onchain_id: videoReference || undefined  // Convert null to undefined
+      });
       
       if (result.success) {
-        setDescription("")
-        setVideoUrl("")
-        setPreviewUrl("")
-        onOpenChange(false)
-        onSubmitSuccess?.() // Call the success callback
-        router.refresh()
+        toast.success("Video submitted successfully!");
+        
+        // Clear form and close dialog
+        setDescription("");
+        setVideoUrl("");
+        
+        // Only call onSubmitSuccess if it exists
+        if (typeof onSubmitSuccess === 'function') {
+          onSubmitSuccess();
+        }
+        
+        onOpenChange(false);
       } else {
-        setError(result.error || "Failed to submit video")
+        setError(result.error || 'Failed to submit video');
       }
     } catch (error) {
-      setError("An unexpected error occurred")
-      console.error(error)
+      setError('An unexpected error occurred');
+      console.error(error);
     } finally {
-      setIsSubmitting(false)
-      setOnChainSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 

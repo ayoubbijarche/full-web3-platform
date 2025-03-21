@@ -76,5 +76,8 @@ pub fn handle(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
     
     msg!("Video submitted and participation fee paid successfully");
     
+    // Add video reference and initial votes
+    challenge.submission_votes.push((ctx.accounts.video_reference.key(), 0));
+    
     Ok(())
 }

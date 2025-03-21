@@ -29,21 +29,21 @@ function getAssociatedToken2022AddressSync(mint: PublicKey, owner: PublicKey): P
 // Define program account types
 type ChallengeAccount = {
   creator: PublicKey;
-  isActive: boolean;
+  is_active: boolean;  // Changed from isActive
   reward: anchor.BN;
-  participationFee: anchor.BN;
-  votingFee: anchor.BN;
-  challengeTreasury: anchor.BN;
-  votingTreasury: anchor.BN;
+  participation_fee: anchor.BN;  // Changed from participationFee
+  voting_fee: anchor.BN;  // Changed from votingFee
+  challenge_treasury: anchor.BN;  // Changed from challengeTreasury
+  voting_treasury: anchor.BN;  // Changed from votingTreasury
   winner: PublicKey | null;
-  totalVotes: anchor.BN;
-  winningVotes: anchor.BN;
-  rewardTokenMint: PublicKey;
+  total_votes: anchor.BN;  // Changed from totalVotes
+  winning_votes: anchor.BN;  // Changed from winningVotes
+  reward_token_mint: PublicKey;  // Changed from rewardTokenMint
   participants: PublicKey[];
-  maxParticipants: number;
-  // Add these new fields to match your updated Rust struct
-  submissionVotes: [PublicKey, anchor.BN][]; // (submission_id, votes)
-  voters: [PublicKey, PublicKey][]; // (voter, submission_id)
+  max_participants: number;  // Changed from maxParticipants
+  submission_votes: [PublicKey, anchor.BN][]; // Changed from submissionVotes
+  voters: [PublicKey, PublicKey][]; 
+  [key: string]: any; // Index signature allowing access with string keys
 };
 
 // Define typed program interface
@@ -239,10 +239,10 @@ export function useAnchorContextProvider(): AnchorContextType {
       
       console.log("Challenge Account Details:", {
         reward: challengeAccount.reward.toString(),
-        participationFee: challengeAccount.participationFee.toString(),
-        votingFee: challengeAccount.votingFee.toString(),
-        isActive: challengeAccount.isActive,
-        maxParticipants: challengeAccount.maxParticipants,
+        participationFee: challengeAccount.participation_fee.toString(),
+        votingFee: challengeAccount.voting_fee.toString(),
+        isActive: challengeAccount.is_active,
+        maxParticipants: challengeAccount.max_participants,
         participants: challengeAccount.participants?.map(p => p.toString()),
         participantsCount: challengeAccount.participants?.length || 0
       });
@@ -327,102 +327,100 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Add this debug function to your anchor-context.ts
-  const debugChallengeOnChain = async (challengePublicKey: string) => {
-    if (!program || !connection) {
-      console.error("Program or connection not initialized");
-      return { success: false, error: "Program not initialized" };
-    }
+  // Update your voteForSubmissionOnChain function in anchor-context.ts
+  const voteForSubmissionOnChain = async (challengePublicKey: string, submissionPublicKey: string) => {
+    console.log("🔍 voteForSubmissionOnChain called with:", {
+      challengePublicKey,
+      submissionPublicKey
+    });
     
-    try {
-      console.log("🔍 DEBUG: Fetching challenge data for", challengePublicKey);
-      const challengePubkey = new PublicKey(challengePublicKey);
-      
-      // Fetch the challenge account data
-      const challengeAccount = await program.account.challenge.fetch(challengePubkey);
-      
-      // Format the participants data
-      const participants = challengeAccount.participants?.map(p => p.toString()) || [];
-      const participantsCount = participants.length;
-      const maxParticipants = challengeAccount.maxParticipants;
-      
-      // Format token amounts with proper decimal places
-      const reward = challengeAccount.reward.toString();
-      const participationFee = challengeAccount.participationFee.toString();
-      const votingFee = challengeAccount.votingFee.toString();
-      const challengeTreasury = challengeAccount.challengeTreasury.toString();
-      const votingTreasury = challengeAccount.votingTreasury.toString();
-      
-      // Get recent transactions for this account
-      const signatures = await connection.getSignaturesForAddress(challengePubkey, { limit: 10 });
-      const transactions = await Promise.all(
-        signatures.map(async (sig) => {
-          try {
-            const tx = await connection.getTransaction(sig.signature, {
-              maxSupportedTransactionVersion: 0,
-            });
-            return {
-              signature: sig.signature,
-              blockTime: sig.blockTime ? new Date(sig.blockTime * 1000).toLocaleString() : 'Unknown',
-              err: sig.err ? 'Failed' : 'Success',
-              sender: tx?.transaction.message.getAccountKeys?.().get(0)?.toString() || 'Unknown'
-            };
-          } catch (e) {
-            return {
-              signature: sig.signature,
-              blockTime: sig.blockTime ? new Date(sig.blockTime * 1000).toLocaleString() : 'Unknown',
-              err: 'Error fetching transaction',
-              sender: 'Unknown'
-            };
-          }
-        })
-      );
-      
-      // Format and return all data
-      const debugData = {
-        success: true,
-        challengeDetails: {
-          address: challengePubkey.toString(),
-          creator: challengeAccount.creator.toString(),
-          isActive: challengeAccount.isActive,
-          reward,
-          participationFee,
-          votingFee,
-          challengeTreasury,
-          votingTreasury,
-          winner: challengeAccount.winner?.toString() || 'Not set',
-          totalVotes: challengeAccount.totalVotes.toString(),
-          winningVotes: challengeAccount.winningVotes.toString(),
-          rewardTokenMint: challengeAccount.rewardTokenMint.toString(),
-          participants: {
-            count: participantsCount,
-            max: maxParticipants,
-            addresses: participants
-          },
-          // Add these directly in the object
-          submissions: challengeAccount.submissionVotes 
-            ? challengeAccount.submissionVotes.map(([pubkey, votes]) => ({
-                submissionId: pubkey.toString(),
-                votes: votes.toString()
-              }))
-            : [],
-          votes: challengeAccount.voters
-            ? challengeAccount.voters.map(([voter, submission]) => ({
-                voter: voter.toString(),
-                submission: submission.toString()
-              }))
-            : []
-        },
-        recentTransactions: transactions,
-      };
-      
-      console.log("📊 Challenge Debug Information:", debugData);
-      return debugData;
-    } catch (error) {
-      console.error("❌ Error debugging challenge:", error);
+    if (!wallet) {
+      console.log("🔍 Wallet not connected");
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: "Wallet not connected"
+      };
+    }
+    
+    if (!program) {
+      console.log("🔍 Program not initialized");
+      return {
+        success: false,
+        error: "Program not initialized"
+      };
+    }
+  
+    try {
+      // Convert strings to PublicKeys
+      const challengePubkey = new PublicKey(challengePublicKey);
+      const submissionPubkey = new PublicKey(submissionPublicKey);
+      console.log("🔍 Converting to PublicKeys successful:", {
+        challenge: challengePubkey.toString(),
+        submission: submissionPubkey.toString()
+      });
+      
+      // Find token accounts
+      const voterTokenAccount = getAssociatedToken2022AddressSync(
+        CPT_TOKEN_MINT,
+        wallet.publicKey
+      );
+      
+      const challengeTokenAccount = getAssociatedTokenAddressSync(
+        CPT_TOKEN_MINT,
+        challengePubkey,
+        false,
+        TOKEN_2022_PROGRAM_ID
+      );
+      
+      console.log("🔍 Token accounts:", {
+        voter: voterTokenAccount.toString(),
+        challenge: challengeTokenAccount.toString()
+      });
+      
+      // Log program methods to verify it's correctly loaded
+      console.log("🔍 Program methods available:", {
+        voteMethod: !!program.methods.voteForSubmission,
+        programId: program.programId.toString()
+      });
+      
+      // Call the vote_for_submission instruction
+      console.log("🔍 About to call program.methods.voteForSubmission()");
+      const tx = await program.methods
+        .voteForSubmission()
+        .accounts({
+          voter: wallet.publicKey,
+          challenge: challengePubkey,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          voterTokenAccount: voterTokenAccount,
+          challengeTokenAccount: challengeTokenAccount,
+          submissionId: submissionPubkey,
+        })
+        .rpc();
+      
+      console.log("🔍 Successfully voted for submission! Transaction signature:", tx);
+      return {
+        success: true,
+        signature: tx
+      };
+    } catch (error: unknown) {
+      console.error("🔍 Detailed error voting for submission:", error);
+      
+      // Extract specific error messages
+      let errorMessage = "Failed to vote for submission";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.log("🔍 Error message:", errorMessage);
+        
+        if (errorMessage.includes("AlreadyVoted")) {
+          errorMessage = "You have already voted for this submission";
+        } else if (errorMessage.includes("ChallengeNotActive")) {
+          errorMessage = "This challenge is no longer active";
+        }
+      }
+      
+      return {
+        success: false,
+        error: errorMessage
       };
     }
   };
@@ -435,7 +433,7 @@ export function useAnchorContextProvider(): AnchorContextType {
     participateInChallenge,
     inspectChallengeAccount,
     submitVideoOnChain,
-    debugChallengeOnChain  // Add the new function
+    voteForSubmissionOnChain  // Add this line
   };
 }
 
@@ -447,7 +445,7 @@ export type AnchorContextType = {
     reward: number;
     participationFee: number; 
     votingFee: number;
-    maxParticipants?: number;  // Add this parameter
+    maxParticipants?: number;
   }) => Promise<{
     success: boolean;
     signature?: string;
@@ -466,41 +464,9 @@ export type AnchorContextType = {
     videoReference?: string;
     error?: string;
   }>;
-  debugChallengeOnChain: (challengePublicKey: string) => Promise<{
+  voteForSubmissionOnChain: (challengePublicKey: string, submissionPublicKey: string) => Promise<{
     success: boolean;
-    challengeDetails?: {
-      address: string;
-      creator: string;
-      isActive: boolean;
-      reward: string;
-      participationFee: string;
-      votingFee: string;
-      challengeTreasury: string;
-      votingTreasury: string;
-      winner: string;
-      totalVotes: string;
-      winningVotes: string;
-      rewardTokenMint: string;
-      participants: {
-        count: number;
-        max: number;
-        addresses: string[];
-      };
-      submissions?: {
-        submissionId: string;
-        votes: string;
-      }[];
-      votes?: {
-        voter: string;
-        submission: string;
-      }[];
-    };
-    recentTransactions?: {
-      signature: string;
-      blockTime: string;
-      err: string;
-      sender: string;
-    }[];
+    signature?: string;
     error?: string;
   }>;
 };

@@ -100,10 +100,11 @@ export type VideoSubmissionModel = {
   likes: number;       
   dislikes: number;    
   likedBy: string[];   
-  dislikedBy: string[]; 
+  dislikedBy: string[];
   votersCount?: number;
   vote_count: number;
   voters: string[];
+  onchain_id: string;  
   created: string;
   updated: string;
   collectionId?: string;
@@ -474,10 +475,11 @@ export function useAuth() {
   };
 }
 
-// Update the submitVideo function to accept a URL instead of a file
+// Update the submitVideo function to accept onchain_id
 export async function submitVideo(challengeId: string, data: { 
   description: string, 
-  videoUrl: string  // Changed from video: File to videoUrl: string
+  videoUrl: string,  // URL for the video
+  onchain_id?: string // Add this parameter
 }) {
   try {
     if (!pb.authStore.model) {
@@ -503,6 +505,11 @@ export async function submitVideo(challengeId: string, data: {
     formData.append('sender', userId);
     formData.append('likes', '0');
     formData.append('dislikes', '0');
+    
+    // Add the onchain_id if it exists
+    if (data.onchain_id) {
+      formData.append('onchain_id', data.onchain_id);
+    }
     
     // Create the video submission
     const submission = await pb.collection('video_submitted').create(formData);
@@ -559,7 +566,7 @@ export async function getVideoSubmissions(challengeId: string, signal?: AbortSig
       }
     } catch (error) {
       // If the request was aborted, don't log it as an error
-      if (error?.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Error checking for direct video submission:', error);
       }
     }
@@ -590,7 +597,7 @@ export async function getVideoSubmissions(challengeId: string, signal?: AbortSig
         collectionId: 'video_submitted'
       }));
     } catch (error) {
-      if (error?.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Error fetching from video_submitted:', error);
       }
     }
@@ -619,7 +626,7 @@ export async function getVideoSubmissions(challengeId: string, signal?: AbortSig
           collectionId: 'video_submitted'
         }));
       } catch (error) {
-        if (error?.name !== 'AbortError') {
+        if (error instanceof Error && error.name !== 'AbortError') {
           console.error('Error fetching from video_submitted:', error);
         }
       }
@@ -649,7 +656,7 @@ export async function getVideoSubmissions(challengeId: string, signal?: AbortSig
           collectionId: 'videos_submitted'
         }));
       } catch (error) {
-        if (error?.name !== 'AbortError') {
+        if (error instanceof Error && error.name !== 'AbortError') {
           console.error('Error fetching from videos_submitted:', error);
         }
       }
@@ -671,7 +678,7 @@ export async function getVideoSubmissions(challengeId: string, signal?: AbortSig
     return { success: true, submissions: allSubmissions };
   } catch (error) {
     // If the request was aborted, don't log it as an error
-    if (error?.name !== 'AbortError') {
+    if (error instanceof Error && error.name !== 'AbortError') {
       console.error('Error fetching video submissions:', error);
     }
     return { success: false, error: 'Failed to fetch video submissions' };
@@ -736,11 +743,11 @@ export const likeVideoSubmission = async (submissionId: string) => {
 
     // Calculate new state
     let newLikedByIds = isLiked 
-      ? likedByIds.filter(id => id !== userId)
+      ? likedByIds.filter((id: string) => id !== userId)
       : [...likedByIds, userId];
     
     let newDislikedByIds = isDisliked
-      ? dislikedByIds.filter(id => id !== userId)
+      ? dislikedByIds.filter((id: string) => id !== userId)
       : dislikedByIds;
 
     // Update the submission
@@ -775,11 +782,11 @@ export const dislikeVideoSubmission = async (submissionId: string) => {
 
     // Calculate new state
     let newDislikedByIds = isDisliked
-      ? dislikedByIds.filter(id => id !== userId)
+      ? dislikedByIds.filter((id: string) => id !== userId)
       : [...dislikedByIds, userId];
 
     let newLikedByIds = isLiked
-      ? likedByIds.filter(id => id !== userId)
+      ? likedByIds.filter((id: string) => id !== userId)
       : likedByIds;
 
     // Update the submission
