@@ -14,13 +14,11 @@ pub struct Challenge {
     pub total_votes: u64,
     pub winning_votes: u64,           // Votes for the winner
     pub reward_token_mint: Pubkey,    // CPT token mint
-    // New field to track participants (max 50 participants)
     pub participants: Vec<Pubkey>,    // List of participants
     pub max_participants: u8,         // Maximum allowed participants
-    
-    // New fields for vote tracking
     pub submission_votes: Vec<(Pubkey, u64)>,  // (submission_id, votes)
     pub voters: Vec<(Pubkey, Pubkey)>,         // (voter, submission_id)
+    pub treasury: Pubkey,             // Treasury PDA address
 }
 
 impl Challenge {

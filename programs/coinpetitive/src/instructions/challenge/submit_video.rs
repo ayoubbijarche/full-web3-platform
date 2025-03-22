@@ -25,6 +25,10 @@ pub struct SubmitVideo<'info> {
     )]
     pub challenge: Account<'info, Challenge>,
     
+    /// CHECK: Treasury account (PDA) - verified in the handler
+    #[account(mut)]
+    pub treasury: AccountInfo<'info>,
+    
     /// CHECK: Token-2022 program
     #[account(address = TOKEN_2022_PROGRAM_ID_STR.parse::<Pubkey>().unwrap())]
     pub token_program: AccountInfo<'info>,
@@ -33,9 +37,9 @@ pub struct SubmitVideo<'info> {
     #[account(mut)]
     pub participant_token_account: AccountInfo<'info>,
     
-    /// CHECK: Challenge's token account
+    /// CHECK: Treasury's token account
     #[account(mut)]
-    pub challenge_token_account: AccountInfo<'info>,
+    pub treasury_token_account: AccountInfo<'info>,
     
     /// CHECK: This is a unique reference for the video
     pub video_reference: AccountInfo<'info>,
@@ -44,15 +48,22 @@ pub struct SubmitVideo<'info> {
 pub fn handle(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
     
+    // Verify treasury account matches the one stored in the challenge
+    require!(
+        ctx.accounts.treasury.key() == challenge.treasury,
+        ErrorCode::InvalidTreasury
+    );
+    
     msg!("Submitting video and paying participation fee: {} tokens", challenge.participation_fee);
     msg!("From participant: {}", ctx.accounts.participant.key());
+    msg!("To treasury: {}", ctx.accounts.treasury.key());
     
     // Create a simplified Transfer instruction manually
     let ix = solana_program::instruction::Instruction {
         program_id: ctx.accounts.token_program.key(),
         accounts: vec![
             solana_program::instruction::AccountMeta::new(ctx.accounts.participant_token_account.key(), false),
-            solana_program::instruction::AccountMeta::new(ctx.accounts.challenge_token_account.key(), false),
+            solana_program::instruction::AccountMeta::new(ctx.accounts.treasury_token_account.key(), false),
             solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.participant.key(), true),
         ],
         // Token instruction 3 = Transfer, followed by amount as little-endian bytes
@@ -66,7 +77,7 @@ pub fn handle(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
         &ix,
         &[
             ctx.accounts.participant_token_account.to_account_info(),
-            ctx.accounts.challenge_token_account.to_account_info(),
+            ctx.accounts.treasury_token_account.to_account_info(),
             ctx.accounts.participant.to_account_info(),
         ],
     )?;

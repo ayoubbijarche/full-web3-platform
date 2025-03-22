@@ -1,61 +1,57 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{self, system_instruction};
+use std::str::FromStr;
 use crate::instructions::challenge::types::Challenge;
+use crate::instructions::errors::ErrorCode;
 
 pub const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 pub const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
 
 #[derive(Accounts)]
+#[instruction(
+    reward: u64,
+    participation_fee: u64,
+    voting_fee: u64,
+    max_participants: u8,
+    challenge_id: u64
+)]
 pub struct CreateChallenge<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    
     #[account(
         init,
         payer = user,
-        space = 8      // discriminator
-            + 32       // creator pubkey
-            + 1        // is_active
-            + 8        // reward
-            + 8        // participation_fee
-            + 8        // voting_fee
-            + 8        // challenge_treasury
-            + 8        // voting_treasury
-            + 33       // winner option
-            + 8        // total_votes
-            + 8        // winning_votes
-            + 32       // reward_token_mint
-            + 1        // max_participants field (u8)
-            + 4        // vector length overhead for participants
-            + (32 * 50) // space for up to 50 participants (32 bytes per pubkey)
-            + 4        // vector length overhead for submission_votes
-            + (40 * 50) // space for up to 50 submission votes (pubkey + u64)
-            + 4        // vector length overhead for voters
-            + (64 * 100) // space for up to 100 voter records (two pubkeys)
+        space = 500 
     )]
     pub challenge: Account<'info, Challenge>,
+    
+    // Treasury PDA - simplify the definition
+    /// CHECK: This is a PDA that will be the treasury for the challenge
+    #[account(mut)]
+    pub treasury: AccountInfo<'info>,
+    
     /// CHECK: This is the program account that will receive the creation fee
     #[account(mut)]
     pub program_account: AccountInfo<'info>,
+    
     pub system_program: Program<'info, System>,
     
     /// CHECK: Token-2022 program
-    #[account(address = TOKEN_2022_PROGRAM_ID.parse::<Pubkey>().unwrap())]
     pub token_program: AccountInfo<'info>,
     
     /// CHECK: Token mint using Token-2022 
-    #[account(address = CPT_TOKEN_MINT.parse::<Pubkey>().unwrap())]
     pub token_mint: AccountInfo<'info>,
     
-    /// CHECK: Creator's token account - only needed for reference
+    /// CHECK: Creator's token account
     pub creator_token_account: AccountInfo<'info>,
     
-    /// CHECK: Challenge's token account - created during this transaction
+    /// CHECK: Treasury's token account
     #[account(mut)]
-    pub challenge_token_account: AccountInfo<'info>,
+    pub treasury_token_account: AccountInfo<'info>,
 
     /// CHECK: Associated Token Program
-    #[account(address = ASSOCIATED_TOKEN_PROGRAM_ID.parse::<Pubkey>().unwrap())]
     pub associated_token_program: AccountInfo<'info>,
 }
 
@@ -64,21 +60,59 @@ pub fn handle(
     reward: u64,
     participation_fee: u64,
     voting_fee: u64,
-    max_participants: u8 
+    max_participants: u8,
+    challenge_id: u64
 ) -> Result<()> {
+    // Create the treasury PDA ourselves rather than relying on the derived account
+    let (treasury_pda, treasury_bump) = Pubkey::find_program_address(
+        &[b"treasury", ctx.accounts.challenge.key().as_ref()],
+        ctx.program_id
+    );
+    
+    // Verify we received the correct treasury account
+    require!(
+        treasury_pda == ctx.accounts.treasury.key(),
+        ErrorCode::InvalidTreasury
+    );
+    
+    // Create the treasury account
+    let rent = Rent::get()?;
+    let space = 16; // Small account for data
+    let lamports = rent.minimum_balance(space);
+    
+    // Create the treasury account
+    let create_treasury_ix = system_instruction::create_account(
+        &ctx.accounts.user.key(),
+        &treasury_pda,
+        lamports,
+        space as u64,
+        ctx.program_id
+    );
+    
+    // Create the treasury with PDA signing
+    solana_program::program::invoke_signed(
+        &create_treasury_ix,
+        &[
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.treasury.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+        &[&[b"treasury", ctx.accounts.challenge.key().as_ref(), &[treasury_bump]]],
+    )?;
+    
     // Fixed creation fee of 0.002 SOL
     let creation_fee = 2_000_000; // 0.002 SOL in lamports
     
     // Transfer SOL creation fee to program treasury
-    msg!("Transferring {} lamports to treasury", creation_fee);
-    let ix = system_instruction::transfer(
+    msg!("Transferring {} lamports to program treasury", creation_fee);
+    let program_treasury_ix = system_instruction::transfer(
         &ctx.accounts.user.key(),
         &ctx.accounts.program_account.key(),
         creation_fee
     );
     
     solana_program::program::invoke(
-        &ix,
+        &program_treasury_ix,
         &[
             ctx.accounts.user.to_account_info(),
             ctx.accounts.program_account.to_account_info(),
@@ -86,22 +120,52 @@ pub fn handle(
         ],
     )?;
     
-    // Create ATA for challenge using proper ATA instruction
-    msg!("Creating associated token account for challenge");
+    // Transfer gas SOL to treasury PDA (0.001 SOL for operations)
+    msg!("Transferring gas SOL to treasury PDA");
+    let gas_amount = 1_000_000; // 0.001 SOL
+    let treasury_gas_ix = system_instruction::transfer(
+        &ctx.accounts.user.key(),
+        &treasury_pda,
+        gas_amount
+    );
     
-    // This is the format used by the Associated Token Program
+    solana_program::program::invoke(
+        &treasury_gas_ix,
+        &[
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.treasury.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+    )?;
+    
+    // Verify token program is the expected one
+    let token_2022_id = Pubkey::from_str(TOKEN_2022_PROGRAM_ID).unwrap();
+    require!(
+        ctx.accounts.token_program.key() == token_2022_id,
+        ErrorCode::InvalidTokenProgram
+    );
+    
+    // Verify token mint is the expected one
+    let token_mint_id = Pubkey::from_str(CPT_TOKEN_MINT).unwrap();
+    require!(
+        ctx.accounts.token_mint.key() == token_mint_id,
+        ErrorCode::InvalidTokenMint
+    );
+    
+    // Create ATA for treasury using proper ATA instruction
+    msg!("Creating associated token account for treasury");
+    
+    // Format used by the Associated Token Program
     let create_ata_ix = solana_program::instruction::Instruction {
         program_id: ctx.accounts.associated_token_program.key(),
         accounts: vec![
-            // This needs to be in the exact order expected by the ATA program:
-            solana_program::instruction::AccountMeta::new(ctx.accounts.user.key(), true),            // Payer (must sign)
-            solana_program::instruction::AccountMeta::new(ctx.accounts.challenge_token_account.key(), false), // ATA address
-            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.challenge.key(), false),      // Owner
-            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_mint.key(), false),     // Mint
-            solana_program::instruction::AccountMeta::new_readonly(solana_program::system_program::ID, false), // System program
-            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),   // Token program
+            solana_program::instruction::AccountMeta::new(ctx.accounts.user.key(), true),
+            solana_program::instruction::AccountMeta::new(ctx.accounts.treasury_token_account.key(), false),
+            solana_program::instruction::AccountMeta::new_readonly(treasury_pda, false),
+            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_mint.key(), false),
+            solana_program::instruction::AccountMeta::new_readonly(solana_program::system_program::ID, false),
+            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
         ],
-        // The ATA program expects no instruction data
         data: vec![],
     };
     
@@ -110,15 +174,15 @@ pub fn handle(
         &create_ata_ix,
         &[
             ctx.accounts.user.to_account_info(),
-            ctx.accounts.challenge_token_account.to_account_info(),
-            ctx.accounts.challenge.to_account_info(),
+            ctx.accounts.treasury_token_account.to_account_info(),
+            ctx.accounts.treasury.to_account_info(),
             ctx.accounts.token_mint.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
         ],
     )?;
     
-    msg!("Associated token account created");
+    msg!("Treasury token account created");
     
     // Initialize challenge state
     let challenge = &mut ctx.accounts.challenge;
@@ -134,8 +198,11 @@ pub fn handle(
     challenge.winning_votes = 0;
     challenge.reward_token_mint = ctx.accounts.token_mint.key();
     challenge.participants = Vec::new();
-    challenge.submission_votes = Vec::new();  // Initialize new field
-    challenge.voters = Vec::new();            // Initialize new field
+    challenge.submission_votes = Vec::new();
+    challenge.voters = Vec::new();
+    
+    // Store the treasury address in the challenge
+    challenge.treasury = treasury_pda;
     
     // Set max_participants with a reasonable default if zero
     challenge.max_participants = if max_participants == 0 { 50 } else { max_participants };

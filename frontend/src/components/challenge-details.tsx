@@ -38,9 +38,21 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { participateInChallenge, voteForSubmissionOnChain } = useAnchor()
+  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
+  
+  const [treasuryBalance, setTreasuryBalance] = useState<{
+    success: boolean;
+    tokenBalance?: number;
+    tokenDecimals?: number;
+    tokenAmountRaw?: string;
+    solBalance?: number;
+    treasuryAddress?: string;
+    treasuryTokenAccount?: string;
+    error?: string;
+  } | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   
   useEffect(() => {
     console.log('Challenge in component:', challenge);
@@ -514,6 +526,46 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
 
   const isFull = challenge.maxparticipats > 0 && challenge.participants.length >= challenge.maxparticipats;
 
+  // Add this useEffect after your other useEffects
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchTreasuryBalance = async () => {
+      if (!challenge.onchain_id) return;
+      
+      setLoadingBalance(true);
+      try {
+        const result = await getTreasuryBalance(challenge.onchain_id);
+        if (isMounted) {
+          setTreasuryBalance(result);
+          console.log("Treasury balance:", result);
+        }
+      } catch (error) {
+        console.error('Error fetching treasury balance:', error);
+        if (isMounted) {
+          setTreasuryBalance({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to fetch treasury balance'
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingBalance(false);
+        }
+      }
+    };
+    
+    fetchTreasuryBalance();
+    
+    // Set up polling to refresh the balance every 30 seconds
+    const intervalId = setInterval(fetchTreasuryBalance, 30000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [challenge.onchain_id, getTreasuryBalance]);
+
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
       <div className="flex-1">
@@ -617,6 +669,44 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           <p className="text-gray-600">
             {challenge.description}
           </p>
+
+          {/* Treasury Balance Display */}
+          {challenge.onchain_id && (
+            <div className="mt-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+              <h3 className="text-sm font-semibold mb-2 flex items-center">
+                <Wallet className="h-4 w-4 mr-1 text-[#b3731d]" />
+                Treasury Balance
+              </h3>
+              
+              {loadingBalance ? (
+                <div className="text-center py-2">
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
+                  <span className="ml-2 text-sm text-gray-500">Loading balance...</span>
+                </div>
+              ) : treasuryBalance?.success ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-sm">
+                    <div className="text-gray-500 text-xs">CPT Balance:</div>
+                    <div className="font-medium">{treasuryBalance.tokenBalance?.toLocaleString() || '0'} CPT</div>
+                  </div>
+                  <div className="text-sm">
+                    <div className="text-gray-500 text-xs">SOL Balance:</div>
+                    <div className="font-medium">{treasuryBalance.solBalance?.toFixed(6) || '0'} SOL</div>
+                  </div>
+                  <div className="col-span-2 mt-1">
+                    <div className="text-xs text-gray-500 truncate">
+                      Treasury: {treasuryBalance.treasuryAddress?.substring(0, 8)}...{treasuryBalance.treasuryAddress?.substring(treasuryBalance.treasuryAddress.length - 8)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 p-2">
+                  {treasuryBalance?.error || 'No treasury information available'}
+                </div>
+              )}
+            </div>
+          )}
+
           {challenge.onchain_id && (
             <div className="mt-2 text-xs">
               <div className="font-mono bg-gray-100 p-1 rounded mb-1">
@@ -741,7 +831,17 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                       >
                         Sign in to vote
                       </Button>
-                    ) : isVoter || hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
+                    ) : Array.isArray(submission.voters) && submission.voters.includes(auth.user.id) ? (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
+                        disabled={true}
+                        title="You've already voted for this submission"
+                      >
+                        Already voted for this one
+                      </Button>
+                    ) : hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
                       <Button 
                         variant="default" 
                         size="sm"
@@ -749,7 +849,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                         disabled={true}
                         title="You've already voted in this challenge"
                       >
-                        Already voted
+                        Already voted in challenge
                       </Button>
                     ) : (
                       <Button 

@@ -31,6 +31,10 @@
           "signer": true
         },
         {
+          "name": "treasury",
+          "writable": true
+        },
+        {
           "name": "program_account",
           "writable": true
         },
@@ -39,23 +43,20 @@
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "token_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          "name": "token_program"
         },
         {
-          "name": "token_mint",
-          "address": "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9"
+          "name": "token_mint"
         },
         {
           "name": "creator_token_account"
         },
         {
-          "name": "challenge_token_account",
+          "name": "treasury_token_account",
           "writable": true
         },
         {
-          "name": "associated_token_program",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          "name": "associated_token_program"
         }
       ],
       "args": [
@@ -74,6 +75,10 @@
         {
           "name": "max_participants",
           "type": "u8"
+        },
+        {
+          "name": "challenge_id",
+          "type": "u64"
         }
       ]
     },
@@ -101,7 +106,7 @@
         },
         {
           "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
         {
           "name": "winner",
@@ -459,6 +464,10 @@
           "writable": true
         },
         {
+          "name": "treasury",
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
@@ -467,7 +476,7 @@
           "writable": true
         },
         {
-          "name": "challenge_token_account",
+          "name": "treasury_token_account",
           "writable": true
         },
         {
@@ -500,6 +509,10 @@
           "writable": true
         },
         {
+          "name": "treasury",
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
@@ -508,7 +521,7 @@
           "writable": true
         },
         {
-          "name": "challenge_token_account",
+          "name": "treasury_token_account",
           "writable": true
         },
         {
@@ -655,8 +668,38 @@
   "errors": [
     {
       "code": 6000,
-      "name": "YouNoTokenOwner",
+      "name": "YouNotTokenOwner",
       "msg": "Not the owner"
+    },
+    {
+      "code": 6001,
+      "name": "ExceedsInitialSupplyCap",
+      "msg": "Exceeds initial supply cap of 21M tokens"
+    },
+    {
+      "code": 6002,
+      "name": "ExceedsMaxSupplyCap",
+      "msg": "Exceeds maximum supply cap of 61M tokens"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMintIncrement",
+      "msg": "Minting increment must be exactly 5M tokens"
+    },
+    {
+      "code": 6004,
+      "name": "MintingTooFrequent",
+      "msg": "Minting is limited to once per year"
+    },
+    {
+      "code": 6005,
+      "name": "NoMintConditionsMet",
+      "msg": "No minting conditions have been met"
+    },
+    {
+      "code": 6006,
+      "name": "ExceedsDailySellLimit",
+      "msg": "Exceeds daily sell limit of 1% of circulating supply"
     }
   ],
   "types": [

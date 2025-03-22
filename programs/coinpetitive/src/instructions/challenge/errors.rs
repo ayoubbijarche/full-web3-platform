@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum ErrorCode {
-    #[msg("Challenge is not active")]
+    #[msg("Challenge not active")]
     ChallengeNotActive,
     #[msg("Challenge is still active")]
     ChallengeStillActive,
@@ -20,12 +20,14 @@ pub enum ErrorCode {
     InvalidTokenMint,
     #[msg("Maximum participants reached")]
     MaxParticipantsReached,
-    #[msg("Already participating in this challenge")]
-    AlreadyParticipating,
-    
-    // Add new error codes
-    #[msg("Already voted for this submission")]
+    #[msg("Already participated")]
+    AlreadyParticipated,
+    #[msg("Already voted")]
     AlreadyVoted,
     #[msg("Submission not found")]
     SubmissionNotFound,
+    #[msg("Invalid treasury")]
+    InvalidTreasury,
+    #[msg("Invalid token program")]
+    InvalidTokenProgram,
 }

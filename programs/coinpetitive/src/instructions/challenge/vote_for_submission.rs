@@ -11,19 +11,29 @@ pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
 pub struct VoteForSubmission<'info> {
     #[account(mut)]
     pub voter: Signer<'info>,
-    #[account(mut, constraint = challenge.is_active @ ErrorCode::ChallengeNotActive)]
+    
+    #[account(
+        mut, 
+        constraint = challenge.is_active @ ErrorCode::ChallengeNotActive
+    )]
     pub challenge: Account<'info, Challenge>,
+    
+    /// CHECK: Treasury account (PDA) - verified in the handler
+    #[account(mut)]
+    pub treasury: AccountInfo<'info>,
     
     // Token accounts
     /// CHECK: Token-2022 program
     #[account(address = TOKEN_2022_PROGRAM_ID_STR.parse::<Pubkey>().unwrap())]
     pub token_program: AccountInfo<'info>,
+    
     /// CHECK: Voter's token account
     #[account(mut)]
     pub voter_token_account: AccountInfo<'info>,
-    /// CHECK: Challenge's token account
+    
+    /// CHECK: Treasury's token account
     #[account(mut)]
-    pub challenge_token_account: AccountInfo<'info>,
+    pub treasury_token_account: AccountInfo<'info>,
     
     /// CHECK: Just storing submission ID for reference
     pub submission_id: AccountInfo<'info>,
@@ -33,6 +43,12 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
     let voter = ctx.accounts.voter.key();
     let submission_id = ctx.accounts.submission_id.key();
+    
+    // Verify treasury account matches the one stored in the challenge
+    require!(
+        ctx.accounts.treasury.key() == challenge.treasury,
+        ErrorCode::InvalidTreasury
+    );
     
     // Check if voter has already voted for this submission
     if challenge.has_voted_for(&voter, &submission_id) {
@@ -44,7 +60,7 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
         program_id: ctx.accounts.token_program.key(),
         accounts: vec![
             solana_program::instruction::AccountMeta::new(ctx.accounts.voter_token_account.key(), false),
-            solana_program::instruction::AccountMeta::new(ctx.accounts.challenge_token_account.key(), false),
+            solana_program::instruction::AccountMeta::new(ctx.accounts.treasury_token_account.key(), false),
             solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.voter.key(), true),
         ],
         // Token instruction 3 = Transfer, followed by amount as little-endian bytes
@@ -58,7 +74,7 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
         &transfer_ix,
         &[
             ctx.accounts.voter_token_account.to_account_info(),
-            ctx.accounts.challenge_token_account.to_account_info(),
+            ctx.accounts.treasury_token_account.to_account_info(),
             ctx.accounts.voter.to_account_info(),
         ],
     )?;

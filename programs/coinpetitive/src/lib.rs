@@ -52,14 +52,16 @@ pub mod coinpetitive {
         reward: u64,
         participation_fee: u64,
         voting_fee: u64,
-        max_participants: u8
+        max_participants: u8,
+        challenge_id: u64  // Add this new parameter
     ) -> Result<()> {
         instructions::challenge::create_challenge(
             ctx,
             reward,
             participation_fee,
             voting_fee,
-            max_participants
+            max_participants,
+            challenge_id
         )
     }
 

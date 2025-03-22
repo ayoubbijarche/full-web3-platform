@@ -10,6 +10,7 @@ export type UserModel = {
   xProfile: string;
   telegram: string;
   avatar?: string;
+  pubkey?: string; // Add this line for Solana wallet address
   createdChallenges: string[]; // Array of challenge IDs
   created: string;
   updated: string;
@@ -217,6 +218,7 @@ export async function signUp(data: {
   xProfile?: string;
   telegram?: string;
   avatar?: File;
+  pubkey?: string; // Add this parameter
 }) {
   try {
     const formData = new FormData();
@@ -598,7 +600,7 @@ export async function getVideoSubmissions(challengeId: string, signal?: AbortSig
       }));
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error fetching from video_submitted:', error);
+        console.error('Error fetching from video_submited:', error);
       }
     }
     

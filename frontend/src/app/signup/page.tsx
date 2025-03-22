@@ -8,11 +8,14 @@ import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
 import logoImage from "@/assets/logo.png"
 import { Upload } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signUp } from "@/lib/pb"
 import { useRouter } from "next/navigation"
+import { useWallet } from '@solana/wallet-adapter-react';
 
 export default function SignUp() {
+  const { publicKey, connected } = useWallet();
+  
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -20,12 +23,22 @@ export default function SignUp() {
     passwordConfirm: "",
     xProfile: "",
     telegram: "",
+    pubkey: "", // Add this field
   })
   const [avatar, setAvatar] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string>("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    if (connected && publicKey) {
+      setFormData(prev => ({
+        ...prev,
+        pubkey: publicKey.toString()
+      }));
+    }
+  }, [connected, publicKey]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
@@ -55,10 +68,17 @@ export default function SignUp() {
       return
     }
 
+    if (!formData.pubkey) {
+      setError("Please connect your wallet to continue");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await signUp({
         ...formData,
         avatar: avatar || undefined,
+        pubkey: formData.pubkey // Pass the pubkey
       })
 
       if (result.success) {
@@ -182,6 +202,43 @@ export default function SignUp() {
                           className="rounded-[50px] border-[#8a8a8a]"
                           required
                         />
+                      </div>
+
+                      <div className="col-span-2 space-y-2">
+                        <Label htmlFor="pubkey">Wallet Address</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="pubkey"
+                            value={formData.pubkey}
+                            placeholder="Connect your wallet to populate this field"
+                            className="rounded-[50px] border-[#8a8a8a] flex-grow"
+                            disabled={connected}
+                            onChange={(e) => 
+                              setFormData(prev => ({ ...prev, pubkey: e.target.value }))
+                            }
+                            required
+                          />
+                          {!connected && (
+                            <Button 
+                              type="button"
+                              className="bg-[#b3731d] hover:bg-[#b3731d]/90"
+                              onClick={() => {
+                                if (window.solana) {
+                                  window.solana.connect();
+                                } else {
+                                  setError("No wallet found. Please install a Solana wallet extension.");
+                                }
+                              }}
+                            >
+                              Connect Wallet
+                            </Button>
+                          )}
+                        </div>
+                        {connected && publicKey && (
+                          <p className="text-sm text-green-600">
+                            Wallet connected: {publicKey.toString().substring(0, 4)}...{publicKey.toString().substring(publicKey.toString().length - 4)}
+                          </p>
+                        )}
                       </div>
 
                       {error && (
