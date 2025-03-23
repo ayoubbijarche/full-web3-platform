@@ -43,5 +43,5 @@ pub fn finalize_challenge(
     winner_pubkey: Pubkey,
     winning_votes: u64
 ) -> Result<()> {
-    finalize_challenge::handle(ctx, winner_pubkey, winning_votes)
+    finalize_challenge::handle(ctx)
 }

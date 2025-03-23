@@ -353,6 +353,20 @@
         "type": "relation"
       },
       {
+        "autogeneratePattern": "",
+        "hidden": false,
+        "id": "text1865191150",
+        "max": 0,
+        "min": 0,
+        "name": "pubkey",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
         "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
@@ -910,7 +924,7 @@
         "id": "number2314127329",
         "max": null,
         "min": null,
-        "name": "maxparticipats",
+        "name": "maxparticipants",
         "onlyInt": false,
         "presentable": false,
         "required": false,
@@ -975,7 +989,7 @@
         "id": "date1750509566",
         "max": "",
         "min": "",
-        "name": "registration_end",
+        "name": "registration_ends",
         "presentable": false,
         "required": false,
         "system": false,
@@ -1072,20 +1086,6 @@
       },
       {
         "hidden": false,
-        "id": "file676179377",
-        "maxSelect": 1,
-        "maxSize": 0,
-        "mimeTypes": [],
-        "name": "challengevideo",
-        "presentable": false,
-        "protected": false,
-        "required": false,
-        "system": false,
-        "thumbs": [],
-        "type": "file"
-      },
-      {
-        "hidden": false,
         "id": "number1320755876",
         "max": null,
         "min": null,
@@ -1107,6 +1107,67 @@
         "required": false,
         "system": false,
         "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "number818437264",
+        "max": null,
+        "min": null,
+        "name": "minparticipants",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "number3881170375",
+        "max": null,
+        "min": null,
+        "name": "minvoters",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "number817776518",
+        "max": null,
+        "min": null,
+        "name": "maxvoters",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "exceptDomains": null,
+        "hidden": false,
+        "id": "url676179377",
+        "name": "challengevideo",
+        "onlyDomains": null,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "url"
+      },
+      {
+        "autogeneratePattern": "",
+        "hidden": false,
+        "id": "text2760482230",
+        "max": 0,
+        "min": 0,
+        "name": "onchain_id",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
       },
       {
         "hidden": false,
@@ -1333,20 +1394,6 @@
         "type": "text"
       },
       {
-        "hidden": false,
-        "id": "file2093472300",
-        "maxSelect": 1,
-        "maxSize": 0,
-        "mimeTypes": [],
-        "name": "video",
-        "presentable": false,
-        "protected": false,
-        "required": false,
-        "system": false,
-        "thumbs": [],
-        "type": "file"
-      },
-      {
         "cascadeDelete": false,
         "collectionId": "pbc_4177893232",
         "hidden": false,
@@ -1446,6 +1493,31 @@
         "required": false,
         "system": false,
         "type": "number"
+      },
+      {
+        "exceptDomains": null,
+        "hidden": false,
+        "id": "url2093472300",
+        "name": "video",
+        "onlyDomains": null,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "url"
+      },
+      {
+        "autogeneratePattern": "",
+        "hidden": false,
+        "id": "text2760482230",
+        "max": 0,
+        "min": 0,
+        "name": "onchain_id",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
       },
       {
         "hidden": false,

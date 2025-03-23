@@ -32,4 +32,12 @@ pub enum ErrorCode {
     InvalidTokenProgram,
     #[msg("Invalid token treasury")]
     InvalidVotingTreasury,
+    #[msg("Unauthorized")]
+    Unauthorized,
+    #[msg("Maximum number of voters reached for this challenge")]
+    MaxVotersReached,
+    #[msg("No submissions found")]
+    NoSubmissions,
+    #[msg("No votes found for any submission")]
+    NoVotes
 }

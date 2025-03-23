@@ -11,6 +11,7 @@ import {
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction 
 } from "@solana/spl-token";
+import PocketBase from 'pocketbase';
 
 export const PROGRAM_ID = new PublicKey("gkWKee4XRKyNFzWmQMjfG945iTJmJLF4f5je2qyPAmM");
 export const PROGRAM_TREASURY = new PublicKey("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt");
@@ -441,153 +442,145 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Update your voteForSubmissionOnChain function
+  // Replace the voteForSubmissionOnChain function with this improved version
 
   const voteForSubmissionOnChain = async (challengePublicKey: string, submissionPublicKey: string) => {
-    console.log("🔍 voteForSubmissionOnChain called with:", {
-      challengePublicKey,
-      submissionPublicKey
-    });
-    
-    if (!wallet) {
-      console.log("🔍 Wallet not connected");
-      return {
-        success: false,
-        error: "Wallet not connected"
-      };
+    if (!wallet || !connection) {
+      return { success: false, error: "Wallet not connected" };
     }
     
     if (!program) {
-      console.log("🔍 Program not initialized");
-      return {
-        success: false,
-        error: "Program not initialized"
-      };
+      return { success: false, error: "Program not initialized" };
     }
   
     try {
+      // First, check if the voting treasury token account exists and create it if not
+      console.log("Starting vote process for challenge:", challengePublicKey);
+      
       // Convert strings to PublicKeys
       const challengePubkey = new PublicKey(challengePublicKey);
       const submissionPubkey = new PublicKey(submissionPublicKey);
-      console.log("🔍 Converting to PublicKeys successful:", {
-        challenge: challengePubkey.toString(),
-        submission: submissionPubkey.toString()
-      });
       
-      // Try to fetch the challenge to get voting_treasury_pda
-      let votingTreasuryPubkey;
-      try {
-        const challenge = await program.account.challenge.fetch(challengePubkey);
-        // If the challenge has a voting_treasury_pda field, use it
-        if (challenge.voting_treasury_pda) {
-          votingTreasuryPubkey = challenge.voting_treasury_pda;
-        } else {
-          // Derive it if not available
-          [votingTreasuryPubkey] = PublicKey.findProgramAddressSync(
-            [
-              Buffer.from("voting_treasury"),
-              challengePubkey.toBuffer()
-            ],
-            program.programId
-          );
-        }
-      } catch (err) {
-        // If fetching fails, derive it
-        [votingTreasuryPubkey] = PublicKey.findProgramAddressSync(
-          [
-            Buffer.from("voting_treasury"),
-            challengePubkey.toBuffer()
-          ],
-          program.programId
-        );
-      }
+      // Derive PDAs
+      const [treasuryPubkey] = PublicKey.findProgramAddressSync(
+        [Buffer.from("treasury"), challengePubkey.toBuffer()],
+        program.programId
+      );
       
-      // Find token accounts
+      const [votingTreasuryPubkey] = PublicKey.findProgramAddressSync(
+        [Buffer.from("voting_treasury"), challengePubkey.toBuffer()],
+        program.programId
+      );
+      
+      // Get token accounts
       const voterTokenAccount = getAssociatedToken2022AddressSync(
-        CPT_TOKEN_MINT,
+        CPT_TOKEN_MINT, 
         wallet.publicKey
+      );
+      
+      const treasuryTokenAccount = getAssociatedTokenAddressSync(
+        CPT_TOKEN_MINT,
+        treasuryPubkey,
+        true,
+        TOKEN_2022_PROGRAM_ID
       );
       
       const votingTreasuryTokenAccount = getAssociatedTokenAddressSync(
         CPT_TOKEN_MINT,
         votingTreasuryPubkey,
-        true, // allowOwnerOffCurve for PDAs
+        true,
         TOKEN_2022_PROGRAM_ID
       );
       
-      console.log("🔍 Token accounts:", {
-        voter: voterTokenAccount.toString(),
-        votingTreasury: votingTreasuryPubkey.toString(),
-        votingTreasuryToken: votingTreasuryTokenAccount.toString()
-      });
-
-      // Before sending the transaction, add the missing treasury PDA
-      const [treasuryPubkey] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("treasury"),
-          challengePubkey.toBuffer()
-        ],
-        program.programId
-      );
-
-      // Find the main treasury token account
-      const treasuryTokenAccount = getAssociatedTokenAddressSync(
-        CPT_TOKEN_MINT,
-        treasuryPubkey,
-        true, // allowOwnerOffCurve for PDAs
-        TOKEN_2022_PROGRAM_ID
-      );
-
-      console.log("🔍 All token accounts:", {
-        voter: voterTokenAccount.toString(),
-        treasury: treasuryPubkey.toString(),
-        treasuryToken: treasuryTokenAccount.toString(), // Log this
-        votingTreasury: votingTreasuryPubkey.toString(),
-        votingTreasuryToken: votingTreasuryTokenAccount.toString()
-      });
-
-      console.log("🔍 Using treasuries:", {
-        mainTreasury: treasuryPubkey.toString(),
-        votingTreasury: votingTreasuryPubkey.toString()
-      });
+      // Create a transaction to check/create the voting treasury token account if needed
+      let tx = new Transaction();
       
-      // Call the vote_for_submission instruction
-      console.log("🔍 About to call program.methods.voteForSubmission()");
-      const tx = await program.methods
+      try {
+        // Check if the voting treasury token account exists
+        const votingTokenAccountInfo = await connection.getAccountInfo(votingTreasuryTokenAccount);
+        
+        if (!votingTokenAccountInfo) {
+          console.log("Voting treasury token account doesn't exist, creating it...");
+          
+          // Add instruction to create the ATA
+          const createAta = createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            votingTreasuryTokenAccount,
+            votingTreasuryPubkey,
+            CPT_TOKEN_MINT,
+            TOKEN_2022_PROGRAM_ID,
+            TOKEN_2022_PROGRAM_ID
+          );
+          
+          tx.add(createAta);
+        }
+      } catch (err) {
+        console.log("Error checking token account, will attempt to create:", err);
+        
+        // Add instruction to create the ATA just in case
+        const createAta = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          votingTreasuryTokenAccount,
+          votingTreasuryPubkey,
+          CPT_TOKEN_MINT,
+          TOKEN_2022_PROGRAM_ID,
+          TOKEN_2022_PROGRAM_ID
+        );
+        
+        tx.add(createAta);
+      }
+      
+      // Now add the vote instruction
+      const voteIx = await program.methods
         .voteForSubmission()
         .accounts({
           voter: wallet.publicKey,
           challenge: challengePubkey,
-          treasury: treasuryPubkey,  // Add this main treasury account
-          treasuryTokenAccount: treasuryTokenAccount, // Add this missing account
-          votingTreasury: votingTreasuryPubkey,  // Using voting treasury instead of main treasury
+          treasury: treasuryPubkey,
+          treasuryTokenAccount: treasuryTokenAccount,
+          votingTreasury: votingTreasuryPubkey,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
           voterTokenAccount: voterTokenAccount,
-          votingTreasuryTokenAccount: votingTreasuryTokenAccount,  // Using voting treasury token account
+          votingTreasuryTokenAccount: votingTreasuryTokenAccount,
           submissionId: submissionPubkey,
+          // Add any missing accounts your program expects 
+          systemProgram: SystemProgram.programId,  // May be needed for creating accounts
         })
-        .rpc();
+        .instruction();
       
-      console.log("🔍 Successfully voted for submission! Transaction signature:", tx);
+      tx.add(voteIx);
+      
+      // Set recent blockhash and fee payer
+      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      tx.feePayer = wallet.publicKey;
+      
+      // Sign and send the transaction
+      console.log("Sending vote transaction...");
+      const signedTx = await wallet.signTransaction(tx);
+      const signature = await connection.sendRawTransaction(signedTx.serialize());
+      
+      // Wait for confirmation
+      console.log("Waiting for transaction confirmation...");
+      await connection.confirmTransaction(signature);
+      
+      console.log("Vote successful! Transaction ID:", signature);
       return {
         success: true,
-        signature: tx
+        signature
       };
-    } catch (error: unknown) {
-      console.error("🔍 Detailed error voting for submission:", error);
+    } catch (error) {
+      console.error("Error voting for submission:", error);
       
-      // Extract specific error messages
       let errorMessage = "Failed to vote for submission";
       if (error instanceof Error) {
         errorMessage = error.message;
-        console.log("🔍 Error message:", errorMessage);
         
         if (errorMessage.includes("AlreadyVoted")) {
           errorMessage = "You have already voted for this submission";
         } else if (errorMessage.includes("ChallengeNotActive")) {
           errorMessage = "This challenge is no longer active";
-        } else if (errorMessage.includes("InvalidVotingTreasury")) {
-          errorMessage = "Invalid voting treasury account for this challenge";
+        } else if (errorMessage.includes("AccountDidNotSerialize")) {
+          errorMessage = "Error updating challenge data. The voters list might be full.";
         }
       }
       
@@ -742,6 +735,231 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
+  const finalizeChallenge = async (challengePublicKey: string) => {
+    if (!wallet) {
+      return {
+        success: false,
+        error: "Wallet not connected"
+      };
+    }
+    
+    if (!program) {
+      return {
+        success: false,
+        error: "Program not initialized"
+      };
+    }
+  
+    try {
+      // Convert string to PublicKey
+      const challengePubkey = new PublicKey(challengePublicKey);
+      
+      console.log("Starting challenge finalization for:", challengePublicKey);
+      
+      // Step 1: Fetch all video submissions for this challenge from PocketBase
+      const pb = new PocketBase('http://127.0.0.1:8090');
+      
+      // Get the PocketBase challenge ID from onchain_id
+      let pbChallengeId = "";
+      try {
+        const pbChallenges = await pb.collection('challenges').getList(1, 1, {
+          filter: `onchain_id = "${challengePublicKey}"`
+        });
+        
+        if (pbChallenges.items.length === 0) {
+          return {
+            success: false,
+            error: "Challenge not found in PocketBase"
+          };
+        }
+        
+        pbChallengeId = pbChallenges.items[0].id;
+        console.log("Found PocketBase challenge ID:", pbChallengeId);
+      } catch (pbError) {
+        console.error("Error fetching challenge from PocketBase:", pbError);
+        return {
+          success: false,
+          error: "Failed to fetch challenge from PocketBase"
+        };
+      }
+      
+      // Get all video submissions for this challenge
+      let submissions: any = null;
+      try {
+        // Make sure to sort by vote_count descending to get the winner
+        submissions = await pb.collection('video_submitted').getList(1, 100, {
+          filter: `challenge = "${pbChallengeId}"`,
+          sort: "-vote_count",
+          expand: "participant"
+        });
+        
+        console.log("Found video submissions:", submissions.items.length);
+      } catch (submissionsError) {
+        console.error("Error fetching submissions from PocketBase:", submissionsError);
+        return {
+          success: false,
+          error: "Failed to fetch video submissions from PocketBase"
+        };
+      }
+      
+      if (submissions.items.length === 0) {
+        return {
+          success: false,
+          error: "No video submissions found for this challenge"
+        };
+      }
+      
+      // Step 2: Determine the winner (submission with highest vote_count)
+      const winnerSubmission = submissions.items[0]; // Already sorted by vote_count desc
+      
+      console.log("Winner submission:", {
+        id: winnerSubmission.id,
+        vote_count: winnerSubmission.vote_count,
+        participant: winnerSubmission.expand?.participant?.id,
+        pubkey: winnerSubmission.expand?.participant?.pubkey
+      });
+      
+      // Step 3: Get the winner's pubkey
+      let winnerPubkey;
+      try {
+        if (winnerSubmission.expand?.participant?.pubkey) {
+          // If expanded participant has pubkey
+          winnerPubkey = new PublicKey(winnerSubmission.expand.participant.pubkey);
+        } else if (winnerSubmission.participant) {
+          // If not expanded, fetch participant directly
+          // Handle array or single value
+          const participantId = Array.isArray(winnerSubmission.participant) 
+            ? winnerSubmission.participant[0] 
+            : winnerSubmission.participant;
+            
+          console.log("Fetching participant details:", participantId);
+            
+          const participant = await pb.collection('users').getOne(participantId);
+          if (!participant.pubkey) {
+            return {
+              success: false,
+              error: "Winner's wallet address not found"
+            };
+          }
+          winnerPubkey = new PublicKey(participant.pubkey);
+        } else {
+          return {
+            success: false,
+            error: "Winner's participant reference not found"
+          };
+        }
+        
+        console.log("Winner pubkey:", winnerPubkey.toString());
+      } catch (pubkeyError) {
+        console.error("Error getting winner's pubkey:", pubkeyError);
+        return {
+          success: false,
+          error: "Failed to get winner's wallet address"
+        };
+      }
+      
+      // Step 4: Derive the treasury PDA
+      const [treasuryPubkey] = PublicKey.findProgramAddressSync(
+        [Buffer.from("treasury"), challengePubkey.toBuffer()],
+        program.programId
+      );
+      
+      // Step 5: Find treasury token account
+      const treasuryTokenAccount = getAssociatedTokenAddressSync(
+        CPT_TOKEN_MINT,
+        treasuryPubkey,
+        true,
+        TOKEN_2022_PROGRAM_ID
+      );
+      
+      // Step 6: Find or create winner's token account
+      const winnerTokenAccount = getAssociatedToken2022AddressSync(
+        CPT_TOKEN_MINT,
+        winnerPubkey
+      );
+      
+      // Check if winner token account exists
+      const winnerTokenAccountInfo = await connection.getAccountInfo(winnerTokenAccount);
+      if (!winnerTokenAccountInfo) {
+        console.log("Creating token account for winner:", winnerPubkey.toString());
+        
+        // Create the associated token account instruction
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          wallet.publicKey, // payer
+          winnerTokenAccount, 
+          winnerPubkey,
+          CPT_TOKEN_MINT,
+          TOKEN_2022_PROGRAM_ID
+        );
+        
+        const tx = new Transaction().add(createAtaIx);
+        tx.feePayer = wallet.publicKey;
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        const signedTx = await wallet.signTransaction(tx);
+        const signature = await connection.sendRawTransaction(signedTx.serialize());
+        await connection.confirmTransaction(signature);
+        
+        console.log("Created winner token account:", signature);
+      }
+      
+      // Step 7: Call the finalize_challenge instruction with the winner from PocketBase
+      console.log("Finalizing challenge with accounts:", {
+        challenge: challengePubkey.toString(),
+        treasury: treasuryPubkey.toString(),
+        treasuryToken: treasuryTokenAccount.toString(),
+        winner: winnerPubkey.toString(),
+        winnerToken: winnerTokenAccount.toString(),
+        voteCount: winnerSubmission.vote_count || 1
+      });
+      
+      const tx = await program.methods
+        .finalizeChallenge(
+          winnerPubkey, 
+          new anchor.BN(winnerSubmission.vote_count || 1)
+        )
+        .accounts({
+          authority: wallet.publicKey,
+          challenge: challengePubkey,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          winnerTokenAccount: winnerTokenAccount,
+          treasury: treasuryPubkey,
+          treasuryTokenAccount: treasuryTokenAccount,
+        })
+        .rpc();
+      
+      console.log("Successfully finalized challenge! Transaction signature:", tx);
+      
+      // Step 8: Update challenge in PocketBase to mark as finalized
+      try {
+        await pb.collection('challenges').update(pbChallengeId, {
+          state: "completed" // Changed from 'finalized' to match your schema states
+        });
+      } catch (updateError) {
+        console.log("Warning: Could not update challenge state in PocketBase", updateError);
+        // Continue since the on-chain finalization succeeded
+      }
+      
+      return {
+        success: true,
+        signature: tx,
+        winner: winnerPubkey.toString(),
+        winningVotes: winnerSubmission.vote_count || 1
+      };
+    } catch (error) {
+      console.error("Error in finalizeChallenge:", error);
+      
+      let errorMessage = "Failed to finalize challenge";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  };
+
   // Update the return object to include the new function
   return {
     wallet,
@@ -750,9 +968,10 @@ export function useAnchorContextProvider(): AnchorContextType {
     participateInChallenge,
     inspectChallengeAccount,
     submitVideoOnChain,
-    voteForSubmissionOnChain,  // Add this line
-    getTreasuryBalance,  // Add this line
-    getVotingTreasuryBalance  // Add this line
+    voteForSubmissionOnChain,
+    getTreasuryBalance,
+    getVotingTreasuryBalance,
+    finalizeChallenge
   };
 }
 
@@ -806,6 +1025,13 @@ export type AnchorContextType = {
     solBalance?: number;
     votingTreasuryAddress?: string;
     votingTreasuryTokenAccount?: string;
+    error?: string;
+  }>;
+  finalizeChallenge: (challengePublicKey: string) => Promise<{
+    success: boolean;
+    signature?: string;
+    winner?: string;
+    winningVotes?: number;
     error?: string;
   }>;
 };

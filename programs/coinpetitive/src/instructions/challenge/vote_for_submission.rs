@@ -52,6 +52,12 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
     let voter = ctx.accounts.voter.key();
     let submission_id = ctx.accounts.submission_id.key();
     
+    // Add a check for maximum voters
+    require!(
+        challenge.voters.len() < 150, // Set a reasonable limit based on your space allocation
+        ErrorCode::MaxVotersReached // Add this new error
+    );
+    
     // Verify treasury account matches the one stored in the challenge
     require!(
         ctx.accounts.treasury.key() == challenge.treasury,

@@ -117,23 +117,15 @@
           "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
         {
-          "name": "winner",
-          "writable": true
-        },
-        {
           "name": "winner_token_account",
           "writable": true
         },
         {
-          "name": "winning_voters_treasury",
+          "name": "treasury",
           "writable": true
         },
         {
-          "name": "creator_token_account",
-          "writable": true
-        },
-        {
-          "name": "challenge_token_account",
+          "name": "treasury_token_account",
           "writable": true
         }
       ],

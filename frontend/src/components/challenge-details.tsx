@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation"
 import { useAnchor } from '@/lib/anchor-context'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from "sonner"; // Use Sonner toast instead
+import { pb } from "@/lib/pb"
 
 export interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -38,10 +39,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, getVotingTreasuryBalance } = useAnchor()
+  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, getVotingTreasuryBalance, finalizeChallenge } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
-  
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  const [finalizeSuccess, setFinalizeSuccess] = useState<string | null>(null);
+
+
   const [treasuryBalance, setTreasuryBalance] = useState<{
     success: boolean;
     tokenBalance?: number;
@@ -369,6 +374,59 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       console.error('Error liking video:', error);
     }
   };
+
+    const handleFinalizeChallenge = async () => {
+      console.log("Finalize button clicked", {
+        authUser: !!auth.user, 
+        isCreator: !!isCreator,
+        challenge_id: challenge.onchain_id,
+        isFinalizing
+      });
+      
+      if (!auth.user) {
+        console.log("Not logged in, can't finalize");
+        return;
+      }
+      
+      if (!challenge.onchain_id) {
+        console.log("No on-chain ID for this challenge");
+        return;
+      }
+      
+      setIsFinalizing(true);
+      setFinalizeError(null);
+      setFinalizeSuccess(null);
+      
+      try {
+        console.log("Calling finalizeChallenge with:", challenge.onchain_id);
+        
+        // Simply call the finalizeChallenge function with just the challenge ID
+        // The winner is determined on-chain based on the vote counts
+        const result = await finalizeChallenge(challenge.onchain_id);
+        
+        console.log("Finalize result:", result);
+        
+        if (result.success) {
+          let successMsg = "Challenge finalized successfully!";
+          if (result.winner && result.winningVotes) {
+            successMsg += ` Winner: ${result.winner.substring(0, 8)}... with ${result.winningVotes} votes`;
+          }
+          
+          setFinalizeSuccess(successMsg);
+          toast.success("Challenge finalized successfully!");
+          setDataVersion(v => v + 1); // Refresh data
+        } else {
+          setFinalizeError(result.error || "Failed to finalize challenge");
+          toast.error(result.error || "Failed to finalize challenge");
+        }
+      } catch (error) {
+        console.error("Error in finalizeChallenge:", error);
+        setFinalizeError("An unexpected error occurred");
+        toast.error("An unexpected error occurred");
+      } finally {
+        setIsFinalizing(false);
+      }
+    };
 
   const handleDislikeVideo = async (submissionId: string) => {
     if (!auth.user) return;
@@ -989,6 +1047,45 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
               : `Submit My Video (${challenge.participation_fee} CPT)`}
           </span>
         </Button>
+
+        {/* Finalize Challenge Button - Visible to all users */}
+        <Button 
+          className="w-full mb-4 bg-green-600 hover:bg-green-700"
+          onClick={handleFinalizeChallenge}
+          disabled={isFinalizing || !challenge.onchain_id}
+          title={
+            !auth.user
+              ? "Sign in to finalize challenge"
+              : !isCreator
+                ? "Only the creator can finalize this challenge"
+                : !challenge.onchain_id
+                  ? "Challenge is not on-chain"
+                  : "End challenge and distribute rewards to the winner"
+          }
+        >
+          <Trophy className="h-4 w-4 mr-2" />
+          <span className="text-sm">
+            {isFinalizing
+              ? "Finalizing..."
+              : !auth.user
+                ? "Sign in to finalize"
+                : !isCreator
+                  ? "Finalize Challenge"
+                  : "Finalize Challenge"
+            }
+          </span>
+        </Button>
+
+        {finalizeError && (
+          <div className="mt-2 mb-4 text-red-500 text-sm p-2 bg-red-50 rounded-md border border-red-200">
+            {finalizeError}
+          </div>
+        )}
+        {finalizeSuccess && (
+          <div className="mt-2 mb-4 text-green-500 text-sm p-2 bg-green-50 rounded-md border border-green-200">
+            {finalizeSuccess}
+          </div>
+        )}
 
         <div className="border border-[#9A9A9A] rounded-xl flex flex-col h-[calc(100vh-200px)]">
           <div className="p-3 border-b border-[#9A9A9A]">

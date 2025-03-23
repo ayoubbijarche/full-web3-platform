@@ -23,7 +23,25 @@ pub struct CreateChallenge<'info> {
     #[account(
         init,
         payer = user,
-        space = 500 
+        // Calculate space more carefully to stay under 10KB limit
+        space = 8 + // discriminator
+               32 + // creator: Pubkey
+               1 +  // is_active: bool
+               8 +  // reward: u64
+               8 +  // participation_fee: u64
+               8 +  // voting_fee: u64
+               8 +  // challenge_treasury: u64
+               8 +  // voting_treasury: u64
+               33 + // winner: Option<Pubkey>
+               8 +  // total_votes: u64
+               8 +  // winning_votes: u64
+               32 + // reward_token_mint: Pubkey
+               4 + (32 * max_participants as usize) + // participants vec with length prefix
+               1 +  // max_participants: u8
+               4 + (40 * 20) + // submission_votes: Vec<(Pubkey, u64)> - limit to 20 submissions
+               4 + (64 * 50) + // voters: Vec<(Pubkey, Pubkey)> - limit to 50 voters
+               32 + // treasury: Pubkey
+               32   // voting_treasury_pda: Pubkey
     )]
     pub challenge: Account<'info, Challenge>,
     
@@ -136,7 +154,7 @@ pub fn handle(
     )?;
 
     // Define gas amount for both treasuries
-    let gas_amount = 1_000_000; // 0.001 SOL
+    let gas_amount = 2_000_000; // 0.002 SOL
 
     // Transfer gas SOL to voting treasury PDA
     let voting_treasury_gas_ix = system_instruction::transfer(
