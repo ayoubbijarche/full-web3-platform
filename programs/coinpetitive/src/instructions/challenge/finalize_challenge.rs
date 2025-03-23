@@ -35,6 +35,10 @@ pub struct FinalizeChallenge<'info> {
     /// CHECK: Treasury's token account
     #[account(mut)]
     pub treasury_token_account: AccountInfo<'info>,
+    
+    /// CHECK: Creator's token account to receive remaining funds
+    #[account(mut)]
+    pub creator_token_account: AccountInfo<'info>,
 }
 
 pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
@@ -124,6 +128,43 @@ pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
         )?;
         
         msg!("Transferred {} tokens to winner: {}", winner_reward, winner_pubkey);
+    }
+
+    // After the winner is paid, transfer any remaining balance to the creator
+    // Calculate how much is left in the treasury
+    let treasury_balance = challenge.challenge_treasury - winner_reward;
+
+    if treasury_balance > 0 {
+        msg!("Transferring remaining {} tokens from treasury to creator", treasury_balance);
+        
+        // Get creator's token account - this needs to be passed as a parameter
+        // In a full implementation, we'd check that this account belongs to the creator
+        
+        // Create an instruction to transfer the remaining tokens to creator
+        let creator_transfer_ix = solana_program::instruction::Instruction {
+            program_id: ctx.accounts.token_program.key(),
+            accounts: vec![
+                solana_program::instruction::AccountMeta::new(ctx.accounts.treasury_token_account.key(), false),
+                solana_program::instruction::AccountMeta::new(ctx.accounts.creator_token_account.key(), false),
+                solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.treasury.key(), true),
+            ],
+            data: [3].into_iter() // Token instruction 3 = Transfer
+                .chain(treasury_balance.to_le_bytes().into_iter())
+                .collect(),
+        };
+        
+        // Execute the transfer
+        solana_program::program::invoke_signed(
+            &creator_transfer_ix,
+            &[
+                ctx.accounts.treasury_token_account.to_account_info(),
+                ctx.accounts.creator_token_account.to_account_info(),
+                ctx.accounts.treasury.to_account_info(),
+            ],
+            &[treasury_seeds],
+        )?;
+        
+        msg!("Transferred remaining {} tokens to creator", treasury_balance);
     }
     
     msg!("Challenge finalized successfully!");

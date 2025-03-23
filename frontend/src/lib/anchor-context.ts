@@ -901,14 +901,48 @@ export function useAnchorContextProvider(): AnchorContextType {
         
         console.log("Created winner token account:", signature);
       }
+
+      // Add this right after creating the winner's token account
+
+      // Step 6b: Get or create creator's token account (creator is the wallet owner in this case)
+      const creatorTokenAccount = getAssociatedToken2022AddressSync(
+        CPT_TOKEN_MINT,
+        wallet.publicKey
+      );
       
-      // Step 7: Call the finalize_challenge instruction with the winner from PocketBase
+      // Check if creator token account exists
+      const creatorTokenAccountInfo = await connection.getAccountInfo(creatorTokenAccount);
+      if (!creatorTokenAccountInfo) {
+        console.log("Creating token account for creator:", wallet.publicKey.toString());
+        
+        // Create the associated token account instruction
+        const createCreatorAtaIx = createAssociatedTokenAccountInstruction(
+          wallet.publicKey, // payer
+          creatorTokenAccount, 
+          wallet.publicKey, // owner is the creator
+          CPT_TOKEN_MINT,
+          TOKEN_2022_PROGRAM_ID
+        );
+        
+        const tx = new Transaction().add(createCreatorAtaIx);
+        tx.feePayer = wallet.publicKey;
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        const signedTx = await wallet.signTransaction(tx);
+        const signature = await connection.sendRawTransaction(signedTx.serialize());
+        await connection.confirmTransaction(signature);
+        
+        console.log("Created creator token account:", signature);
+      }
+      
+      // Step 7: Call the finalize_challenge instruction with all accounts
       console.log("Finalizing challenge with accounts:", {
         challenge: challengePubkey.toString(),
         treasury: treasuryPubkey.toString(),
         treasuryToken: treasuryTokenAccount.toString(),
         winner: winnerPubkey.toString(),
         winnerToken: winnerTokenAccount.toString(),
+        creator: wallet.publicKey.toString(),
+        creatorToken: creatorTokenAccount.toString(),
         voteCount: winnerSubmission.vote_count || 1
       });
       
@@ -924,6 +958,7 @@ export function useAnchorContextProvider(): AnchorContextType {
           winnerTokenAccount: winnerTokenAccount,
           treasury: treasuryPubkey,
           treasuryTokenAccount: treasuryTokenAccount,
+          creatorTokenAccount: creatorTokenAccount, // Add this line
         })
         .rpc();
       
