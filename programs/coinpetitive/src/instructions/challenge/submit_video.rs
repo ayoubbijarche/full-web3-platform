@@ -20,7 +20,6 @@ pub struct SubmitVideo<'info> {
     
     #[account(
         mut, 
-        constraint = challenge.is_active @ ErrorCode::ChallengeNotActive,
         constraint = challenge.reward_token_mint.to_string() == CPT_TOKEN_MINT @ ErrorCode::InvalidTokenMint
     )]
     pub challenge: Account<'info, Challenge>,

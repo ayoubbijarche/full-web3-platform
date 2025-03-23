@@ -91,6 +91,56 @@
       ]
     },
     {
+      "name": "distribute_voting_treasury",
+      "discriminator": [
+        147,
+        10,
+        54,
+        240,
+        5,
+        116,
+        233,
+        179
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "challenge",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "voting_treasury",
+          "writable": true
+        },
+        {
+          "name": "voting_treasury_token_account",
+          "writable": true
+        },
+        {
+          "name": "voter_token_account",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "voter",
+          "type": "pubkey"
+        },
+        {
+          "name": "voter_index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "finalize_challenge",
       "discriminator": [
         184,
@@ -684,98 +734,38 @@
   "errors": [
     {
       "code": 6000,
-      "name": "ChallengeNotActive",
-      "msg": "Challenge not active"
+      "name": "YouNotTokenOwner",
+      "msg": "Not the owner"
     },
     {
       "code": 6001,
-      "name": "ChallengeStillActive",
-      "msg": "Challenge is still active"
+      "name": "ExceedsInitialSupplyCap",
+      "msg": "Exceeds initial supply cap of 21M tokens"
     },
     {
       "code": 6002,
-      "name": "InvalidCreator",
-      "msg": "Invalid creator"
+      "name": "ExceedsMaxSupplyCap",
+      "msg": "Exceeds maximum supply cap of 61M tokens"
     },
     {
       "code": 6003,
-      "name": "InvalidSubmissionId",
-      "msg": "Invalid submission ID"
+      "name": "InvalidMintIncrement",
+      "msg": "Minting increment must be exactly 5M tokens"
     },
     {
       "code": 6004,
-      "name": "VotingPeriodActive",
-      "msg": "Voting period has not ended"
+      "name": "MintingTooFrequent",
+      "msg": "Minting is limited to once per year"
     },
     {
       "code": 6005,
-      "name": "InvalidVoteCount",
-      "msg": "Invalid vote count"
+      "name": "NoMintConditionsMet",
+      "msg": "No minting conditions have been met"
     },
     {
       "code": 6006,
-      "name": "InvalidWinner",
-      "msg": "Invalid winner"
-    },
-    {
-      "code": 6007,
-      "name": "InvalidTokenMint",
-      "msg": "Invalid token mint"
-    },
-    {
-      "code": 6008,
-      "name": "MaxParticipantsReached",
-      "msg": "Maximum participants reached"
-    },
-    {
-      "code": 6009,
-      "name": "AlreadyParticipated",
-      "msg": "Already participated"
-    },
-    {
-      "code": 6010,
-      "name": "AlreadyVoted",
-      "msg": "Already voted"
-    },
-    {
-      "code": 6011,
-      "name": "SubmissionNotFound",
-      "msg": "Submission not found"
-    },
-    {
-      "code": 6012,
-      "name": "InvalidTreasury",
-      "msg": "Invalid treasury"
-    },
-    {
-      "code": 6013,
-      "name": "InvalidTokenProgram",
-      "msg": "Invalid token program"
-    },
-    {
-      "code": 6014,
-      "name": "InvalidVotingTreasury",
-      "msg": "Invalid token treasury"
-    },
-    {
-      "code": 6015,
-      "name": "Unauthorized",
-      "msg": "Unauthorized"
-    },
-    {
-      "code": 6016,
-      "name": "MaxVotersReached",
-      "msg": "Maximum number of voters reached for this challenge"
-    },
-    {
-      "code": 6017,
-      "name": "NoSubmissions",
-      "msg": "No submissions found"
-    },
-    {
-      "code": 6018,
-      "name": "NoVotes",
-      "msg": "No votes found for any submission"
+      "name": "ExceedsDailySellLimit",
+      "msg": "Exceeds daily sell limit of 1% of circulating supply"
     }
   ],
   "types": [

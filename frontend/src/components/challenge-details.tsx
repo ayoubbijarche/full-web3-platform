@@ -39,13 +39,15 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, getVotingTreasuryBalance, finalizeChallenge } = useAnchor()
+  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, getVotingTreasuryBalance, finalizeChallenge  , finalizeVotingTreasury } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [finalizeSuccess, setFinalizeSuccess] = useState<string | null>(null);
-
+  const [isFinalizingVoting, setIsFinalizingVoting] = useState(false);
+  const [finalizeVotingError, setFinalizeVotingError] = useState<string | null>(null);
+  const [finalizeVotingSuccess, setFinalizeVotingSuccess] = useState<string | null>(null);
 
   const [treasuryBalance, setTreasuryBalance] = useState<{
     success: boolean;
@@ -565,6 +567,52 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       submission.voters?.includes(userId)
     );
   };
+
+    const handleFinalizeVoting = async () => {
+  console.log("Finalize Voting button clicked", {
+    auth: !!auth.user, 
+    isCreator, 
+    challengeId: challenge.onchain_id,
+    isFinalizingVoting
+  });
+  
+  if (!auth.user || !isCreator || !challenge.onchain_id) {
+    console.log("Early return condition triggered", {
+      auth: !!auth.user,
+      isCreator,
+      challengeId: challenge.onchain_id
+    });
+    return;
+  }
+  
+  setIsFinalizingVoting(true);
+  setFinalizeVotingError(null);
+  setFinalizeVotingSuccess(null);
+  
+  try {
+    console.log("Starting voting treasury distribution for challenge:", challenge.onchain_id);
+    
+    // Call the function to distribute the voting treasury
+    const result = await finalizeVotingTreasury(challenge.onchain_id);
+    console.log("Finalize voting result:", result);
+    
+    if (result.success) {
+      setFinalizeVotingSuccess(
+        `Successfully distributed voting treasury to ${result.processed} out of ${result.total} voters!`
+      );
+      toast.success(`Voting treasury distribution complete: ${result.processed}/${result.total} voters rewarded`);
+    } else {
+      setFinalizeVotingError(result.error || "Failed to distribute voting treasury");
+      toast.error(result.error || "Failed to distribute voting treasury");
+    }
+  } catch (error) {
+    console.error("Error finalizing voting:", error);
+    setFinalizeVotingError("An unexpected error occurred");
+    toast.error("An unexpected error occurred");
+  } finally {
+    setIsFinalizingVoting(false);
+  }
+};
 
   // Add this helper function to extract video ID and platform
   const getEmbedUrl = (url: string) => {
@@ -1086,6 +1134,48 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             {finalizeSuccess}
           </div>
         )}
+
+
+        
+        <Button 
+          className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
+          onClick={() => {
+            if (!finalizeVotingTreasury) {
+              console.error("finalizeVotingTreasury function not available");
+              return;
+            }
+            
+            // Set loading state
+            setIsFinalizingVoting(true);
+            
+            // Clean call without alerts or debug logs
+            finalizeVotingTreasury(challenge.onchain_id)
+              .then(result => {
+                console.log("Finalize voting result:", result);
+                if (result.success) {
+                  setFinalizeVotingSuccess(
+                    `Successfully distributed voting treasury to ${result.processed} out of ${result.total} voters!`
+                  );
+                } else {
+                  setFinalizeVotingError(result.error || "Failed to distribute voting treasury");
+                }
+              })
+              .catch(err => {
+                console.error("Error:", err);
+                setFinalizeVotingError(err.message || "Unknown error");
+              })
+              .finally(() => {
+                setIsFinalizingVoting(false);
+              });
+          }}
+        >
+          <Users className="h-4 w-4 mr-2" />
+          <span className="text-sm">
+            {isFinalizingVoting ? "Processing..." : "Finalize Voting"}
+          </span>
+        </Button>
+
+        
 
         <div className="border border-[#9A9A9A] rounded-xl flex flex-col h-[calc(100vh-200px)]">
           <div className="p-3 border-b border-[#9A9A9A]">

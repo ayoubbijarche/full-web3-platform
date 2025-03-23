@@ -995,6 +995,237 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
+  // Add this new function in your useAnchorContextProvider function
+
+  const finalizeVotingTreasury = async (challengePublicKey: string) => {
+    if (!wallet) {
+      return {
+        success: false,
+        error: "Wallet not connected"
+      };
+    }
+    
+    if (!program) {
+      return {
+        success: false,
+        error: "Program not initialized"
+      };
+    }
+  
+    try {
+      // Convert string to PublicKey
+      const challengePubkey = new PublicKey(challengePublicKey);
+      
+      console.log("Starting voting treasury distribution for:", challengePublicKey);
+      
+      // Fetch challenge data from PocketBase
+      const pb = new PocketBase('http://127.0.0.1:8090');
+      
+      // Get the PocketBase challenge ID from onchain_id
+      let pbChallengeId = "";
+      try {
+        const pbChallenges = await pb.collection('challenges').getList(1, 1, {
+          filter: `onchain_id = "${challengePublicKey}"`
+        });
+        
+        if (pbChallenges.items.length === 0) {
+          return {
+            success: false,
+            error: "Challenge not found in PocketBase"
+          };
+        }
+        
+        pbChallengeId = pbChallenges.items[0].id;
+        console.log("Found PocketBase challenge ID:", pbChallengeId);
+      } catch (pbError) {
+        console.error("Error fetching challenge from PocketBase:", pbError);
+        return {
+          success: false,
+          error: "Failed to fetch challenge from PocketBase"
+        };
+      }
+      
+      // Get winning submission (highest vote count)
+      let winnerSubmission;
+      try {
+        const submissions = await pb.collection('video_submitted').getList(1, 100, {
+          filter: `challenge = "${pbChallengeId}"`,
+          sort: "-vote_count",
+          expand: "participant"
+        });
+        
+        if (submissions.items.length === 0) {
+          return {
+            success: false,
+            error: "No submissions found for this challenge"
+          };
+        }
+        
+        winnerSubmission = submissions.items[0];
+        console.log("Winner submission:", winnerSubmission.id, "with", winnerSubmission.vote_count, "votes");
+      } catch (submissionsError) {
+        console.error("Error fetching submissions:", submissionsError);
+        return {
+          success: false,
+          error: "Failed to fetch submissions"
+        };
+      }
+      
+      // Get voting treasury PDA
+      const [votingTreasuryPubkey] = PublicKey.findProgramAddressSync(
+        [Buffer.from("voting_treasury"), challengePubkey.toBuffer()],
+        program.programId
+      );
+      
+      // Get voting treasury token account
+      const votingTreasuryTokenAccount = getAssociatedTokenAddressSync(
+        CPT_TOKEN_MINT,
+        votingTreasuryPubkey,
+        true,
+        TOKEN_2022_PROGRAM_ID
+      );
+      
+      // Get the winning submission with voters expanded
+      const winnerSubmissionWithVoters = await pb.collection('video_submitted').getOne(
+        winnerSubmission.id, 
+        { expand: 'voters' }
+      );
+      
+      // Check if there are voters
+      if (!winnerSubmissionWithVoters.voters || winnerSubmissionWithVoters.voters.length === 0) {
+        return {
+          success: false,
+          error: "No voters found for winning submission"
+        };
+      }
+      
+      console.log(`Found ${winnerSubmissionWithVoters.voters.length} voters for winning submission`);
+      
+      // Get all the voter IDs
+      const voterIds = Array.isArray(winnerSubmissionWithVoters.voters) 
+        ? winnerSubmissionWithVoters.voters 
+        : [winnerSubmissionWithVoters.voters];
+      
+      // Fetch all voters from users collection to get their pubkeys
+      const voters = await Promise.all(
+        voterIds.map(async (voterId) => {
+          try {
+            return await pb.collection('users').getOne(voterId);
+          } catch (err) {
+            console.warn(`Could not fetch voter with ID ${voterId}`, err);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out any null results and users without pubkeys
+      const validVoters = voters.filter(voter => voter && voter.pubkey);
+      
+      if (validVoters.length === 0) {
+        return {
+          success: false,
+          error: "No voters with valid wallet addresses found"
+        };
+      }
+      
+      console.log(`Found ${validVoters.length} voters with valid wallet addresses`);
+      
+      let voterResults = [];
+      let processedCount = 0;
+      
+      // Process each voter with a public key
+      for (let i = 0; i < validVoters.length; i++) {
+        const voter = validVoters[i];
+        const voterPubkey = new PublicKey(voter.pubkey);
+        
+        console.log(`Processing voter ${i+1}/${validVoters.length}: ${voter.username} (${voterPubkey.toString().substring(0, 8)}...)`);
+        
+        // Create voter token account if it doesn't exist
+        const voterTokenAccount = getAssociatedToken2022AddressSync(
+          CPT_TOKEN_MINT,
+          voterPubkey
+        );
+        
+        const voterAccountInfo = await connection.getAccountInfo(voterTokenAccount);
+        if (!voterAccountInfo) {
+          console.log(`Creating token account for voter ${i+1}`);
+          
+          const createAtaIx = createAssociatedTokenAccountInstruction(
+            wallet.publicKey, // payer
+            voterTokenAccount,
+            voterPubkey,
+            CPT_TOKEN_MINT,
+            TOKEN_2022_PROGRAM_ID
+          );
+          
+          const createTx = new Transaction().add(createAtaIx);
+          createTx.feePayer = wallet.publicKey;
+          createTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+          const signedTx = await wallet.signTransaction(createTx);
+          const signature = await connection.sendRawTransaction(signedTx.serialize());
+          await connection.confirmTransaction(signature);
+          
+          console.log(`Created token account for voter ${i+1}, signature: ${signature}`);
+        }
+        
+        // Call the distributeVotingTreasury instruction
+        try {
+          const distributeTx = await program.methods
+            .distributeVotingTreasury(
+              voterPubkey,
+              new anchor.BN(i) // voter index
+            )
+            .accounts({
+              authority: wallet.publicKey,
+              challenge: challengePubkey,
+              tokenProgram: TOKEN_2022_PROGRAM_ID,
+              votingTreasury: votingTreasuryPubkey,
+              votingTreasuryTokenAccount: votingTreasuryTokenAccount,
+              voterTokenAccount: voterTokenAccount,
+            })
+            .rpc();
+          
+          console.log(`Successfully distributed voting treasury to voter ${i+1}, signature: ${distributeTx}`);
+          voterResults.push({
+            voter: voterPubkey.toString(),
+            success: true,
+            signature: distributeTx
+          });
+          processedCount++;
+        } catch (distError) {
+          console.error(`Error distributing to voter ${i+1}:`, distError);
+          voterResults.push({
+            voter: voterPubkey.toString(),
+            success: false,
+            error: distError instanceof Error ? distError.message : "Unknown error"
+          });
+        }
+        
+        // Add a small delay between transactions to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      return {
+        success: true,
+        processed: processedCount,
+        total: validVoters.length,
+        results: voterResults
+      };
+    } catch (error) {
+      console.error("Error in finalizeVotingTreasury:", error);
+      
+      let errorMessage = "Failed to finalize voting treasury";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  };
+
   // Update the return object to include the new function
   return {
     wallet,
@@ -1006,7 +1237,8 @@ export function useAnchorContextProvider(): AnchorContextType {
     voteForSubmissionOnChain,
     getTreasuryBalance,
     getVotingTreasuryBalance,
-    finalizeChallenge
+    finalizeChallenge,
+    finalizeVotingTreasury // Add this line
   };
 }
 
@@ -1067,6 +1299,13 @@ export type AnchorContextType = {
     signature?: string;
     winner?: string;
     winningVotes?: number;
+    error?: string;
+  }>;
+  finalizeVotingTreasury: (challengePublicKey: string) => Promise<{
+    success: boolean;
+    processed?: number;
+    total?: number;
+    results?: any[];
     error?: string;
   }>;
 };

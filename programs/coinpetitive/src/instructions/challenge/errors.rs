@@ -39,5 +39,10 @@ pub enum ErrorCode {
     #[msg("No submissions found")]
     NoSubmissions,
     #[msg("No votes found for any submission")]
-    NoVotes
+    NoVotes,
+    #[msg("Voter did not vote for the winning submission")]
+    VoterDidNotVoteForWinner,
+    #[msg("No reward to distribute")]
+    NoRewardToDistribute,
+
 }

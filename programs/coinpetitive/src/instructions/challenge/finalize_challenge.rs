@@ -140,7 +140,7 @@ pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
         // Get creator's token account - this needs to be passed as a parameter
         // In a full implementation, we'd check that this account belongs to the creator
         
-        // Create an instruction to transfer the remaining tokens to creator
+        // instruction to transfer the remaining tokens to creator
         let creator_transfer_ix = solana_program::instruction::Instruction {
             program_id: ctx.accounts.token_program.key(),
             accounts: vec![

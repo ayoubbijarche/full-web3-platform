@@ -96,6 +96,14 @@ pub mod coinpetitive {
         instructions::challenge::submit_video(ctx, video_url)
     }
     
+    pub fn distribute_voting_treasury(
+        ctx: Context<DistributeVotingTreasury>,
+        voter: Pubkey,
+        voter_index: u64
+    ) -> Result<()> {
+        instructions::challenge::distribute_voting_treasury(ctx, voter, voter_index)
+    }
+    
     // Note: The following functions are removed as they're
     // no longer needed with our simplified approach:
     // - join_challenge

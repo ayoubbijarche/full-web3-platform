@@ -13,8 +13,8 @@ pub struct VoteForSubmission<'info> {
     pub voter: Signer<'info>,
     
     #[account(
-        mut, 
-        constraint = challenge.is_active @ ErrorCode::ChallengeNotActive
+        mut,
+        // other constraints remain, but remove the is_active constraint
     )]
     pub challenge: Account<'info, Challenge>,
     
