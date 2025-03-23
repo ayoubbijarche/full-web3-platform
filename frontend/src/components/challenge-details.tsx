@@ -38,7 +38,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance } = useAnchor()
+  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, getVotingTreasuryBalance } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
   
@@ -54,6 +54,19 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   } | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
   
+  // Add this with your other state declarations
+  const [votingTreasuryBalance, setVotingTreasuryBalance] = useState<{
+    success: boolean;
+    tokenBalance?: number;
+    tokenDecimals?: number;
+    tokenAmountRaw?: string;
+    solBalance?: number;
+    votingTreasuryAddress?: string;
+    votingTreasuryTokenAccount?: string;
+    error?: string;
+  } | null>(null);
+  const [loadingVotingBalance, setLoadingVotingBalance] = useState(false);
+
   useEffect(() => {
     console.log('Challenge in component:', challenge);
     console.log('Challenge expand:', challenge.expand);
@@ -566,6 +579,46 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     };
   }, [challenge.onchain_id, getTreasuryBalance]);
 
+  // Add this useEffect after your existing treasury balance useEffect
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchVotingTreasuryBalance = async () => {
+      if (!challenge.onchain_id) return;
+      
+      setLoadingVotingBalance(true);
+      try {
+        const result = await getVotingTreasuryBalance(challenge.onchain_id);
+        if (isMounted) {
+          setVotingTreasuryBalance(result);
+          console.log("Voting treasury balance:", result);
+        }
+      } catch (error) {
+        console.error('Error fetching voting treasury balance:', error);
+        if (isMounted) {
+          setVotingTreasuryBalance({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to fetch voting treasury balance'
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingVotingBalance(false);
+        }
+      }
+    };
+    
+    fetchVotingTreasuryBalance();
+    
+    // Set up polling to refresh the balance every 30 seconds
+    const intervalId = setInterval(fetchVotingTreasuryBalance, 30000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [challenge.onchain_id, getVotingTreasuryBalance]);
+
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
       <div className="flex-1">
@@ -670,40 +723,78 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             {challenge.description}
           </p>
 
-          {/* Treasury Balance Display */}
+          {/* Treasury Balances Display */}
           {challenge.onchain_id && (
-            <div className="mt-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
-              <h3 className="text-sm font-semibold mb-2 flex items-center">
-                <Wallet className="h-4 w-4 mr-1 text-[#b3731d]" />
-                Treasury Balance
-              </h3>
-              
-              {loadingBalance ? (
-                <div className="text-center py-2">
-                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
-                  <span className="ml-2 text-sm text-gray-500">Loading balance...</span>
-                </div>
-              ) : treasuryBalance?.success ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-sm">
-                    <div className="text-gray-500 text-xs">CPT Balance:</div>
-                    <div className="font-medium">{treasuryBalance.tokenBalance?.toLocaleString() || '0'} CPT</div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {/* Main Treasury Balance */}
+              <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 className="text-sm font-semibold mb-2 flex items-center">
+                  <Wallet className="h-4 w-4 mr-1 text-[#b3731d]" />
+                  Challenge Treasury
+                </h3>
+                
+                {loadingBalance ? (
+                  <div className="text-center py-2">
+                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
+                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
                   </div>
-                  <div className="text-sm">
-                    <div className="text-gray-500 text-xs">SOL Balance:</div>
-                    <div className="font-medium">{treasuryBalance.solBalance?.toFixed(6) || '0'} SOL</div>
-                  </div>
-                  <div className="col-span-2 mt-1">
-                    <div className="text-xs text-gray-500 truncate">
-                      Treasury: {treasuryBalance.treasuryAddress?.substring(0, 8)}...{treasuryBalance.treasuryAddress?.substring(treasuryBalance.treasuryAddress.length - 8)}
+                ) : treasuryBalance?.success ? (
+                  <div>
+                    <div className="text-sm">
+                      <div className="text-gray-500 text-xs">CPT Balance:</div>
+                      <div className="font-medium">{treasuryBalance.tokenBalance?.toLocaleString() || '0'} CPT</div>
+                    </div>
+                    <div className="text-sm mt-1">
+                      <div className="text-gray-500 text-xs">SOL Balance:</div>
+                      <div className="font-medium">{treasuryBalance.solBalance?.toFixed(6) || '0'} SOL</div>
+                    </div>
+                    <div className="mt-1">
+                      <div className="text-xs text-gray-500 truncate">
+                        Treasury: {treasuryBalance.treasuryAddress?.substring(0, 6)}...{treasuryBalance.treasuryAddress?.substring(treasuryBalance.treasuryAddress.length - 6)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 p-2">
-                  {treasuryBalance?.error || 'No treasury information available'}
-                </div>
-              )}
+                ) : (
+                  <div className="text-sm text-gray-500 p-2">
+                    {treasuryBalance?.error || 'No treasury information available'}
+                  </div>
+                )}
+              </div>
+              
+              {/* Voting Treasury Balance */}
+              <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 className="text-sm font-semibold mb-2 flex items-center">
+                  <Trophy className="h-4 w-4 mr-1 text-[#b3731d]" />
+                  Voting Treasury
+                </h3>
+                
+                {loadingVotingBalance ? (
+                  <div className="text-center py-2">
+                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
+                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                  </div>
+                ) : votingTreasuryBalance?.success ? (
+                  <div>
+                    <div className="text-sm">
+                      <div className="text-gray-500 text-xs">CPT Balance:</div>
+                      <div className="font-medium">{votingTreasuryBalance.tokenBalance?.toLocaleString() || '0'} CPT</div>
+                    </div>
+                    <div className="text-sm mt-1">
+                      <div className="text-gray-500 text-xs">SOL Balance:</div>
+                      <div className="font-medium">{votingTreasuryBalance.solBalance?.toFixed(6) || '0'} SOL</div>
+                    </div>
+                    <div className="mt-1">
+                      <div className="text-xs text-gray-500 truncate">
+                        Treasury: {votingTreasuryBalance.votingTreasuryAddress?.substring(0, 6)}...{votingTreasuryBalance.votingTreasuryAddress?.substring(votingTreasuryBalance.votingTreasuryAddress.length - 6)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 p-2">
+                    {votingTreasuryBalance?.error || 'No voting treasury information available'}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -806,12 +897,6 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                   </Avatar>
                   <span className="font-medium text-sm">
                   {submission.expand?.participant?.username || 'Participant'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Trophy className="h-4 w-4 text-[#b3731d]" />
-                  <span className="text-sm text-gray-600">
-                    {submission.vote_count || 0} votes
                   </span>
                 </div>
                 <p className="text-sm text-gray-700 mb-2">

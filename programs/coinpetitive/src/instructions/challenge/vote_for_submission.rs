@@ -37,6 +37,14 @@ pub struct VoteForSubmission<'info> {
     
     /// CHECK: Just storing submission ID for reference
     pub submission_id: AccountInfo<'info>,
+
+    /// CHECK: Voting Treasury account (PDA)
+    #[account(mut)]
+    pub voting_treasury: AccountInfo<'info>,
+    
+    /// CHECK: Voting Treasury's token account
+    #[account(mut)]
+    pub voting_treasury_token_account: AccountInfo<'info>,
 }
 
 pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
@@ -49,18 +57,24 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
         ctx.accounts.treasury.key() == challenge.treasury,
         ErrorCode::InvalidTreasury
     );
+
+    // Verify voting treasury account matches the one stored in the challenge
+    require!(
+        ctx.accounts.voting_treasury.key() == challenge.voting_treasury_pda,
+        ErrorCode::InvalidVotingTreasury
+    );
     
     // Check if voter has already voted for this submission
     if challenge.has_voted_for(&voter, &submission_id) {
         return Err(ErrorCode::AlreadyVoted.into());
     }
     
-    // Create a Token-2022 Transfer instruction
+    // Create a Token-2022 Transfer instruction - CORRECT IMPLEMENTATION
     let transfer_ix = solana_program::instruction::Instruction {
         program_id: ctx.accounts.token_program.key(),
         accounts: vec![
             solana_program::instruction::AccountMeta::new(ctx.accounts.voter_token_account.key(), false),
-            solana_program::instruction::AccountMeta::new(ctx.accounts.treasury_token_account.key(), false),
+            solana_program::instruction::AccountMeta::new(ctx.accounts.voting_treasury_token_account.key(), false),
             solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.voter.key(), true),
         ],
         // Token instruction 3 = Transfer, followed by amount as little-endian bytes
@@ -69,12 +83,12 @@ pub fn handle(ctx: Context<VoteForSubmission>) -> Result<()> {
               .collect(),
     };
     
-    // Execute the transfer
+    // Execute the transfer with the correct accounts
     solana_program::program::invoke(
         &transfer_ix,
         &[
             ctx.accounts.voter_token_account.to_account_info(),
-            ctx.accounts.treasury_token_account.to_account_info(),
+            ctx.accounts.voting_treasury_token_account.to_account_info(),
             ctx.accounts.voter.to_account_info(),
         ],
     )?;

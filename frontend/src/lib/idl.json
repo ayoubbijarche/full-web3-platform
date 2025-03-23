@@ -57,6 +57,14 @@
         },
         {
           "name": "associated_token_program"
+        },
+        {
+          "name": "voting_treasury",
+          "writable": true
+        },
+        {
+          "name": "voting_treasury_token_account",
+          "writable": true
         }
       ],
       "args": [
@@ -632,6 +640,10 @@
           "writable": true
         },
         {
+          "name": "treasury",
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
@@ -640,11 +652,19 @@
           "writable": true
         },
         {
-          "name": "challenge_token_account",
+          "name": "treasury_token_account",
           "writable": true
         },
         {
           "name": "submission_id"
+        },
+        {
+          "name": "voting_treasury",
+          "writable": true
+        },
+        {
+          "name": "voting_treasury_token_account",
+          "writable": true
         }
       ],
       "args": []

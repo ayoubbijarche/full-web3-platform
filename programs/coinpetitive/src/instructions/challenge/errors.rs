@@ -30,4 +30,6 @@ pub enum ErrorCode {
     InvalidTreasury,
     #[msg("Invalid token program")]
     InvalidTokenProgram,
+    #[msg("Invalid token treasury")]
+    InvalidVotingTreasury,
 }

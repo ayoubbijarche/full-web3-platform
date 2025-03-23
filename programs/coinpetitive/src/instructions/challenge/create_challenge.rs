@@ -53,6 +53,14 @@ pub struct CreateChallenge<'info> {
 
     /// CHECK: Associated Token Program
     pub associated_token_program: AccountInfo<'info>,
+
+    /// CHECK: Voting Treasury account (PDA)
+    #[account(mut)]
+    pub voting_treasury: AccountInfo<'info>,
+
+    /// CHECK: Voting Treasury token account
+    #[account(mut)]
+    pub voting_treasury_token_account: AccountInfo<'info>,
 }
 
 pub fn handle(
@@ -66,6 +74,12 @@ pub fn handle(
     // Create the treasury PDA ourselves rather than relying on the derived account
     let (treasury_pda, treasury_bump) = Pubkey::find_program_address(
         &[b"treasury", ctx.accounts.challenge.key().as_ref()],
+        ctx.program_id
+    );
+
+    // Create separate voting treasury 
+    let (voting_treasury_pda, voting_treasury_bump) = Pubkey::find_program_address(
+        &[b"voting_treasury", ctx.accounts.challenge.key().as_ref()],
         ctx.program_id
     );
     
@@ -100,6 +114,46 @@ pub fn handle(
         &[&[b"treasury", ctx.accounts.challenge.key().as_ref(), &[treasury_bump]]],
     )?;
     
+    // Add after creating the main treasury
+    // Create the voting treasury account
+    let create_voting_treasury_ix = system_instruction::create_account(
+        &ctx.accounts.user.key(),
+        &voting_treasury_pda,
+        lamports, // Same rent amount
+        space as u64,
+        ctx.program_id
+    );
+
+    // Create the voting treasury with PDA signing
+    solana_program::program::invoke_signed(
+        &create_voting_treasury_ix,
+        &[
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.voting_treasury.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+        &[&[b"voting_treasury", ctx.accounts.challenge.key().as_ref(), &[voting_treasury_bump]]],
+    )?;
+
+    // Define gas amount for both treasuries
+    let gas_amount = 1_000_000; // 0.001 SOL
+
+    // Transfer gas SOL to voting treasury PDA
+    let voting_treasury_gas_ix = system_instruction::transfer(
+        &ctx.accounts.user.key(),
+        &voting_treasury_pda,
+        gas_amount // Same 0.001 SOL
+    );
+
+    solana_program::program::invoke(
+        &voting_treasury_gas_ix,
+        &[
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.voting_treasury.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+    )?;
+
     // Fixed creation fee of 0.002 SOL
     let creation_fee = 2_000_000; // 0.002 SOL in lamports
     
@@ -122,7 +176,6 @@ pub fn handle(
     
     // Transfer gas SOL to treasury PDA (0.001 SOL for operations)
     msg!("Transferring gas SOL to treasury PDA");
-    let gas_amount = 1_000_000; // 0.001 SOL
     let treasury_gas_ix = system_instruction::transfer(
         &ctx.accounts.user.key(),
         &treasury_pda,
@@ -183,6 +236,36 @@ pub fn handle(
     )?;
     
     msg!("Treasury token account created");
+
+    // Create ATA for voting treasury
+    msg!("Creating associated token account for voting treasury");
+
+    let create_voting_ata_ix = solana_program::instruction::Instruction {
+        program_id: ctx.accounts.associated_token_program.key(),
+        accounts: vec![
+            solana_program::instruction::AccountMeta::new(ctx.accounts.user.key(), true),
+            solana_program::instruction::AccountMeta::new(ctx.accounts.voting_treasury_token_account.key(), false),
+            solana_program::instruction::AccountMeta::new_readonly(voting_treasury_pda, false),
+            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_mint.key(), false),
+            solana_program::instruction::AccountMeta::new_readonly(solana_program::system_program::ID, false),
+            solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+        ],
+        data: vec![],
+    };
+
+    solana_program::program::invoke(
+        &create_voting_ata_ix,
+        &[
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.voting_treasury_token_account.to_account_info(),
+            ctx.accounts.voting_treasury.to_account_info(),
+            ctx.accounts.token_mint.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+        ],
+    )?;
+
+    msg!("Voting treasury token account created");
     
     // Initialize challenge state
     let challenge = &mut ctx.accounts.challenge;
@@ -203,6 +286,7 @@ pub fn handle(
     
     // Store the treasury address in the challenge
     challenge.treasury = treasury_pda;
+    challenge.voting_treasury_pda = voting_treasury_pda;
     
     // Set max_participants with a reasonable default if zero
     challenge.max_participants = if max_participants == 0 { 50 } else { max_participants };

@@ -19,6 +19,7 @@ pub struct Challenge {
     pub submission_votes: Vec<(Pubkey, u64)>,  // (submission_id, votes)
     pub voters: Vec<(Pubkey, Pubkey)>,         // (voter, submission_id)
     pub treasury: Pubkey,             // Treasury PDA address
+    pub voting_treasury_pda: Pubkey,  // Add this new field for voting treasury PDA
 }
 
 impl Challenge {
