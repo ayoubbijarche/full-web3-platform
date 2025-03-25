@@ -9,12 +9,32 @@ import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 export function WalletConnection() {
-  const { publicKey, connecting, disconnect } = useWallet()
+  const { publicKey, connecting, connected, disconnect } = useWallet()
   const [mounted, setMounted] = useState(false)
-
+  const [isConnecting, setIsConnecting] = useState(false)
+  
   useEffect(() => {
     setMounted(true)
   }, [])
+  
+  // Add timeout for connecting state
+  useEffect(() => {
+    if (connecting) {
+      setIsConnecting(true)
+      
+      // Reset connecting state after 15s if still connecting
+      const timeout = setTimeout(() => {
+        if (isConnecting) {
+          console.log('Connection attempt timed out')
+          setIsConnecting(false)
+        }
+      }, 15000)
+      
+      return () => clearTimeout(timeout)
+    } else {
+      setIsConnecting(false)
+    }
+  }, [connecting, isConnecting])
 
   useEffect(() => {
     if (publicKey) {
@@ -59,11 +79,7 @@ export function WalletConnection() {
             className="bg-red-600 text-white hover:bg-red-700 border-none"
             onClick={handleDisconnect}
           >
-            {connecting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogOut className="h-4 w-4" />
-            )}
+            <LogOut className="h-4 w-4" />
           </Button>
         </>
       ) : (
@@ -77,12 +93,17 @@ export function WalletConnection() {
             "transition-colors"
           )}
         >
-          {connecting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+          {connecting || isConnecting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Connecting...
+            </>
           ) : (
-            <Wallet className="h-4 w-4" />
+            <>
+              <Wallet className="h-4 w-4 mr-2" />
+              Connect Wallet
+            </>
           )}
-          Connect Wallet
         </WalletMultiButton>
       )}
     </div>

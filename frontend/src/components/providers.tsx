@@ -2,44 +2,40 @@
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import { clusterApiUrl } from '@solana/web3.js'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { ThemeProvider } from 'next-themes'
+import { Toaster } from './ui/toaster'
 
 require('@solana/wallet-adapter-react-ui/styles.css')
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const network = WalletAdapterNetwork.Devnet
+  const [autoConnect, setAutoConnect] = useState(false)
   
-  // Use multiple RPC endpoints for better reliability
+  // Use reliable RPC endpoint
   const endpoint = useMemo(() => {
-    // Default Solana Devnet endpoint
-    const defaultEndpoint = clusterApiUrl(network)
-    
-    // Can add additional backup endpoints if needed
-    return defaultEndpoint
+    return "https://api.devnet.solana.com" // Use direct URL instead of clusterApiUrl
   }, [network])
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
-    []
-  )
+  
+  // Use empty array for wallets
+  const wallets = useMemo(() => [], [])
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider 
-        wallets={wallets} 
-        autoConnect 
-        // Configure additional connection options
-        onError={(error) => {
-          console.error('Wallet connection error:', error)
-        }}>
-        <WalletModalProvider>
-          {children}
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ConnectionProvider endpoint={endpoint}>
+        <WalletProvider 
+          wallets={wallets}
+          autoConnect={autoConnect} 
+          onError={(error) => {
+            console.error('Wallet connection error:', error)
+          }}>
+          <WalletModalProvider>
+            {children}
+            <Toaster />
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
+    </ThemeProvider>
   )
 }
