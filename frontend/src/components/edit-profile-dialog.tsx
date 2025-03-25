@@ -102,7 +102,7 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
   };
 
   const avatarUrl = user.avatar 
-    ? `http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}`
+    ? `http://localhost:8090/api/files/users/${user.id}/${user.avatar}`
     : undefined;
 
   if (showPasswordConfirm) {

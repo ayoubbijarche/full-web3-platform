@@ -52,7 +52,7 @@ export function Navbar() {
                 user={{
                   username: user.username,
                   email: user.email,
-                  avatarUrl: user.avatar ? `http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}` : undefined
+                  avatarUrl: user.avatar ? `http://localhost:8090/api/files/users/${user.id}/${user.avatar}` : undefined
                 }}
                 onSignOut={signOut}
               />
