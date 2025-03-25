@@ -21,11 +21,21 @@ export function WalletConnection() {
   useEffect(() => {
     if (connecting) {
       setIsConnecting(true)
-    } else if (connected) {
-      // Reset connecting state when connection completes
+      
+      // Add timeout to reset if connection hangs
+      const timer = setTimeout(() => {
+        if (isConnecting) {
+          console.log("Connection timeout - resetting state");
+          setIsConnecting(false);
+        }
+      }, 10000); // 10 seconds timeout
+      
+      return () => clearTimeout(timer);
+    } else {
+      // Reset connecting state when connection completes or fails
       setIsConnecting(false)
     }
-  }, [connecting, connected])
+  }, [connecting]);
 
   useEffect(() => {
     if (publicKey) {
