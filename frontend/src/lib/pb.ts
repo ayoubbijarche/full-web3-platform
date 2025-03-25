@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 
-export const pb = new PocketBase('http://localhost:8090');
+export const pb = new PocketBase('http://69.62.105.81:8090');
 
 // User Model Type
 export type UserModel = {

@@ -40,7 +40,7 @@ export default function ProfilePage() {
               creator: challenge.expand?.creator?.username,
               reward: challenge.reward,
               participants: challenge.participants?.length || 0,
-              image: challenge.image ? `http://localhost:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
+              image: challenge.image ? `http://69.62.105.81:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
             }));
           setCreatedChallenges(userCreatedChallenges);
         }
@@ -73,7 +73,7 @@ export default function ProfilePage() {
             <div className="w-40 h-40 rounded-full overflow-hidden flex-shrink-0 border-2 border-[#b3731d]">
               {user.avatar ? (
                 <Image
-                  src={`http://localhost:8090/api/files/users/${user.id}/${user.avatar}`}
+                  src={`http://http://69.62.105.81:8090/api/files/users/${user.id}/${user.avatar}`}
                   alt={`${user.username}'s avatar`}
                   width={160}
                   height={160}

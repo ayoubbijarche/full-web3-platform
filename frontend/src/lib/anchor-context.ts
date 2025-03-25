@@ -1019,7 +1019,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting voting treasury distribution for:", challengePublicKey);
       
       // Fetch challenge data from PocketBase
-      const pb = new PocketBase('http://localhost:8090');
+      const pb = new PocketBase('http://69.62.105.81:8090');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
