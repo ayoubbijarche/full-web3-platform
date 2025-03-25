@@ -44,5 +44,12 @@ pub enum ErrorCode {
     VoterDidNotVoteForWinner,
     #[msg("No reward to distribute")]
     NoRewardToDistribute,
+    #[msg("Invalid token account")]
+    InvalidTokenAccount,
+    #[msg("math overflow")]
+    MathOverflow,
+    #[msg("No winner declared")]
+    NoWinnerDeclared
+
 
 }

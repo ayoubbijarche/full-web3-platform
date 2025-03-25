@@ -15,7 +15,7 @@ pub struct DistributeVotingTreasury<'info> {
     #[account(
         mut,
         constraint = challenge.creator == authority.key() @ ErrorCode::Unauthorized,
-        constraint = !challenge.is_active @ ErrorCode::ChallengeStillActive
+
     )]
     pub challenge: Account<'info, Challenge>,
     
@@ -37,7 +37,7 @@ pub struct DistributeVotingTreasury<'info> {
     pub voter_token_account: AccountInfo<'info>,
 }
 
-pub fn handle(ctx: Context<DistributeVotingTreasury>, voter: Pubkey, voter_index: u64) -> Result<()> {
+pub fn handle(ctx: Context<DistributeVotingTreasury>, voter: Pubkey, winning_voters_count: u64) -> Result<()> {
     let challenge = &ctx.accounts.challenge;
     
     // Verify voting treasury matches the one stored in the challenge
@@ -56,14 +56,11 @@ pub fn handle(ctx: Context<DistributeVotingTreasury>, voter: Pubkey, voter_index
     
     require!(voted_for_winner, ErrorCode::VoterDidNotVoteForWinner);
     
-    // Count all voters who voted for the winner
-    let winning_voters_count = challenge.voters
-        .iter()
-        .filter(|(_, s)| *s == winning_submission)
-        .count();
+    // Validate the winning voters count
+    require!(winning_voters_count > 0, ErrorCode::InvalidVoteCount);
     
-    // Calculate this voter's reward
-    let reward_per_voter = challenge.voting_treasury / winning_voters_count as u64;
+    // Calculate this voter's reward using the count provided from PocketBase
+    let reward_per_voter = challenge.voting_treasury / winning_voters_count;
     
     // Make sure there's a reward to distribute
     require!(reward_per_voter > 0, ErrorCode::NoRewardToDistribute);

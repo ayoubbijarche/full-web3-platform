@@ -995,7 +995,7 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Add this new function in your useAnchorContextProvider function
+  // Add this function after finalizeChallenge function and before the return statement
 
   const finalizeVotingTreasury = async (challengePublicKey: string) => {
     if (!wallet) {
@@ -1045,13 +1045,13 @@ export function useAnchorContextProvider(): AnchorContextType {
         };
       }
       
-      // Get winning submission (highest vote count)
+      // Get winning submission (highest vote_count)
       let winnerSubmission;
       try {
         const submissions = await pb.collection('video_submitted').getList(1, 100, {
           filter: `challenge = "${pbChallengeId}"`,
           sort: "-vote_count",
-          expand: "participant"
+          expand: "participant,voters"
         });
         
         if (submissions.items.length === 0) {
@@ -1136,14 +1136,18 @@ export function useAnchorContextProvider(): AnchorContextType {
       // Process each voter with a public key
       for (let i = 0; i < validVoters.length; i++) {
         const voter = validVoters[i];
+        // We've already filtered out null voters, so we can safely assert non-null here
+        if (!voter) continue; // Skip if somehow voter is null
         const voterPubkey = new PublicKey(voter.pubkey);
         
-        console.log(`Processing voter ${i+1}/${validVoters.length}: ${voter.username} (${voterPubkey.toString().substring(0, 8)}...)`);
+        console.log(`Processing voter ${i+1}/${validVoters.length}: ${voter?.username || 'Unknown'} (${voterPubkey.toString().substring(0, 8)}...)`);
         
         // Create voter token account if it doesn't exist
-        const voterTokenAccount = getAssociatedToken2022AddressSync(
+        const voterTokenAccount = getAssociatedTokenAddressSync(
           CPT_TOKEN_MINT,
-          voterPubkey
+          voterPubkey,
+          false, // Regular wallet, not PDA
+          TOKEN_2022_PROGRAM_ID
         );
         
         const voterAccountInfo = await connection.getAccountInfo(voterTokenAccount);
@@ -1170,10 +1174,11 @@ export function useAnchorContextProvider(): AnchorContextType {
         
         // Call the distributeVotingTreasury instruction
         try {
+          // Pass the total number of winning voters to correctly distribute the treasury
           const distributeTx = await program.methods
             .distributeVotingTreasury(
               voterPubkey,
-              new anchor.BN(i) // voter index
+              new anchor.BN(validVoters.length) // Pass the winning voters count
             )
             .accounts({
               authority: wallet.publicKey,
@@ -1238,7 +1243,7 @@ export function useAnchorContextProvider(): AnchorContextType {
     getTreasuryBalance,
     getVotingTreasuryBalance,
     finalizeChallenge,
-    finalizeVotingTreasury // Add this line
+    finalizeVotingTreasury  // Add this to the return object
   };
 }
 
