@@ -9,12 +9,23 @@ import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 export function WalletConnection() {
-  const { publicKey, connecting, disconnect } = useWallet()
+  const { publicKey, connecting, connected, disconnect } = useWallet()
   const [mounted, setMounted] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Track connection attempt
+  useEffect(() => {
+    if (connecting) {
+      setIsConnecting(true)
+    } else if (connected) {
+      // Reset connecting state when connection completes
+      setIsConnecting(false)
+    }
+  }, [connecting, connected])
 
   useEffect(() => {
     if (publicKey) {
@@ -59,11 +70,7 @@ export function WalletConnection() {
             className="bg-red-600 text-white hover:bg-red-700 border-none"
             onClick={handleDisconnect}
           >
-            {connecting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogOut className="h-4 w-4" />
-            )}
+            <LogOut className="h-4 w-4" />
           </Button>
         </>
       ) : (
@@ -77,12 +84,17 @@ export function WalletConnection() {
             "transition-colors"
           )}
         >
-          {connecting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+          {isConnecting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Connecting...
+            </>
           ) : (
-            <Wallet className="h-4 w-4" />
+            <>
+              <Wallet className="h-4 w-4 mr-2" />
+              Connect Wallet
+            </>
           )}
-          Connect Wallet
         </WalletMultiButton>
       )}
     </div>
