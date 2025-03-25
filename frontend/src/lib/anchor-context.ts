@@ -757,7 +757,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting challenge finalization for:", challengePublicKey);
       
       // Step 1: Fetch all video submissions for this challenge from PocketBase
-      const pb = new PocketBase('http://127.0.0.1:8090');
+      const pb = new PocketBase('http://localhost:8090');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
@@ -1019,7 +1019,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting voting treasury distribution for:", challengePublicKey);
       
       // Fetch challenge data from PocketBase
-      const pb = new PocketBase('http://127.0.0.1:8090');
+      const pb = new PocketBase('http://localhost:8090');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
