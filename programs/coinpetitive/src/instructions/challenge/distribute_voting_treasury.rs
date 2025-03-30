@@ -14,8 +14,8 @@ pub struct DistributeVotingTreasury<'info> {
     
     #[account(
         mut,
-        constraint = challenge.creator == authority.key() @ ErrorCode::Unauthorized,
-
+        // Remove this constraint to allow anyone to distribute rewards:
+        // constraint = challenge.creator == authority.key() @ ErrorCode::Unauthorized,
     )]
     pub challenge: Account<'info, Challenge>,
     

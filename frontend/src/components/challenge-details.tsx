@@ -866,16 +866,80 @@ const status = getChallengeStatus();
               <span className="text-xs">Submit Video (${FIXED_SUBMISSION_FEE} CPT)</span>
             </Button>
             
-            <Button 
-              className={`w-full ${canFinalize ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
-              onClick={handleFinalizeChallenge}
-              disabled={isFinalizing || !challenge.onchain_id || (!canFinalize && !isCreator)}
-            >
-              <Trophy className="h-4 w-4 mr-1" />
-              <span className="text-xs">
-                {isFinalizing ? "..." : !canFinalize ? "Waiting" : "Finalize"} 
-              </span>
-            </Button>
+            {/* Finalize button - show for creator OR participant when voting period ends */}
+            {hasVotingPeriodEnded && (isCreator || isParticipant) && (
+              <Button 
+                className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
+                onClick={handleFinalizeChallenge}
+                disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
+                title={
+                  !challenge.onchain_id 
+                    ? "Challenge doesn't have on-chain data" 
+                    : !hasVotingPeriodEnded 
+                      ? "Waiting for voting to end" 
+                      : "Finalize Challenge"
+                }
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                <span className="text-sm">
+                  {isFinalizing 
+                    ? "Finalizing..." 
+                    : !hasVotingPeriodEnded 
+                      ? "Waiting for voting to end" 
+                      : "Finalize Challenge"
+                  }
+                </span>
+              </Button>
+            )}
+
+            {/* Finalize Voting Treasury button - Apply same conditions */}
+            {hasVotingPeriodEnded && (isCreator || isParticipant) && (
+              <Button 
+                className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
+                onClick={() => {
+                  if (!finalizeVotingTreasury) {
+                    console.error("finalizeVotingTreasury function not available");
+                    return;
+                  }
+                  
+                  // Set loading state
+                  setIsFinalizingVoting(true);
+                  
+                  // Clean call without alerts or debug logs
+                  finalizeVotingTreasury(challenge.onchain_id)
+                    .then(result => {
+                      console.log("Finalize voting result:", result);
+                      if (result.success) {
+                        setFinalizeVotingSuccess(
+                          `Successfully distributed voting treasury to ${result.processed} out of ${result.total} voters!`
+                        );
+                      } else {
+                        setFinalizeVotingError(result.error || "Failed to distribute voting treasury");
+                      }
+                    })
+                    .catch(err => {
+                      console.error("Error:", err);
+                      setFinalizeVotingError(err.message || "Unknown error");
+                    })
+                    .finally(() => {
+                      setIsFinalizingVoting(false);
+                    });
+                }}
+                disabled={isFinalizingVoting || !challenge.onchain_id || !hasVotingPeriodEnded}
+                title={
+                  !challenge.onchain_id 
+                    ? "Challenge doesn't have on-chain data" 
+                    : !hasVotingPeriodEnded 
+                      ? "Waiting for voting to end" 
+                      : "Distribute Voting Rewards"
+                }
+              >
+                <Users className="h-4 w-4 mr-2" />
+                <span className="text-sm">
+                  {isFinalizingVoting ? "Processing..." : "Distribute Voting Rewards"}
+                </span>
+              </Button>
+            )}
           </div>
           
           {/* Error/Success messages */}
@@ -1471,74 +1535,79 @@ const status = getChallengeStatus();
           </div>
         )}
 
-        {/* Creator finalize button - show AFTER voting period ends */}
-{isCreator && (
-  <Button 
-    className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
-    onClick={handleFinalizeChallenge}
-    disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
-    title={
-      !challenge.onchain_id 
-        ? "Challenge doesn't have on-chain data" 
-        : !hasVotingPeriodEnded 
-          ? "Waiting for voting to end" 
-          : "Finalize Challenge"
-    }
-  >
-    <Trophy className="h-4 w-4 mr-2" />
-    <span className="text-sm">
-      {isFinalizing 
-        ? "Finalizing..." 
-        : !hasVotingPeriodEnded 
-          ? "Waiting for voting to end" 
-          : "Finalize Challenge"
-      }
-    </span>
-  </Button>
-)}
 
-
-
-        
-        <Button 
-          className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
-          onClick={() => {
-            if (!finalizeVotingTreasury) {
-              console.error("finalizeVotingTreasury function not available");
-              return;
+        {hasVotingPeriodEnded && (isCreator || isParticipant) && (
+          <Button 
+            className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
+            onClick={handleFinalizeChallenge}
+            disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
+            title={
+              !challenge.onchain_id 
+                ? "Challenge doesn't have on-chain data" 
+                : !hasVotingPeriodEnded 
+                  ? "Waiting for voting to end" 
+                  : "Finalize Challenge"
             }
-            
-            // Set loading state
-            setIsFinalizingVoting(true);
-            
-            // Clean call without alerts or debug logs
-            finalizeVotingTreasury(challenge.onchain_id)
-              .then(result => {
-                console.log("Finalize voting result:", result);
-                if (result.success) {
-                  setFinalizeVotingSuccess(
-                    `Successfully distributed voting treasury to ${result.processed} out of ${result.total} voters!`
-                  );
-                } else {
-                  setFinalizeVotingError(result.error || "Failed to distribute voting treasury");
-                }
-              })
-              .catch(err => {
-                console.error("Error:", err);
-                setFinalizeVotingError(err.message || "Unknown error");
-              })
-              .finally(() => {
-                setIsFinalizingVoting(false);
-              });
-          }}
-        >
-          <Users className="h-4 w-4 mr-2" />
-          <span className="text-sm">
-            {isFinalizingVoting ? "Processing..." : "Finalize Voting"}
-          </span>
-        </Button>
+          >
+            <Trophy className="h-4 w-4 mr-2" />
+            <span className="text-sm">
+              {isFinalizing 
+                ? "Finalizing..." 
+                : !hasVotingPeriodEnded 
+                  ? "Waiting for voting to end" 
+                  : "Finalize Challenge"
+              }
+            </span>
+          </Button>
+        )}
 
-
+        {hasVotingPeriodEnded && (isCreator || isParticipant) && (
+          <Button 
+            className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
+            onClick={() => {
+              if (!finalizeVotingTreasury) {
+                console.error("finalizeVotingTreasury function not available");
+                return;
+              }
+              
+              // Set loading state
+              setIsFinalizingVoting(true);
+              
+              // Clean call without alerts or debug logs
+              finalizeVotingTreasury(challenge.onchain_id)
+                .then(result => {
+                  console.log("Finalize voting result:", result);
+                  if (result.success) {
+                    setFinalizeVotingSuccess(
+                      `Successfully distributed voting treasury to ${result.processed} out of ${result.total} voters!`
+                    );
+                  } else {
+                    setFinalizeVotingError(result.error || "Failed to distribute voting treasury");
+                  }
+                })
+                .catch(err => {
+                  console.error("Error:", err);
+                  setFinalizeVotingError(err.message || "Unknown error");
+                })
+                .finally(() => {
+                  setIsFinalizingVoting(false);
+                });
+            }}
+            disabled={isFinalizingVoting || !challenge.onchain_id || !hasVotingPeriodEnded}
+            title={
+              !challenge.onchain_id 
+                ? "Challenge doesn't have on-chain data" 
+                : !hasVotingPeriodEnded 
+                  ? "Waiting for voting to end" 
+                  : "Distribute Voting Rewards"
+            }
+          >
+            <Users className="h-4 w-4 mr-2" />
+            <span className="text-sm">
+              {isFinalizingVoting ? "Processing..." : "Distribute Voting Rewards"}
+            </span>
+          </Button>
+        )}
 
 {status === "completed" && (
   <div className="p-2 bg-green-50 border border-green-100 rounded-md">

@@ -14,7 +14,7 @@ const ChallengeCard = ({ challenge }: ChallengeCardProps) => {
   return (
     <Link href={`/challenge/${challenge.id}`} className="block w-full sm:w-auto">
       <Card className="flex h-auto sm:h-[180px] w-full max-w-[800px] overflow-hidden bg-white p-3 sm:p-4 gap-3 sm:gap-10 rounded-[20px] sm:rounded-[30px] hover:shadow-lg transition-shadow border border-[#9A9A9A]">
-        {/* Image container - smaller on mobile, original size on desktop */}
+        {/* Image container - improved image quality */}
         <div className="relative w-[80px] sm:w-[120px] h-[100px] sm:h-[140px] flex-shrink-0 rounded-xl sm:rounded-2xl overflow-hidden">
           <Image
             src={challenge.image || mountain}
@@ -23,10 +23,12 @@ const ChallengeCard = ({ challenge }: ChallengeCardProps) => {
             sizes="(max-width: 640px) 80px, 120px"
             className="object-cover"
             priority
+            quality={90}
             draggable={false}
+            loading="eager"
+            unoptimized={challenge.image ? true : false} // Don't optimize external images
           />
         </div>
-
 
         <div className="flex-1 min-w-0 flex flex-col justify-between">
           <div>

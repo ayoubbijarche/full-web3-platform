@@ -14,7 +14,7 @@ pub struct FinalizeChallenge<'info> {
     
     #[account(
         mut,
-        constraint = challenge.creator == authority.key() @ ErrorCode::Unauthorized,
+        // Remove creator-only constraint but keep it active
         constraint = challenge.is_active @ ErrorCode::ChallengeNotActive
     )]
     pub challenge: Account<'info, Challenge>,
@@ -36,13 +36,39 @@ pub struct FinalizeChallenge<'info> {
     #[account(mut)]
     pub treasury_token_account: AccountInfo<'info>,
     
-    /// CHECK: Creator's token account to receive remaining funds
-    #[account(mut)]
+    /// CHECK: Creator's token account to receive remaining funds - add constraint here
+    #[account(
+        mut,
+        // Ensure this is the creator's token account by checking the owner
+        constraint = challenge.creator == creator.key() @ ErrorCode::InvalidCreator
+    )]
     pub creator_token_account: AccountInfo<'info>,
+    
+    /// CHECK: The actual creator of the challenge - add this account
+    #[account(
+        constraint = challenge.creator == creator.key() @ ErrorCode::InvalidCreator
+    )]
+    pub creator: AccountInfo<'info>,
 }
 
 pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
     let challenge = &mut ctx.accounts.challenge;
+    let authority_key = ctx.accounts.authority.key();
+    
+    // Check authority is either the creator OR a participant
+    let is_creator = challenge.creator == authority_key;
+    let is_participant = challenge.participants.contains(&authority_key);
+    
+    // Only allow creator or participants to finalize
+    if !is_creator && !is_participant {
+        return Err(ErrorCode::Unauthorized.into());
+    }
+    
+    // Verify creator key matches challenge creator
+    require!(
+        ctx.accounts.creator.key() == challenge.creator,
+        ErrorCode::InvalidCreator
+    );
     
     // Verify treasury matches the one stored in the challenge
     require!(

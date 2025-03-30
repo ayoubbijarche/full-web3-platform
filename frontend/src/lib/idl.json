@@ -181,6 +181,9 @@
         {
           "name": "creator_token_account",
           "writable": true
+        },
+        {
+          "name": "creator"
         }
       ],
       "args": [

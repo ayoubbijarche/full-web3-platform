@@ -143,7 +143,7 @@ export function useAnchorContextProvider(): AnchorContextType {
         treasuryPDA: treasuryPDA.toString(),
         treasuryTokenAccount: treasuryTokenAccount.toString(),
         votingTreasuryPDA: votingTreasuryPDA.toString(),
-        votingTreasuryTokenAccount: votingTreasuryTokenAccount.toString(),
+        votingTreasuryTokenAccount: votingTreasuryTokenAccount.toString()
       });
   
       // Create the challenge
@@ -756,6 +756,29 @@ export function useAnchorContextProvider(): AnchorContextType {
           error: "Failed to fetch challenge from PocketBase"
         };
       }
+
+      // After getting the challenge from PocketBase, grab the creator's pubkey
+      let creatorPubkey: PublicKey;
+      try {
+        const pbChallenge = await pb.collection('challenges').getOne(pbChallengeId, {
+          expand: 'creator'
+        });
+        
+        if (pbChallenge.expand?.creator?.pubkey) {
+          creatorPubkey = new PublicKey(pbChallenge.expand.creator.pubkey);
+          console.log("Found creator pubkey:", creatorPubkey.toString());
+        } else {
+          // If we can't find the creator's pubkey, use the wallet's pubkey as fallback
+          // (This assumes wallet owner is the creator)
+          creatorPubkey = wallet.publicKey;
+          console.log("Using wallet as creator pubkey:", creatorPubkey.toString());
+        }
+      } catch (creatorError) {
+        console.error("Error fetching creator pubkey:", creatorError);
+        // Fallback to using the wallet's pubkey
+        creatorPubkey = wallet.publicKey;
+        console.log("Using wallet as creator pubkey after error:", creatorPubkey.toString());
+      }
       
       // Get all video submissions for this challenge
       let submissions: any = null;
@@ -878,22 +901,22 @@ export function useAnchorContextProvider(): AnchorContextType {
 
       // Add this right after creating the winner's token account
 
-      // Step 6b: Get or create creator's token account (creator is the wallet owner in this case)
+      // Step 6b: Get or create creator's token account using the actual creator's pubkey
       const creatorTokenAccount = getAssociatedToken2022AddressSync(
         CPT_TOKEN_MINT,
-        wallet.publicKey
+        creatorPubkey  // Use the actual creator's pubkey instead of wallet.publicKey
       );
       
       // Check if creator token account exists
       const creatorTokenAccountInfo = await connection.getAccountInfo(creatorTokenAccount);
       if (!creatorTokenAccountInfo) {
-        console.log("Creating token account for creator:", wallet.publicKey.toString());
+        console.log("Creating token account for creator:", creatorPubkey.toString());
         
         // Create the associated token account instruction
         const createCreatorAtaIx = createAssociatedTokenAccountInstruction(
           wallet.publicKey, // payer
           creatorTokenAccount, 
-          wallet.publicKey, // owner is the creator
+          creatorPubkey,   // owner should be the actual creator
           CPT_TOKEN_MINT,
           TOKEN_2022_PROGRAM_ID
         );
@@ -915,7 +938,7 @@ export function useAnchorContextProvider(): AnchorContextType {
         treasuryToken: treasuryTokenAccount.toString(),
         winner: winnerPubkey.toString(),
         winnerToken: winnerTokenAccount.toString(),
-        creator: wallet.publicKey.toString(),
+        creator: creatorPubkey.toString(), // Add this log
         creatorToken: creatorTokenAccount.toString(),
         voteCount: winnerSubmission.vote_count || 1
       });
@@ -932,7 +955,8 @@ export function useAnchorContextProvider(): AnchorContextType {
           winnerTokenAccount: winnerTokenAccount,
           treasury: treasuryPubkey,
           treasuryTokenAccount: treasuryTokenAccount,
-          creatorTokenAccount: creatorTokenAccount, // Add this line
+          creatorTokenAccount: creatorTokenAccount,
+          creator: creatorPubkey, // Add this line to provide the creator account
         })
         .rpc();
       
@@ -968,7 +992,6 @@ export function useAnchorContextProvider(): AnchorContextType {
       };
     }
   };
-
   // Add this function after finalizeChallenge function and before the return statement
 
   const finalizeVotingTreasury = async (challengePublicKey: string) => {
