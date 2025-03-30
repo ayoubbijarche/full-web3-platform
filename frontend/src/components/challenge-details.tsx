@@ -36,7 +36,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false)
   const keywords = Array.isArray(challenge.keywords) ? challenge.keywords : []
   const imageUrl = challenge.image 
-    ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}`
+    ? `http://api.coinpetitive.com/api/files/challenges/${challenge.id}/${challenge.image}`
     : "/placeholder-image.png"
   const router = useRouter()
   const [dataVersion, setDataVersion] = useState(0);
@@ -1001,7 +1001,7 @@ const status = getChallengeStatus();
                         <Avatar className="h-4 w-4">
                           {message.expand?.sender?.avatar ? (
                             <Image
-                              src={`http://127.0.0.1:8090/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
+                              src={`http://api.coinpetitive.com/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
                               alt={message.expand.sender.username || 'User avatar'}
                               width={16}
                               height={16}
@@ -1098,7 +1098,7 @@ const status = getChallengeStatus();
                   <Avatar className="h-5 w-5">
                     {submission.expand?.participant?.avatar ? (
                       <Image
-                        src={`http://127.0.0.1:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
+                        src={`http://api.coinpetitive.com/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
                         alt={submission.expand.participant.username || 'User avatar'}
                         width={20}
                         height={20}
@@ -1127,7 +1127,7 @@ const status = getChallengeStatus();
                       />
                     ) : (
                       <video 
-                        src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
+                        src={`http://api.coinpetitive.com/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
                         className="w-full h-full object-cover rounded-lg"
                         controls
                       />
@@ -1362,7 +1362,7 @@ const status = getChallengeStatus();
                     ) : (
                       // Fallback for legacy directly uploaded videos
                       <video 
-                        src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
+                        src={`http://api.coinpetitive.com/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
                         className="w-full h-full object-cover rounded-xl"
                         controls
                       />
@@ -1404,7 +1404,7 @@ const status = getChallengeStatus();
                   <Avatar className="h-6 w-6">
                   {submission.expand?.participant?.avatar ? (
                     <Image
-                    src={`http://127.0.0.1:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
+                    src={`http://api.coinpetitive.com/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
                     alt={submission.expand.participant.username || 'User avatar'}
                     width={24}
                     height={24}
@@ -1638,7 +1638,7 @@ const status = getChallengeStatus();
                       <Avatar className="h-6 w-6">
                         {message.expand?.sender?.avatar ? (
                           <Image
-                            src={`http://127.0.0.1:8090/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
+                            src={`http://api.coinpetitive.com/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
                             alt={message.expand.sender.username || 'User avatar'}
                             width={24}
                             height={24}
