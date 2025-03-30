@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 
-export const pb = new PocketBase('http://api.coinpetitive.com');
+export const pb = new PocketBase('https://api.coinpetitive.com/');
 
 // User Model Type
 export type UserModel = {

@@ -102,7 +102,7 @@ export function EditProfileDialog({ open, onOpenChange, user }: EditProfileDialo
   };
 
   const avatarUrl = user.avatar 
-    ? `http://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}`
+    ? `https://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}`
     : undefined;
 
   if (showPasswordConfirm) {

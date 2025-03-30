@@ -731,7 +731,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting challenge finalization for:", challengePublicKey);
       
       // Step 1: Fetch all video submissions for this challenge from PocketBase
-      const pb = new PocketBase('http://api.coinpetitive.com');
+      const pb = new PocketBase('https://api.coinpetitive.com');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
@@ -1016,7 +1016,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting voting treasury distribution for:", challengePublicKey);
       
       // Fetch challenge data from PocketBase
-      const pb = new PocketBase('http://api.coinpetitive.com');
+      const pb = new PocketBase('https://api.coinpetitive.com');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";

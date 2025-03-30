@@ -66,7 +66,7 @@ export function Navbar() {
                 user={{
                   username: user.username,
                   email: user.email,
-                  avatarUrl: user.avatar ? `http://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}` : undefined
+                  avatarUrl: user.avatar ? `https://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}` : undefined
                 }}
                 onSignOut={signOut}
               />
@@ -93,7 +93,7 @@ export function Navbar() {
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 relative">
                     {user.avatar ? (
                       <Image
-                        src={`http://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}`}
+                        src={`https://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}`}
                         alt={user.username}
                         fill
                         className="object-cover"

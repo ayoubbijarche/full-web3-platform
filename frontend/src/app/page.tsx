@@ -307,7 +307,7 @@ export default function Home() {
                       ...challenge,
                       creator: challenge.expand?.creator?.username || 'Anonymous',
                       image: challenge.image 
-                        ? `http://api.coinpetitive.com/api/files/challenges/${challenge.id}/${challenge.image}` 
+                        ? `https://api.coinpetitive.com/api/files/challenges/${challenge.id}/${challenge.image}` 
                         : undefined
                     }}
                   />
