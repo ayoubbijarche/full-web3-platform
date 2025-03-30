@@ -15,28 +15,8 @@ import { toast } from "sonner"; // Use Sonner toast instead
 import { pb } from "@/lib/pb"
 import { useMediaQuery } from "../hooks/use-media-query" // You'll need to create this hook
 
-// Add this custom hook in a new file src/hooks/use-media-query.ts
-// ---------------------------------------------------------------
-// import { useState, useEffect } from 'react';
-// 
-// export function useMediaQuery(query: string): boolean {
-//   const [matches, setMatches] = useState(false);
-//   
-//   useEffect(() => {
-//     const media = window.matchMedia(query);
-//     if (media.matches !== matches) {
-//       setMatches(media.matches);
-//     }
-//     
-//     const listener = () => setMatches(media.matches);
-//     media.addEventListener('change', listener);
-//     
-//     return () => media.removeEventListener('change', listener);
-//   }, [matches, query]);
-//   
-//   return matches;
-// }
-// ---------------------------------------------------------------
+// Add this constant at the top of your component
+const FIXED_SUBMISSION_FEE = 5; // Fixed submission fee of 5 CPT
 
 export interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -783,7 +763,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       if (diff <= 0) {
         setCanFinalize(true);
         setChallengeState("votingEnded");
-        return "Voting has ended";
+        return "Challenge voting period has ended"; // Improved message
       }
       
       // Calculate remaining time
@@ -810,13 +790,6 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     const intervalId = setInterval(() => {
       const remaining = calculateTimeRemaining();
       setTimeRemaining(remaining);
-      
-      // Auto-finalize if time is up and user is the creator
-      if (canFinalize && isCreator && !isFinalizing && challengeState === "votingEnded" && !finalizeSuccess) {
-        // This will trigger finalization when the voting period ends
-        // Uncomment if you want automatic finalization:
-        // handleFinalizeChallenge();
-      }
     }, 1000);
     
     return () => clearInterval(intervalId);
@@ -890,7 +863,7 @@ const status = getChallengeStatus();
               disabled={!isParticipant || isCreator}
             >
               <Video className="h-4 w-4 mr-1" />
-              <span className="text-xs">Submit Video</span>
+              <span className="text-xs">Submit Video (${FIXED_SUBMISSION_FEE} CPT)</span>
             </Button>
             
             <Button 
@@ -900,7 +873,7 @@ const status = getChallengeStatus();
             >
               <Trophy className="h-4 w-4 mr-1" />
               <span className="text-xs">
-                {isFinalizing ? "..." : !canFinalize ? "Waiting" : "Finalize"}
+                {isFinalizing ? "..." : !canFinalize ? "Waiting" : "Finalize"} 
               </span>
             </Button>
           </div>
@@ -1169,7 +1142,7 @@ const status = getChallengeStatus();
           onOpenChange={setIsSubmitDialogOpen}
           challengeId={challenge.id}
           onChainId={challenge.onchain_id}
-          participationFee={challenge.participation_fee}
+          participationFee={FIXED_SUBMISSION_FEE} // Use fixed fee instead of challenge.participation_fee
           onSubmitSuccess={() => {
             setDataVersion(v => v + 1);
             setIsSubmitDialogOpen(false);
@@ -1470,7 +1443,7 @@ const status = getChallengeStatus();
           <span className="text-sm">
             {isCreator 
               ? "Can't submit to own challenge"
-              : `Submit My Video (${challenge.participation_fee} CPT)`}
+              : `Submit My Video (${FIXED_SUBMISSION_FEE} CPT)`}
           </span>
         </Button>
 
@@ -1524,16 +1497,7 @@ const status = getChallengeStatus();
   </Button>
 )}
 
-{hasVotingPeriodEnded && challenge.state !== "completed" && (
-  <div className="w-full p-2 bg-gray-100 rounded-md text-center">
-    <span className="flex items-center justify-center gap-2">
-      <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-      <span className="text-sm text-gray-600">
-        Challenge will be auto-finalized soon
-      </span>
-    </span>
-  </div>
-)}
+
 
         
         <Button 
@@ -1574,14 +1538,7 @@ const status = getChallengeStatus();
           </span>
         </Button>
 
-        {status === "finalizing" && (
-  <div className="p-2 bg-amber-50 border border-amber-100 rounded-md">
-    <div className="flex items-center gap-2">
-      <span className="h-2 w-2 bg-amber-400 rounded-full animate-pulse"></span>
-      <span className="text-sm text-amber-700">Auto-finalizing in progress</span>
-    </div>
-  </div>
-)}
+
 
 {status === "completed" && (
   <div className="p-2 bg-green-50 border border-green-100 rounded-md">
@@ -1691,7 +1648,7 @@ const status = getChallengeStatus();
           onOpenChange={setIsSubmitDialogOpen}
           challengeId={challenge.id}
           onChainId={challenge.onchain_id}  // Pass this property
-          participationFee={challenge.participation_fee}
+          participationFee={FIXED_SUBMISSION_FEE} // Use fixed fee instead of challenge.participation_fee
           onSubmitSuccess={() => {
             setDataVersion(v => v + 1); // Trigger refresh after submission
             setIsSubmitDialogOpen(false);

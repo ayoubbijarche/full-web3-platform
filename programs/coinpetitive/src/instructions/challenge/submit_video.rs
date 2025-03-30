@@ -6,6 +6,8 @@ use crate::instructions::challenge::errors::ErrorCode;
 // Define Token-2022 program ID constant
 pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
+// Add fixed submission fee - 5 tokens with 9 decimals (5 * 10^9)
+pub const FIXED_SUBMISSION_FEE: u64 = 5_000_000_000;
 
 // Token instruction enum
 #[derive(Clone, Debug)]
@@ -53,11 +55,12 @@ pub fn handle(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
         ErrorCode::InvalidTreasury
     );
     
-    msg!("Submitting video and paying participation fee: {} tokens", challenge.participation_fee);
+    // Use fixed submission fee instead of challenge.participation_fee
+    msg!("Submitting video and paying fixed fee: {} tokens", FIXED_SUBMISSION_FEE);
     msg!("From participant: {}", ctx.accounts.participant.key());
     msg!("To treasury: {}", ctx.accounts.treasury.key());
     
-    // Create a simplified Transfer instruction manually
+    // Create a simplified Transfer instruction manually with FIXED_SUBMISSION_FEE
     let ix = solana_program::instruction::Instruction {
         program_id: ctx.accounts.token_program.key(),
         accounts: vec![
@@ -67,7 +70,7 @@ pub fn handle(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
         ],
         // Token instruction 3 = Transfer, followed by amount as little-endian bytes
         data: [3].into_iter()
-              .chain(challenge.participation_fee.to_le_bytes().into_iter())
+              .chain(FIXED_SUBMISSION_FEE.to_le_bytes().into_iter())
               .collect(),
     };
     
@@ -81,10 +84,10 @@ pub fn handle(ctx: Context<SubmitVideo>, video_url: String) -> Result<()> {
         ],
     )?;
     
-    // Update challenge treasury
-    challenge.challenge_treasury += challenge.participation_fee;
+    // Update challenge treasury with fixed fee instead of challenge.participation_fee
+    challenge.challenge_treasury += FIXED_SUBMISSION_FEE;
     
-    msg!("Video submitted and participation fee paid successfully");
+    msg!("Video submitted and fixed submission fee of {} paid successfully", FIXED_SUBMISSION_FEE);
     
     // Add video reference and initial votes
     challenge.submission_votes.push((ctx.accounts.video_reference.key(), 0));

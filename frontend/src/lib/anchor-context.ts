@@ -333,33 +333,7 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Add this debug function to your anchor-context.ts
-  const inspectChallengeAccount = async (challengePublicKey: string) => {
-    if (!program) return null;
-    
-    try {
-      const challengePubkey = new PublicKey(challengePublicKey);
-      const challengeAccount = await program.account.challenge.fetch(challengePubkey);
-      
-      console.log("Challenge Account Details:", {
-        reward: challengeAccount.reward.toString(),
-        participationFee: challengeAccount.participation_fee.toString(),
-        votingFee: challengeAccount.voting_fee.toString(),
-        isActive: challengeAccount.is_active,
-        maxParticipants: challengeAccount.max_participants,
-        participants: challengeAccount.participants?.map(p => p.toString()),
-        participantsCount: challengeAccount.participants?.length || 0
-      });
-      
-      return challengeAccount;
-    } catch (error) {
-      console.error("Error inspecting challenge:", error);
-      return null;
-    }
-  };
-
   // Update the submitVideoOnChain function:
-
   const submitVideoOnChain = async (challengePublicKey: string, videoUrl: string) => {
     if (!wallet) {
       return {
@@ -1237,7 +1211,6 @@ export function useAnchorContextProvider(): AnchorContextType {
     program,
     createChallenge,
     participateInChallenge,
-    inspectChallengeAccount,
     submitVideoOnChain,
     voteForSubmissionOnChain,
     getTreasuryBalance,
@@ -1267,7 +1240,7 @@ export type AnchorContextType = {
     signature?: string;
     error?: string;
   }>;
-  inspectChallengeAccount: (challengePublicKey: string) => Promise<ChallengeAccount | null>;
+
   submitVideoOnChain: (challengePublicKey: string, videoUrl: string) => Promise<{
     success: boolean;
     signature?: string;

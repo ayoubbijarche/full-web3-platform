@@ -200,10 +200,10 @@ export default function CreateChallengePage() {
       // Now create the challenge in your database
       const now = new Date();
       
-      // Calculate the end dates
-      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 24 * 60 * 60 * 1000));
-      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 24 * 60 * 60 * 1000));
-      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 24 * 60 * 60 * 1000));
+      // Calculate the end dates - CHANGED FROM DAYS TO MINUTES
+      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 60 * 1000));
+      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 60 * 1000));
+      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 60 * 1000));
 
       // Then create the challenge in your database
       const result = await createChallengeDB({
@@ -378,7 +378,7 @@ export default function CreateChallengePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-16">
               <div>
-                <Label>Registration Period (days)</Label>
+                <Label>Registration Period (minutes)</Label>
                 <div className="relative w-full">
                   <Input 
                     type="number"
@@ -388,7 +388,7 @@ export default function CreateChallengePage() {
                       ...prev, 
                       registration_end: e.target.value 
                     }))}
-                    placeholder="Enter days"
+                    placeholder="Enter minutes"
                     className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
                     required
                   />
@@ -396,7 +396,7 @@ export default function CreateChallengePage() {
                 </div>
               </div>
               <div>
-                <Label>Submission Period (days)</Label>
+                <Label>Submission Period (minutes)</Label>
                 <div className="relative w-full">
                   <Input 
                     type="number"
@@ -406,7 +406,7 @@ export default function CreateChallengePage() {
                       ...prev, 
                       submission_end: e.target.value 
                     }))}
-                    placeholder="Enter days"
+                    placeholder="Enter minutes"
                     className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
                     required
                   />
@@ -414,7 +414,7 @@ export default function CreateChallengePage() {
                 </div>
               </div>
               <div className="sm:col-span-2 lg:col-span-1">
-                <Label>Voting Period (days)</Label>
+                <Label>Voting Period (minutes)</Label>
                 <div className="relative w-full">
                   <Input 
                     type="number"
@@ -424,7 +424,7 @@ export default function CreateChallengePage() {
                       ...prev, 
                       voting_end: e.target.value 
                     }))}
-                    placeholder="Enter days"
+                    placeholder="Enter minutes"
                     className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
                     required
                   />
