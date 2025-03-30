@@ -40,7 +40,7 @@ export default function ProfilePage() {
               creator: challenge.expand?.creator?.username,
               reward: challenge.reward,
               participants: challenge.participants?.length || 0,
-              image: challenge.image ? `http://69.62.105.81:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
+              image: challenge.image ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
             }));
           setCreatedChallenges(userCreatedChallenges);
         }
@@ -73,7 +73,7 @@ export default function ProfilePage() {
             <div className="w-40 h-40 rounded-full overflow-hidden flex-shrink-0 border-2 border-[#b3731d]">
               {user.avatar ? (
                 <Image
-                  src={`http://http://69.62.105.81:8090/api/files/users/${user.id}/${user.avatar}`}
+                  src={`http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}`}
                   alt={`${user.username}'s avatar`}
                   width={160}
                   height={160}
@@ -134,7 +134,7 @@ export default function ProfilePage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto py-8">
+      <main className="max-w-6xl mx-auto py-1">
         {/* Tabs */}
         <div className="flex justify-center mb-8 border-b border-[#8a8a8a]">
           <button className="flex items-center gap-2 px-8 py-4 text-sm font-medium border-b-2 border-[#b3731d] text-[#b3731d]">
@@ -143,14 +143,23 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Challenge Grid with increased spacing */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-40 px-4">
-          {createdChallenges.map((challenge) => (
-            <ChallengeCard 
-              key={challenge.id} 
-              challenge={challenge}
-            />
-          ))}
+        {/* Challenge Grid with reduced spacing */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 px-4">
+          {createdChallenges.length > 0 ? (
+            createdChallenges.map((challenge) => (
+              <ChallengeCard 
+                key={challenge.id} 
+                challenge={challenge}
+              />
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center text-gray-500">
+              <p>You haven't created any challenges yet.</p>
+              <Link href="/create-challenge" className="mt-4 inline-block">
+                <Button>Create Your First Challenge</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </main>
 

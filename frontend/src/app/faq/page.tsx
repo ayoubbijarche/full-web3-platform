@@ -242,23 +242,23 @@ export default function FAQPage() {
   ];
 
   return (
-    <main className="max-w-[1000px] mx-auto px-4 py-8">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4 flex items-center justify-center gap-2">
-          <Rocket className="h-8 w-8 text-primary" />
-          Frequently Asked Questions (FAQ)
-          <Rocket className="h-8 w-8 text-primary" />
+    <main className="max-w-[1000px] mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <div className="text-center mb-8 sm:mb-12">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 flex flex-wrap items-center justify-center gap-2">
+          <Rocket className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <span>Frequently Asked Questions</span>
+          <Rocket className="h-6 w-6 sm:h-8 sm:w-8 text-primary hidden sm:inline" />
         </h1>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {faqItems.map((item, index) => (
-          <div key={index} className="border-b pb-8 last:border-b-0">
-            <h2 className="text-xl font-semibold mb-4 flex items-start gap-2">
+          <div key={index} className="border-b pb-6 sm:pb-8 last:border-b-0">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 flex items-start gap-2">
               <span className="text-primary">{index + 1}.</span>
-              {item.question}
+              <span>{item.question}</span>
             </h2>
-            <div className="prose max-w-none">
+            <div className="prose max-w-none text-sm sm:text-base">
               {item.answer}
             </div>
           </div>
@@ -271,8 +271,8 @@ export default function FAQPage() {
 // Helper function to create warning blocks
 function Warning({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
-      <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+    <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 sm:p-4 rounded-lg text-sm sm:text-base">
+      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5" />
       <div>{children}</div>
     </div>
   );
@@ -281,8 +281,8 @@ function Warning({ children }: { children: React.ReactNode }) {
 // Helper function to create success blocks
 function Success({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 text-green-600 bg-green-50 p-4 rounded-lg">
-      <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
+    <div className="flex items-start gap-2 text-green-600 bg-green-50 p-3 sm:p-4 rounded-lg text-sm sm:text-base">
+      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5" />
       <div>{children}</div>
     </div>
   );
@@ -291,8 +291,8 @@ function Success({ children }: { children: React.ReactNode }) {
 // Replace the Info component with InfoBlock
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 text-blue-600 bg-blue-50 p-4 rounded-lg">
-      <Info className="h-5 w-5 flex-shrink-0 mt-0.5" />
+    <div className="flex items-start gap-2 text-blue-600 bg-blue-50 p-3 sm:p-4 rounded-lg text-sm sm:text-base">
+      <Info className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5" />
       <div>{children}</div>
     </div>
   );

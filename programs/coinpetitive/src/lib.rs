@@ -5,7 +5,7 @@ use instructions::*;
 use instructions::token::*;
 use instructions::challenge::*;
 
-declare_id!("gkWKee4XRKyNFzWmQMjfG945iTJmJLF4f5je2qyPAmM");
+declare_id!("6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1");
 
 #[program]
 pub mod coinpetitive {

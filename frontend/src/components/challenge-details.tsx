@@ -2,17 +2,41 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticket, AlertTriangle, ThumbsUp, ThumbsDown, Heart } from "lucide-react"
+import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticket, AlertTriangle, ThumbsUp, ThumbsDown, Heart, CheckCircle } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import mountImage from '@/assets/mount.png'
 import { SubmitVideoDialog } from "@/components/submit-video-dialog"
 import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel } from "@/lib/pb"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAnchor } from '@/lib/anchor-context'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from "sonner"; // Use Sonner toast instead
 import { pb } from "@/lib/pb"
+import { useMediaQuery } from "../hooks/use-media-query" // You'll need to create this hook
+
+// Add this custom hook in a new file src/hooks/use-media-query.ts
+// ---------------------------------------------------------------
+// import { useState, useEffect } from 'react';
+// 
+// export function useMediaQuery(query: string): boolean {
+//   const [matches, setMatches] = useState(false);
+//   
+//   useEffect(() => {
+//     const media = window.matchMedia(query);
+//     if (media.matches !== matches) {
+//       setMatches(media.matches);
+//     }
+//     
+//     const listener = () => setMatches(media.matches);
+//     media.addEventListener('change', listener);
+//     
+//     return () => media.removeEventListener('change', listener);
+//   }, [matches, query]);
+//   
+//   return matches;
+// }
+// ---------------------------------------------------------------
 
 export interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -32,7 +56,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false)
   const keywords = Array.isArray(challenge.keywords) ? challenge.keywords : []
   const imageUrl = challenge.image 
-    ? `http://69.62.105.81:8090/api/files/challenges/${challenge.id}/${challenge.image}`
+    ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}`
     : "/placeholder-image.png"
   const router = useRouter()
   const [dataVersion, setDataVersion] = useState(0);
@@ -73,6 +97,21 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     error?: string;
   } | null>(null);
   const [loadingVotingBalance, setLoadingVotingBalance] = useState(false);
+
+  // Add these state variables to your component
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+  const [challengeState, setChallengeState] = useState<string>("active");
+  const [canFinalize, setCanFinalize] = useState(false);
+
+
+
+    // At the start of your component
+  const [isClient, setIsClient] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     console.log('Challenge in component:', challenge);
@@ -725,6 +764,422 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     };
   }, [challenge.onchain_id, getVotingTreasuryBalance]);
 
+  // Add this new useEffect to calculate time remaining and check if challenge can be finalized
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      
+      // Parse voting end date - check if it's a string or Date object
+      const votingEnd = typeof challenge.voting_end === 'string' 
+        ? new Date(challenge.voting_end) 
+        : challenge.voting_end;
+      
+      if (!votingEnd) return "Unknown";
+      
+      // Calculate time difference
+      const diff = votingEnd.getTime() - now.getTime();
+      
+      // If voting has ended
+      if (diff <= 0) {
+        setCanFinalize(true);
+        setChallengeState("votingEnded");
+        return "Voting has ended";
+      }
+      
+      // Calculate remaining time
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      if (days > 0) {
+        return `${days}d ${hours}h remaining`;
+      } else if (hours > 0) {
+        return `${hours}h ${minutes}m remaining`;
+      } else if (minutes > 0) {
+        return `${minutes}m ${seconds}s remaining`;
+      } else {
+        return `${seconds}s remaining`;
+      }
+    };
+    
+    // Update time remaining initially
+    setTimeRemaining(calculateTimeRemaining());
+    
+    // Update time remaining every second
+    const intervalId = setInterval(() => {
+      const remaining = calculateTimeRemaining();
+      setTimeRemaining(remaining);
+      
+      // Auto-finalize if time is up and user is the creator
+      if (canFinalize && isCreator && !isFinalizing && challengeState === "votingEnded" && !finalizeSuccess) {
+        // This will trigger finalization when the voting period ends
+        // Uncomment if you want automatic finalization:
+        // handleFinalizeChallenge();
+      }
+    }, 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [challenge.voting_end, isCreator, isFinalizing, canFinalize, challengeState, finalizeSuccess]);
+
+  // Add this function near your other state variables and functions
+const hasVotingPeriodEnded = useMemo(() => {
+  if (!challenge.voting_end) return false;
+  const endTime = new Date(challenge.voting_end);
+  return new Date() > endTime;
+}, [challenge.voting_end]);
+
+  // Add this function in your component
+const getChallengeStatus = () => {
+  if (!challenge.voting_end) return "active";
+  
+  const now = new Date();
+  const votingEnd = new Date(challenge.voting_end);
+  
+  if (now >= votingEnd) {
+    // Check if we have a winner set
+    if (challenge.winner) {
+      return "completed";
+    } else {
+      return "finalizing";
+    }
+  } else {
+    return "active";
+  }
+};
+
+// In your render method
+const status = getChallengeStatus();
+
+// Separate rendering logic for mobile and desktop
+  if (isMobile) {
+    return (
+      <div className="flex flex-col p-2 max-w-full mx-auto">
+        {/* 1. Action buttons at the top for mobile */}
+        <div className="w-full mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <Button 
+              className={`w-full ${
+                isCreator || isParticipant || isJoining || isFull
+                  ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
+                  : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
+              }`}
+              onClick={handleJoinChallenge}
+              disabled={isCreator || isParticipant || isJoining || isFull}
+            >
+              {isJoining ? "Joining..." : !auth.user ? "Sign up to Join" : 
+               (isCreator ? "Creator only" : isParticipant ? "Joined" : 
+                isFull ? "Full" : `Join (${challenge.participation_fee} CPT)`)}
+            </Button>
+            
+            <Button 
+              variant="destructive"
+              onClick={handleReportChallenge}
+              disabled={isReporting || isCreator}
+              className="w-full"
+            >
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              {isReporting ? "..." : "Report"}
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              className="w-full"
+              onClick={() => setIsSubmitDialogOpen(true)}
+              disabled={!isParticipant || isCreator}
+            >
+              <Video className="h-4 w-4 mr-1" />
+              <span className="text-xs">Submit Video</span>
+            </Button>
+            
+            <Button 
+              className={`w-full ${canFinalize ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
+              onClick={handleFinalizeChallenge}
+              disabled={isFinalizing || !challenge.onchain_id || (!canFinalize && !isCreator)}
+            >
+              <Trophy className="h-4 w-4 mr-1" />
+              <span className="text-xs">
+                {isFinalizing ? "..." : !canFinalize ? "Waiting" : "Finalize"}
+              </span>
+            </Button>
+          </div>
+          
+          {/* Error/Success messages */}
+          {(joinError || finalizeError || finalizeSuccess) && (
+            <div className="mt-2">
+              {joinError && <div className="text-red-500 text-xs">{joinError}</div>}
+              {finalizeError && <div className="text-red-500 text-xs">{finalizeError}</div>}
+              {finalizeSuccess && <div className="text-green-500 text-xs">{finalizeSuccess}</div>}
+            </div>
+          )}
+        </div>
+
+        {/* 2. Challenge thumbnail */}
+        <div className="w-full mb-4 border border-[#9A9A9A] rounded-xl overflow-hidden">
+          <h1 className="text-xl font-bold text-[#4A4A4A] px-3 pt-3">{challenge.title}</h1>
+          <div className="aspect-video relative mt-2">
+            {challenge.challengevideo ? (
+              <iframe
+                src={getEmbedUrl(challenge.challengevideo)}
+                className="w-full h-full"
+                allowFullScreen
+                frameBorder="0"
+              />
+            ) : challenge.image ? (
+              <Image
+                src={imageUrl}
+                alt={challenge.title}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <Video className="h-12 w-12 text-gray-400" />
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* 3. Chat section */}
+        <div className="w-full mb-4">
+          <div className="border border-[#9A9A9A] rounded-xl flex flex-col h-[300px]">
+            <div className="p-2 border-b border-[#9A9A9A]">
+              <h2 className="font-semibold text-sm">Messages</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="space-y-3">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-500 text-xs">No messages yet</div>
+                ) : (
+                  messages.map((message) => (
+                    <div 
+                      key={message.id}
+                      className={`flex flex-col ${
+                        message.expand?.sender?.id === auth.user?.id ? 'items-end' : 'items-start'
+                      }`}
+                    >
+                      {/* Simplified message display for mobile */}
+                      <div className="flex items-center gap-1 mb-1">
+                        <Avatar className="h-4 w-4">
+                          {message.expand?.sender?.avatar ? (
+                            <Image
+                              src={`http://127.0.0.1:8090/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
+                              alt={message.expand.sender.username || 'User avatar'}
+                              width={16}
+                              height={16}
+                              className="rounded-full object-cover"
+                            />
+                          ) : (
+                            <AvatarFallback className="text-[8px]">
+                              {(message.expand?.sender?.username || 'A').charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="text-xs text-gray-500">
+                          {message.expand?.sender?.username || 'Anonymous'}
+                        </span>
+                      </div>
+                      <div className={`rounded-xl px-3 py-1 max-w-[85%] text-xs ${
+                        message.expand?.sender?.id === auth.user?.id 
+                          ? 'bg-[#b3731d] text-white' 
+                          : 'bg-gray-100'
+                      }`}>
+                        <p className="text-xs">{message.text}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="p-2 border-t border-[#9A9A9A]">
+              <div className="flex gap-1">
+                <Input 
+                  placeholder={!auth.user ? "Sign in to chat" : (!isParticipant && !isCreator) ? "Join challenge to chat" : "Type..."}
+                  className="rounded-full text-xs h-8"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && (isParticipant || isCreator)) {
+                      handleSendMessage()
+                    }
+                  }}
+                  disabled={!auth.user || (!isParticipant && !isCreator)}
+                />
+                <Button 
+                  size="sm"
+                  className="h-8 px-3"
+                  onClick={handleSendMessage}
+                  disabled={!auth.user || (!isParticipant && !isCreator)}
+                >
+                  Send
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Challenge details and metadata */}
+        <div className="w-full mb-4">
+          <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
+            <div className="flex items-center gap-1 text-primary">
+              <User className="h-4 w-4" />
+              <span className="text-xs">{challenge.expand?.creator?.username || 'Anonymous'}</span>
+            </div>
+            <div className="flex items-center gap-1 text-primary">
+              <Users className="h-4 w-4" />
+              <span className="text-xs">{challenge.participants.length}/{challenge.maxparticipats}</span>
+            </div>
+            <div className="flex items-center gap-1 text-primary">
+              <Coins className="h-4 w-4" />
+              <span className="text-xs">{challenge.reward} CPT</span>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-2 rounded-lg">
+            <h3 className="text-sm font-medium mb-1">Description</h3>
+            <p className="text-xs text-gray-600">
+              {challenge.description}
+            </p>
+          </div>
+        </div>
+
+        {/* 5. Video Submissions */}
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-[#4A4A4A] mb-2">Video Submissions</h2>
+          
+          {isLoadingSubmissions ? (
+            <div className="text-center py-6">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#b3731d]"></div>
+            </div>
+          ) : videoSubmissions.length > 0 ? (
+            <div className="space-y-4">
+              {videoSubmissions.map((submission) => (
+              <div key={submission.id} className="flex flex-col border border-[#9A9A9A] rounded-xl p-3">
+                {/* Submission creator info */}
+                <div className="flex items-center gap-2 mb-2">
+                  <Avatar className="h-5 w-5">
+                    {submission.expand?.participant?.avatar ? (
+                      <Image
+                        src={`http://127.0.0.1:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
+                        alt={submission.expand.participant.username || 'User avatar'}
+                        width={20}
+                        height={20}
+                        className="rounded-full object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback className="text-xs">
+                        {((submission.expand?.participant?.username || 'A')).charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <span className="font-medium text-xs">
+                    {submission.expand?.participant?.username || 'Participant'}
+                  </span>
+                </div>
+                
+                {/* Video */}
+                <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden relative">
+                  {submission.video && (
+                    submission.video.startsWith('http') ? (
+                      <iframe 
+                        src={getEmbedUrl(submission.video)}
+                        className="w-full h-full object-cover"
+                        allowFullScreen
+                        frameBorder="0"
+                      />
+                    ) : (
+                      <video 
+                        src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
+                        className="w-full h-full object-cover rounded-lg"
+                        controls
+                      />
+                    )
+                  )}
+                </div>
+                
+                {/* Description and interactions */}
+                <div className="mt-2">
+                  <p className="text-xs text-gray-700 mb-2">
+                    {submission.description}
+                  </p>
+                  
+                  <div className="flex justify-between items-center">
+                    {/* Like/Dislike buttons */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1">
+                        <ThumbsUp 
+                          className={`h-4 w-4 cursor-pointer ${
+                            Array.isArray(submission.likes) && submission.likes.includes(auth.user?.id) 
+                            ? 'text-primary fill-primary' : 'text-gray-500 hover:text-primary'
+                          }`}
+                          onClick={() => handleLikeVideo(submission.id)}
+                        />
+                        <span className="text-xs">
+                          {Array.isArray(submission.likes) ? submission.likes.length : 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <ThumbsDown 
+                          className={`h-4 w-4 cursor-pointer ${
+                            Array.isArray(submission.dislikes) && submission.dislikes.includes(auth.user?.id)
+                            ? 'text-primary fill-primary' : 'text-gray-500 hover:text-primary'
+                          }`}
+                          onClick={() => handleDislikeVideo(submission.id)}
+                        />
+                        <span className="text-xs">
+                          {Array.isArray(submission.dislikes) ? submission.dislikes.length : 0}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Vote button */}
+                    {!auth.user ? (
+                      <Button variant="default" size="sm" className="h-7 text-xs" disabled>Sign in</Button>
+                    ) : Array.isArray(submission.voters) && submission.voters.includes(auth.user.id) ? (
+                      <Button variant="default" size="sm" className="h-7 text-xs bg-gray-400" disabled>Voted</Button>
+                    ) : hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
+                      <Button variant="default" size="sm" className="h-7 text-xs bg-gray-400" disabled>Already voted</Button>
+                    ) : (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => handleVote(submission.id)}
+                        disabled={isVoting}
+                        className={`h-7 text-xs ${isVoting ? 'bg-[#b3731d]/40' : 'bg-[#b3731d]'}`}
+                      >
+                        {isVoting ? "..." : `Vote ${challenge.voting_fee} CPT`}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 border border-dashed border-gray-300 rounded-lg">
+              <Video className="h-8 w-8 mx-auto text-gray-400 mb-1" />
+              <p className="text-xs text-gray-500">No video submissions yet</p>
+            </div>
+          )}
+        </div>
+        
+        <SubmitVideoDialog 
+          open={isSubmitDialogOpen} 
+          onOpenChange={setIsSubmitDialogOpen}
+          challengeId={challenge.id}
+          onChainId={challenge.onchain_id}
+          participationFee={challenge.participation_fee}
+          onSubmitSuccess={() => {
+            setDataVersion(v => v + 1);
+            setIsSubmitDialogOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
+  
+  // Desktop layout - keep your existing code for desktop
   return (
     <div className="flex gap-6 p-4 max-w-[1200px] mx-auto">
       <div className="flex-1">
@@ -829,91 +1284,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             {challenge.description}
           </p>
 
-          {/* Treasury Balances Display */}
-          {challenge.onchain_id && (
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {/* Main Treasury Balance */}
-              <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
-                <h3 className="text-sm font-semibold mb-2 flex items-center">
-                  <Wallet className="h-4 w-4 mr-1 text-[#b3731d]" />
-                  Challenge Treasury
-                </h3>
-                
-                {loadingBalance ? (
-                  <div className="text-center py-2">
-                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
-                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
-                  </div>
-                ) : treasuryBalance?.success ? (
-                  <div>
-                    <div className="text-sm">
-                      <div className="text-gray-500 text-xs">CPT Balance:</div>
-                      <div className="font-medium">{treasuryBalance.tokenBalance?.toLocaleString() || '0'} CPT</div>
-                    </div>
-                    <div className="text-sm mt-1">
-                      <div className="text-gray-500 text-xs">SOL Balance:</div>
-                      <div className="font-medium">{treasuryBalance.solBalance?.toFixed(6) || '0'} SOL</div>
-                    </div>
-                    <div className="mt-1">
-                      <div className="text-xs text-gray-500 truncate">
-                        Treasury: {treasuryBalance.treasuryAddress?.substring(0, 6)}...{treasuryBalance.treasuryAddress?.substring(treasuryBalance.treasuryAddress.length - 6)}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 p-2">
-                    {treasuryBalance?.error || 'No treasury information available'}
-                  </div>
-                )}
-              </div>
-              
-              {/* Voting Treasury Balance */}
-              <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
-                <h3 className="text-sm font-semibold mb-2 flex items-center">
-                  <Trophy className="h-4 w-4 mr-1 text-[#b3731d]" />
-                  Voting Treasury
-                </h3>
-                
-                {loadingVotingBalance ? (
-                  <div className="text-center py-2">
-                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
-                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
-                  </div>
-                ) : votingTreasuryBalance?.success ? (
-                  <div>
-                    <div className="text-sm">
-                      <div className="text-gray-500 text-xs">CPT Balance:</div>
-                      <div className="font-medium">{votingTreasuryBalance.tokenBalance?.toLocaleString() || '0'} CPT</div>
-                    </div>
-                    <div className="text-sm mt-1">
-                      <div className="text-gray-500 text-xs">SOL Balance:</div>
-                      <div className="font-medium">{votingTreasuryBalance.solBalance?.toFixed(6) || '0'} SOL</div>
-                    </div>
-                    <div className="mt-1">
-                      <div className="text-xs text-gray-500 truncate">
-                        Treasury: {votingTreasuryBalance.votingTreasuryAddress?.substring(0, 6)}...{votingTreasuryBalance.votingTreasuryAddress?.substring(votingTreasuryBalance.votingTreasuryAddress.length - 6)}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 p-2">
-                    {votingTreasuryBalance?.error || 'No voting treasury information available'}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {challenge.onchain_id && (
-            <div className="mt-2 text-xs">
-              <div className="font-mono bg-gray-100 p-1 rounded mb-1">
-                On-chain ID: {challenge.onchain_id}
-              </div>
+          {/* Keep error/status messages for user experience */}
+          {(onChainStatus || onChainError) && (
+            <div className="mt-2">
               {onChainStatus && (
-                <div className="text-green-600">{onChainStatus}</div>
+                <div className="text-green-600 text-sm">{onChainStatus}</div>
               )}
               {onChainError && (
-                <div className="text-red-600">{onChainError}</div>
+                <div className="text-red-600 text-sm">{onChainError}</div>
               )}
             </div>
           )}
@@ -947,7 +1325,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                     ) : (
                       // Fallback for legacy directly uploaded videos
                       <video 
-                        src={`http://69.62.105.81:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
+                        src={`http://127.0.0.1:8090/api/files/${submission.collectionId || 'video_submitted'}/${submission.id}/${submission.video}`}
                         className="w-full h-full object-cover rounded-xl"
                         controls
                       />
@@ -989,7 +1367,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                   <Avatar className="h-6 w-6">
                   {submission.expand?.participant?.avatar ? (
                     <Image
-                    src={`http://69.62.105.81:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
+                    src={`http://127.0.0.1:8090/api/files/users/${submission.expand.participant.id}/${submission.expand.participant.avatar}`}
                     alt={submission.expand.participant.username || 'User avatar'}
                     width={24}
                     height={24}
@@ -1096,33 +1474,18 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           </span>
         </Button>
 
-        {/* Finalize Challenge Button - Visible to all users */}
-        <Button 
-          className="w-full mb-4 bg-green-600 hover:bg-green-700"
-          onClick={handleFinalizeChallenge}
-          disabled={isFinalizing || !challenge.onchain_id}
-          title={
-            !auth.user
-              ? "Sign in to finalize challenge"
-              : !isCreator
-                ? "Only the creator can finalize this challenge"
-                : !challenge.onchain_id
-                  ? "Challenge is not on-chain"
-                  : "End challenge and distribute rewards to the winner"
-          }
-        >
-          <Trophy className="h-4 w-4 mr-2" />
-          <span className="text-sm">
-            {isFinalizing
-              ? "Finalizing..."
-              : !auth.user
-                ? "Sign in to finalize"
-                : !isCreator
-                  ? "Finalize Challenge"
-                  : "Finalize Challenge"
-            }
-          </span>
-        </Button>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">
+              {timeRemaining && (
+                <span className={`${canFinalize ? 'text-red-500' : 'text-green-500'}`}>
+                  {timeRemaining}
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
 
         {finalizeError && (
           <div className="mt-2 mb-4 text-red-500 text-sm p-2 bg-red-50 rounded-md border border-red-200">
@@ -1135,6 +1498,42 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           </div>
         )}
 
+        {/* Creator finalize button - show AFTER voting period ends */}
+{isCreator && (
+  <Button 
+    className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
+    onClick={handleFinalizeChallenge}
+    disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
+    title={
+      !challenge.onchain_id 
+        ? "Challenge doesn't have on-chain data" 
+        : !hasVotingPeriodEnded 
+          ? "Waiting for voting to end" 
+          : "Finalize Challenge"
+    }
+  >
+    <Trophy className="h-4 w-4 mr-2" />
+    <span className="text-sm">
+      {isFinalizing 
+        ? "Finalizing..." 
+        : !hasVotingPeriodEnded 
+          ? "Waiting for voting to end" 
+          : "Finalize Challenge"
+      }
+    </span>
+  </Button>
+)}
+
+{hasVotingPeriodEnded && challenge.state !== "completed" && (
+  <div className="w-full p-2 bg-gray-100 rounded-md text-center">
+    <span className="flex items-center justify-center gap-2">
+      <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+      <span className="text-sm text-gray-600">
+        Challenge will be auto-finalized soon
+      </span>
+    </span>
+  </div>
+)}
 
         
         <Button 
@@ -1175,7 +1574,23 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           </span>
         </Button>
 
-        
+        {status === "finalizing" && (
+  <div className="p-2 bg-amber-50 border border-amber-100 rounded-md">
+    <div className="flex items-center gap-2">
+      <span className="h-2 w-2 bg-amber-400 rounded-full animate-pulse"></span>
+      <span className="text-sm text-amber-700">Auto-finalizing in progress</span>
+    </div>
+  </div>
+)}
+
+{status === "completed" && (
+  <div className="p-2 bg-green-50 border border-green-100 rounded-md">
+    <div className="flex items-center gap-2">
+      <CheckCircle className="h-4 w-4 text-green-500" />
+      <span className="text-sm text-green-700">Challenge finalized</span>
+    </div>
+  </div>
+)}
 
         <div className="border border-[#9A9A9A] rounded-xl flex flex-col h-[calc(100vh-200px)]">
           <div className="p-3 border-b border-[#9A9A9A]">
@@ -1197,7 +1612,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
                       <Avatar className="h-6 w-6">
                         {message.expand?.sender?.avatar ? (
                           <Image
-                            src={`http://69.62.105.81:8090/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
+                            src={`http://127.0.0.1:8090/api/files/users/${message.expand.sender.id}/${message.expand.sender.avatar}`}
                             alt={message.expand.sender.username || 'User avatar'}
                             width={24}
                             height={24}

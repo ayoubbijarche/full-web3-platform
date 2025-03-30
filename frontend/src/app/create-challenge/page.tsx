@@ -293,8 +293,8 @@ export default function CreateChallengePage() {
   }
 
   return (
-    <div className="p-8 max-w-[1200px] mx-auto">
-      <div className="bg-white rounded-3xl p-8 shadow-sm">
+    <div className="p-4 sm:p-8 max-w-[1200px] mx-auto">
+      <div className="bg-white rounded-3xl p-4 sm:p-8 shadow-sm">
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertTitle>Error</AlertTitle>
@@ -302,10 +302,10 @@ export default function CreateChallengePage() {
           </Alert>
         )}
         <div className="text-[#B3731D] mb-1">Great!</div>
-        <h1 className="text-3xl font-semibold mb-8">Lets Challenge People</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold mb-4 sm:mb-8">Lets Challenge People</h1>
 
-        <div className="grid grid-cols-[300px,1fr] gap-8">
-          <div className="bg-gray-100 rounded-3xl flex items-center justify-center h-[300px] relative overflow-hidden group border border-[#8a8a8a]">
+        <div className="grid grid-cols-1 md:grid-cols-[300px,1fr] gap-6 md:gap-8">
+          <div className="bg-gray-100 rounded-3xl flex items-center justify-center h-[250px] sm:h-[300px] relative overflow-hidden group border border-[#8a8a8a] mx-auto w-full max-w-[300px]">
             {previewUrl ? (
               <>
                 <Image
@@ -343,10 +343,10 @@ export default function CreateChallengePage() {
             )}
           </div>
 
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold mb-4">Basic Details</h2>
+          <div className="space-y-4 sm:space-y-6">
+            <h2 className="text-xl font-semibold mb-2 sm:mb-4">Basic Details</h2>
             
-            <div className="grid grid-cols-[1fr,300px] gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr,300px] gap-4">
               <div>
                 <Label>Challenge Name</Label>
                 <Input 
@@ -376,10 +376,10 @@ export default function CreateChallengePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-16">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-16">
               <div>
                 <Label>Registration Period (days)</Label>
-                <div className="relative w-[260px]">
+                <div className="relative w-full">
                   <Input 
                     type="number"
                     min="1"
@@ -397,7 +397,7 @@ export default function CreateChallengePage() {
               </div>
               <div>
                 <Label>Submission Period (days)</Label>
-                <div className="relative w-[260px]">
+                <div className="relative w-full">
                   <Input 
                     type="number"
                     min="1"
@@ -413,9 +413,9 @@ export default function CreateChallengePage() {
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 </div>
               </div>
-              <div>
+              <div className="sm:col-span-2 lg:col-span-1">
                 <Label>Voting Period (days)</Label>
-                <div className="relative w-[260px]">
+                <div className="relative w-full">
                   <Input 
                     type="number"
                     min="1"
@@ -433,7 +433,7 @@ export default function CreateChallengePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Participants</Label>
                 <div className="flex gap-2">
@@ -500,7 +500,7 @@ export default function CreateChallengePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label>Voting Fee</Label>
                 <Input 
@@ -533,7 +533,7 @@ export default function CreateChallengePage() {
                   required
                 />
               </div>
-              <div>
+              <div className="sm:col-span-2 lg:col-span-1">
                 <Label>Reward</Label>
                 <Input 
                   type="number"
@@ -562,14 +562,14 @@ export default function CreateChallengePage() {
               />
             </div>
 
-            <h2 className="text-xl font-semibold pt-4">Other Details</h2>
+            <h2 className="text-xl font-semibold pt-2 sm:pt-4">Other Details</h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Challenge Video URL</Label>
                 <Input 
                   type="url"
-                  placeholder="Paste video URL from YouTube, Twitter, Instagram, etc."
+                  placeholder="Paste video URL"
                   value={formData.challengevideo}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -578,7 +578,7 @@ export default function CreateChallengePage() {
                   className="border-[#8a8a8a] rounded-[50px]"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Supported platforms: YouTube, Twitter, Instagram, TikTok, etc.
+                  Supported: YouTube, Twitter, Instagram, TikTok
                 </p>
               </div>
               <div>
@@ -605,8 +605,8 @@ export default function CreateChallengePage() {
                       value={keywordInput}
                       onChange={(e) => setKeywordInput(e.target.value)}
                       onKeyDown={handleKeywordKeyDown}
-                      placeholder={keywords.length >= 5 ? "Maximum 5 keywords" : "Type and press Enter"}
-                      className="flex-1 outline-none border-none bg-transparent placeholder:text-gray-400 min-w-[120px]"
+                      placeholder={keywords.length >= 5 ? "Max 5" : "Type & press Enter"}
+                      className="flex-1 outline-none border-none bg-transparent placeholder:text-gray-400 min-w-[80px] text-sm"
                       disabled={keywords.length >= 5}
                     />
                   </div>
@@ -615,14 +615,14 @@ export default function CreateChallengePage() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Press Enter or comma to add a keyword. Maximum 5 keywords allowed.
+                  Press Enter or comma to add. Max 5 keywords.
                 </p>
               </div>
             </div>
 
-            <h2 className="text-xl font-semibold pt-4">Advanced Option (Optional)</h2>
+            <h2 className="text-xl font-semibold pt-2 sm:pt-4">Advanced Option (Optional)</h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Voters</Label>
                 <Input 
@@ -643,16 +643,16 @@ export default function CreateChallengePage() {
               </div>
             </div>
 
-            <div className="flex justify-between pt-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-4 pt-4">
               <Button 
                 variant="outline" 
-                className="px-8 rounded-[50px]"
+                className="px-8 rounded-[50px] w-full sm:w-auto order-2 sm:order-1"
                 onClick={() => router.back()}
               >
                 Cancel
               </Button>
               <Button 
-                className="px-8 bg-[#B3731D] hover:bg-[#B3731D]/90 rounded-[50px]"
+                className="px-8 bg-[#B3731D] hover:bg-[#B3731D]/90 rounded-[50px] w-full sm:w-auto order-1 sm:order-2"
                 onClick={handleSubmit}
                 disabled={isLoading}
               >

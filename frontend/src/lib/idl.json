@@ -1,5 +1,5 @@
 {
-  "address": "gkWKee4XRKyNFzWmQMjfG945iTJmJLF4f5je2qyPAmM",
+  "address": "6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1",
   "metadata": {
     "name": "coinpetitive",
     "version": "0.1.0",
@@ -734,8 +734,123 @@
   "errors": [
     {
       "code": 6000,
-      "name": "YouNoTokenOwner",
-      "msg": "Not the owner"
+      "name": "ChallengeNotActive",
+      "msg": "Challenge not active"
+    },
+    {
+      "code": 6001,
+      "name": "ChallengeStillActive",
+      "msg": "Challenge is still active"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidCreator",
+      "msg": "Invalid creator"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidSubmissionId",
+      "msg": "Invalid submission ID"
+    },
+    {
+      "code": 6004,
+      "name": "VotingPeriodActive",
+      "msg": "Voting period has not ended"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidVoteCount",
+      "msg": "Invalid vote count"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidWinner",
+      "msg": "Invalid winner"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidTokenMint",
+      "msg": "Invalid token mint"
+    },
+    {
+      "code": 6008,
+      "name": "MaxParticipantsReached",
+      "msg": "Maximum participants reached"
+    },
+    {
+      "code": 6009,
+      "name": "AlreadyParticipated",
+      "msg": "Already participated"
+    },
+    {
+      "code": 6010,
+      "name": "AlreadyVoted",
+      "msg": "Already voted"
+    },
+    {
+      "code": 6011,
+      "name": "SubmissionNotFound",
+      "msg": "Submission not found"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidTreasury",
+      "msg": "Invalid treasury"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidTokenProgram",
+      "msg": "Invalid token program"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidVotingTreasury",
+      "msg": "Invalid token treasury"
+    },
+    {
+      "code": 6015,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6016,
+      "name": "MaxVotersReached",
+      "msg": "Maximum number of voters reached for this challenge"
+    },
+    {
+      "code": 6017,
+      "name": "NoSubmissions",
+      "msg": "No submissions found"
+    },
+    {
+      "code": 6018,
+      "name": "NoVotes",
+      "msg": "No votes found for any submission"
+    },
+    {
+      "code": 6019,
+      "name": "VoterDidNotVoteForWinner",
+      "msg": "Voter did not vote for the winning submission"
+    },
+    {
+      "code": 6020,
+      "name": "NoRewardToDistribute",
+      "msg": "No reward to distribute"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidTokenAccount",
+      "msg": "Invalid token account"
+    },
+    {
+      "code": 6022,
+      "name": "MathOverflow",
+      "msg": "math overflow"
+    },
+    {
+      "code": 6023,
+      "name": "NoWinnerDeclared",
+      "msg": "No winner declared"
     }
   ],
   "types": [

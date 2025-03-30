@@ -119,13 +119,13 @@ export default function Home() {
       <main>
         {/* Hero Section with Featured Challenge */}
         <div className="relative overflow-hidden">
-          <div className="mx-auto max-w-7xl px-8 py-2">
-            <div className="relative z-10 flex justify-between items-center">
+          <div className="mx-auto max-w-7xl px-4 sm:px-8 py-2">
+            <div className="relative z-10 flex flex-col md:flex-row md:justify-between items-center">
               {/* Left Content */}
-              <div className="w-1/2">
+              <div className="w-full md:w-1/2 mb-8 md:mb-0">
                 <h1 className="mb-2">
-                  <span className="block text-4xl font-bold text-[#b3731d]">Hello,</span>
-                  <span className="mt-1 block text-4xl font-bold text-gray-700">
+                  <span className="block text-3xl sm:text-4xl font-bold text-[#b3731d]">Hello,</span>
+                  <span className="mt-1 block text-3xl sm:text-4xl font-bold text-gray-700">
                     Welcome to Coinpetitive
                   </span>
                 </h1>
@@ -133,7 +133,7 @@ export default function Home() {
                   We wish you have a nice day full of challenges
                 </p>
                 <Link href="/create-challenge">
-                  <Button className="px-6 py-2 h-11 font-bold">
+                  <Button className="w-full md:w-auto px-6 py-2 h-11 font-bold">
                     Start A New Challenge
                   </Button>
                 </Link>
@@ -144,21 +144,21 @@ export default function Home() {
                   <Input
                     type="search"
                     placeholder="Search Challenge"
-                    className="w-[400px] rounded-[50px] border-[#898989] pl-10"
+                    className="w-full sm:w-[300px] md:w-[400px] rounded-[50px] border-[#898989] pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* Right Content - Concentric Circles */}
-              <div className="relative w-[600px] h-[600px]">
+              {/* Right Content - Concentric Circles - Hidden on small screens */}
+              <div className="hidden md:block relative w-[400px] lg:w-[600px] h-[400px] lg:h-[600px]">
                 {/* Outer Circle */}
                 <div className="absolute inset-0 rounded-full bg-[#f8f1e9] flex items-center justify-center">
                   {/* Middle Circle */}
-                  <div className="w-[500px] h-[500px] rounded-full bg-[#f1e4d4] flex items-center justify-center">
+                  <div className="w-[85%] h-[85%] rounded-full bg-[#f1e4d4] flex items-center justify-center">
                     {/* Inner Circle */}
-                    <div className="w-[400px] h-[400px] rounded-full bg-[#ecd9c3] flex items-center justify-center">
+                    <div className="w-[85%] h-[85%] rounded-full bg-[#ecd9c3] flex items-center justify-center">
                       {/* Featured Challenge Card */}
                       <div className="w-[290px] h-[360px] bg-white rounded-[30px] shadow-lg border-2 border-[#b3731d] p-4">
                         <div className="h-full flex flex-col">
@@ -214,16 +214,16 @@ export default function Home() {
 
         {/* Rest of the content */}
         <div className="mx-auto max-w-7xl px-8 py-8">
-          {/* Filters */}
-          <div className="mb-8 flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          {/* Filters - Responsive */}
+          <div className="mb-8 flex flex-wrap items-start gap-4">
+            <div className="flex items-center gap-2 w-full sm:w-auto mb-2 sm:mb-0">
               <span className="text-sm font-medium">Category</span>
               <Select 
                 defaultValue="all" 
                 value={selectedCategory}
                 onValueChange={setSelectedCategory}
               >
-                <SelectTrigger className="w-[180px] rounded-[50px] border-[#8a8a8a]">
+                <SelectTrigger className="w-full sm:w-[180px] rounded-[50px] border-[#8a8a8a]">
                   <SelectValue placeholder="All Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -237,14 +237,14 @@ export default function Home() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto mb-2 sm:mb-0">
               <span className="text-sm font-medium">State</span>
               <Select 
                 defaultValue="all"
                 value={selectedState}
                 onValueChange={setSelectedState}
               >
-                <SelectTrigger className="w-[180px] rounded-[50px] border-[#8a8a8a]">
+                <SelectTrigger className="w-full sm:w-[180px] rounded-[50px] border-[#8a8a8a]">
                   <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
@@ -257,14 +257,14 @@ export default function Home() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto mb-2 sm:mb-0">
               <span className="text-sm font-medium">Sort By</span>
               <Select 
                 defaultValue="date"
                 value={sortBy}
                 onValueChange={setSortBy}
               >
-                <SelectTrigger className="w-[180px] rounded-[50px] border-[#8a8a8a]">
+                <SelectTrigger className="w-full sm:w-[180px] rounded-[50px] border-[#8a8a8a]">
                   <SelectValue placeholder="Created Date" />
                 </SelectTrigger>
                 <SelectContent>
@@ -274,19 +274,19 @@ export default function Home() {
               </Select>
             </div>
 
-            <Button className="ml-auto bg-[#b3731d] text-white hover:bg-[#b3731d]">
+            <Button className="w-full sm:w-auto sm:ml-auto bg-[#b3731d] text-white hover:bg-[#b3731d]">
               Advance Search
             </Button>
           </div>
 
-          {/* Challenge Grid */}
-          <div className="grid grid-cols-3 gap-6">
+          {/* Responsive Challenge Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {isLoading ? (
-              <div className="col-span-3 text-center py-12">
+              <div className="col-span-full text-center py-12">
                 <p>Loading challenges...</p>
               </div>
             ) : filteredChallenges.length === 0 ? (
-              <div className="col-span-3 text-center py-12">
+              <div className="col-span-full text-center py-12">
                 <h3 className="text-xl font-medium text-gray-600 mb-4">
                   No challenges found
                 </h3>
@@ -301,22 +301,23 @@ export default function Home() {
               </div>
             ) : (
               filteredChallenges.slice(startIndex, endIndex).map((challenge) => (
-                <ChallengeCard
-                  key={challenge.id}
-                  challenge={{
-                    ...challenge,
-                    creator: challenge.expand?.creator?.username || 'Anonymous',
-                    image: challenge.image 
-                      ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` 
-                      : undefined
-                  }}
-                />
+                <div key={challenge.id} className="flex justify-center">
+                  <ChallengeCard
+                    challenge={{
+                      ...challenge,
+                      creator: challenge.expand?.creator?.username || 'Anonymous',
+                      image: challenge.image 
+                        ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` 
+                        : undefined
+                    }}
+                  />
+                </div>
               ))
             )}
           </div>
 
-          {/* Pagination */}
-          <div className="mt-8 flex items-center justify-center gap-2">
+          {/* Responsive Pagination */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
             <Button
               variant="outline"
               size="icon"
@@ -354,27 +355,27 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Responsive Footer */}
       <footer className="mt-auto">
         <div className="flex justify-center">
           <div className="w-[80%] h-px bg-[#898989]"></div>
         </div>
-        <div className="max-w-7xl mx-auto px-8 py-6">
-          <div className="flex items-center justify-center gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-center">
             <Link
               href="/faq"
               className="text-gray-600 hover:text-[#b3731d] transition-colors"
             >
               FAQ
             </Link>
-            <span className="text-gray-300">|</span>
+            <span className="hidden sm:block text-gray-300">|</span>
             <Link
               href="/usage"
               className="text-gray-600 hover:text-[#b3731d] transition-colors"
             >
               HOW TO USE COINPETITIVE
             </Link>
-            <span className="text-gray-300">|</span>
+            <span className="hidden sm:block text-gray-300">|</span>
             <Link
               href="/privacy"
               className="text-gray-600 hover:text-[#b3731d] transition-colors"

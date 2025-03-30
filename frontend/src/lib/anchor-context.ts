@@ -13,7 +13,7 @@ import {
 } from "@solana/spl-token";
 import PocketBase from 'pocketbase';
 
-export const PROGRAM_ID = new PublicKey("gkWKee4XRKyNFzWmQMjfG945iTJmJLF4f5je2qyPAmM");
+export const PROGRAM_ID = new PublicKey("6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1");
 export const PROGRAM_TREASURY = new PublicKey("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt");
 export const CPT_TOKEN_MINT = new PublicKey("mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9");
 export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
@@ -757,7 +757,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting challenge finalization for:", challengePublicKey);
       
       // Step 1: Fetch all video submissions for this challenge from PocketBase
-      const pb = new PocketBase('http://localhost:8090');
+      const pb = new PocketBase('http://127.0.0.1:8090');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
@@ -1019,7 +1019,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting voting treasury distribution for:", challengePublicKey);
       
       // Fetch challenge data from PocketBase
-      const pb = new PocketBase('http://69.62.105.81:8090');
+      const pb = new PocketBase('http://127.0.0.1:8090');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
