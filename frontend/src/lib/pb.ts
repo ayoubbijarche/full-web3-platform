@@ -50,6 +50,7 @@ export type ChatModel = {
 
 // Update ChallengeModel to include chat
 export type ChallengeModel = {
+  winner: any;
   id: string;
   title: string;
   category: string;

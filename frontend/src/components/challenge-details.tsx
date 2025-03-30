@@ -763,7 +763,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       if (diff <= 0) {
         setCanFinalize(true);
         setChallengeState("votingEnded");
-        return "Challenge voting period has ended"; // Improved message
+        return "Challenge has ended"; // Improved message
       }
       
       // Calculate remaining time

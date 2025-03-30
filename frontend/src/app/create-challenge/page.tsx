@@ -58,8 +58,6 @@ export default function CreateChallengePage() {
     registration_end: "",
     submission_end: "",
     voting_end: "",
-    participantsNickname: "",
-    votersNickname: "",
     minvoters: "",
     maxvoters: "",
   })
@@ -200,10 +198,10 @@ export default function CreateChallengePage() {
       // Now create the challenge in your database
       const now = new Date();
       
-      // Calculate the end dates - CHANGED FROM DAYS TO MINUTES
-      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 60 * 1000));
-      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 60 * 1000));
-      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 60 * 1000));
+      // Calculate the end dates - Change from minutes to days
+      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 24 * 60 * 60 * 1000));
+      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 24 * 60 * 60 * 1000));
+      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 24 * 60 * 60 * 1000));
 
       // Then create the challenge in your database
       const result = await createChallengeDB({
@@ -376,59 +374,62 @@ export default function CreateChallengePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-16">
-              <div>
-                <Label>Registration Period (minutes)</Label>
-                <div className="relative w-full">
-                  <Input 
-                    type="number"
-                    min="1"
-                    value={formData.registration_end}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      registration_end: e.target.value 
-                    }))}
-                    placeholder="Enter minutes"
-                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
-                    required
-                  />
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+            <div>
+              <Label className="mb-2 block">Challenge Period (days)</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <div className="relative w-full">
+                    <Input 
+                      type="number"
+                      min="1"
+                      value={formData.registration_end}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        registration_end: e.target.value 
+                      }))}
+                      placeholder="Registration"
+                      className="pl-10 pr-4 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
+                      required
+                    />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">days</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <Label>Submission Period (minutes)</Label>
-                <div className="relative w-full">
-                  <Input 
-                    type="number"
-                    min="1"
-                    value={formData.submission_end}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      submission_end: e.target.value 
-                    }))}
-                    placeholder="Enter minutes"
-                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
-                    required
-                  />
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <div>
+                  <div className="relative w-full">
+                    <Input 
+                      type="number"
+                      min="1"
+                      value={formData.submission_end}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        submission_end: e.target.value 
+                      }))}
+                      placeholder="Submission"
+                      className="pl-10 pr-4 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
+                      required
+                    />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">days</span>
+                  </div>
                 </div>
-              </div>
-              <div className="sm:col-span-2 lg:col-span-1">
-                <Label>Voting Period (minutes)</Label>
-                <div className="relative w-full">
-                  <Input 
-                    type="number"
-                    min="1"
-                    value={formData.voting_end}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      voting_end: e.target.value 
-                    }))}
-                    placeholder="Enter minutes"
-                    className="pl-10 pr-8 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
-                    required
-                  />
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <div>
+                  <div className="relative w-full">
+                    <Input 
+                      type="number"
+                      min="1"
+                      value={formData.voting_end}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        voting_end: e.target.value 
+                      }))}
+                      placeholder="Voting"
+                      className="pl-10 pr-4 border-[#8a8a8a] rounded-[50px] min-h-[44px] text-sm w-full"
+                      required
+                    />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">days</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -617,29 +618,6 @@ export default function CreateChallengePage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Press Enter or comma to add. Max 5 keywords.
                 </p>
-              </div>
-            </div>
-
-            <h2 className="text-xl font-semibold pt-2 sm:pt-4">Advanced Option (Optional)</h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Voters</Label>
-                <Input 
-                  placeholder="Nick Name"
-                  value={formData.votersNickname}
-                  onChange={(e) => setFormData(prev => ({ ...prev, votersNickname: e.target.value }))}
-                  className="border-[#8a8a8a] rounded-[50px]"
-                />
-              </div>
-              <div>
-                <Label>Participants</Label>
-                <Input 
-                  placeholder="Nick Name"
-                  value={formData.participantsNickname}
-                  onChange={(e) => setFormData(prev => ({ ...prev, participantsNickname: e.target.value }))}
-                  className="border-[#8a8a8a] rounded-[50px]"
-                />
               </div>
             </div>
 
