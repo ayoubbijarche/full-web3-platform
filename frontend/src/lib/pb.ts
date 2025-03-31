@@ -715,8 +715,8 @@ export async function reportChallenge(challengeId: string) {
       reports: reports
     });
     
-    // If reports reach 10 or more, delete the challenge
-    if (reports.length >= 10) {
+    // If reports reach 3 or more, delete the challenge
+    if (reports.length >= 3) {
       await pb.collection('challenges').delete(challengeId);
       return { success: true, deleted: true, message: 'Challenge has been removed due to multiple reports' };
     }
