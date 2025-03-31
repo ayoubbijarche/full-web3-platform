@@ -191,8 +191,9 @@ export default function CreateChallengePage() {
       console.log("Challenge created on blockchain:", onChainResult);
       console.log("Challenge ID from blockchain (for PocketBase):", onChainResult.challengePublicKey);
 
-      if (!onChainResult.challengeId) {
-        console.error("No challenge ID returned from blockchain - this is required for PocketBase");
+      if (!onChainResult.challengePublicKey) {
+        console.error("No challenge public key returned from blockchain - this is required for PocketBase");
+        throw new Error("Failed to get challenge public key from blockchain");
       }
       
       // Now create the challenge in your database

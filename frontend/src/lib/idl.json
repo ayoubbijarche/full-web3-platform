@@ -737,8 +737,38 @@
   "errors": [
     {
       "code": 6000,
-      "name": "YouNoTokenOwner",
+      "name": "YouNotTokenOwner",
       "msg": "Not the owner"
+    },
+    {
+      "code": 6001,
+      "name": "ExceedsInitialSupplyCap",
+      "msg": "Exceeds initial supply cap of 21M tokens"
+    },
+    {
+      "code": 6002,
+      "name": "ExceedsMaxSupplyCap",
+      "msg": "Exceeds maximum supply cap of 61M tokens"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMintIncrement",
+      "msg": "Minting increment must be exactly 5M tokens"
+    },
+    {
+      "code": 6004,
+      "name": "MintingTooFrequent",
+      "msg": "Minting is limited to once per year"
+    },
+    {
+      "code": 6005,
+      "name": "NoMintConditionsMet",
+      "msg": "No minting conditions have been met"
+    },
+    {
+      "code": 6006,
+      "name": "ExceedsDailySellLimit",
+      "msg": "Exceeds daily sell limit of 1% of circulating supply"
     }
   ],
   "types": [
