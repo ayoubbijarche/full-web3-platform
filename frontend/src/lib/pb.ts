@@ -453,6 +453,67 @@ export async function getChallenges(id?: string, signal?: AbortSignal) {
   }
 }
 
+// Improved function to clean up expired challenges with insufficient participants
+export async function cleanupExpiredChallenges() {
+  try {
+    // Don't make network calls on the client-side during rendering
+    if (typeof window === 'undefined') {
+      return { success: true, deleted: 0 };
+    }
+    
+    console.log('Starting challenge cleanup process...');
+    
+    // Get all challenges - simplified approach
+    const allChallenges = await pb.collection('challenges').getFullList();
+    console.log(`Retrieved ${allChallenges.length} total challenges`);
+    
+    const now = new Date();
+    let deletedCount = 0;
+    
+    // Process each challenge individually
+    for (const challenge of allChallenges) {
+      try {
+        // Check if registration has ended
+        const registrationEnds = new Date(challenge.registration_ends);
+        
+        // If registration period is over and we don't have enough participants
+        if (registrationEnds < now) {
+          const participantsCount = Array.isArray(challenge.participants) ? challenge.participants.length : 0;
+          const minRequired = challenge.minparticipats || 1;
+          
+          console.log(`Challenge ${challenge.id} (${challenge.title}): Registration ended on ${registrationEnds.toLocaleString()}, has ${participantsCount}/${minRequired} participants`);
+          
+          if (participantsCount < minRequired) {
+            console.log(`🗑️ Deleting challenge ${challenge.id} due to insufficient participants`);
+            
+            try {
+              await pb.collection('challenges').delete(challenge.id);
+              deletedCount++;
+              console.log(`✓ Challenge ${challenge.id} deleted successfully`);
+            } catch (deleteError) {
+              console.error(`Failed to delete challenge ${challenge.id}:`, deleteError);
+            }
+          }
+        }
+      } catch (challengeError) {
+        console.error(`Error processing challenge ${challenge.id}:`, challengeError);
+        // Continue with other challenges
+      }
+    }
+    
+    console.log(`Challenge cleanup complete. Deleted ${deletedCount} challenges.`);
+    
+    return { 
+      success: true, 
+      deleted: deletedCount
+    };
+  } catch (error) {
+    console.error('Error in cleanup function:', error);
+    // Return success to avoid breaking the main application flow
+    return { success: true, deleted: 0 };
+  }
+}
+
 export async function getUserChallenges(userId: string) {
   try {
     const records = await pb.collection('challenges').getFullList({
@@ -715,8 +776,8 @@ export async function reportChallenge(challengeId: string) {
       reports: reports
     });
     
-    // If reports reach 3 or more, delete the challenge
-    if (reports.length >= 3) {
+    // If reports reach 10 or more, delete the challenge
+    if (reports.length >= 10) {
       await pb.collection('challenges').delete(challengeId);
       return { success: true, deleted: true, message: 'Challenge has been removed due to multiple reports' };
     }

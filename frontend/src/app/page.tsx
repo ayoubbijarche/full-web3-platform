@@ -16,7 +16,7 @@ import ChallengeCard from "@/components/challenge-card"
 import mountImage from "@/assets/mount.webp"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { getChallenges, type ChallengeModel } from "@/lib/pb"
+import { getChallenges, type ChallengeModel, cleanupExpiredChallenges } from "@/lib/pb"
 import { Navbar } from "@/components/navbar"
 
 export default function Home() {
@@ -36,6 +36,14 @@ export default function Home() {
 
     const fetchChallenges = async () => {
       try {
+        // First clean up expired challenges, but don't break the flow if it fails
+        try {
+          await cleanupExpiredChallenges();
+        } catch (cleanupError) {
+          console.log("Challenge cleanup failed, continuing with fetch", cleanupError);
+        }
+        
+        // Continue with challenge fetching
         const result = await getChallenges(undefined, abortController.signal);
         if (isSubscribed && result.success && result.challenges) {
           setChallenges(result.challenges);

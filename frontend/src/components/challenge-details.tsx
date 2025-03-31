@@ -866,10 +866,10 @@ const status = getChallengeStatus();
               <span className="text-xs">Submit Video (${FIXED_SUBMISSION_FEE} CPT)</span>
             </Button>
             
-            {/* Finalize button - show for creator OR participant when voting period ends */}
+            {/* Finalize Challenge button */}
             {hasVotingPeriodEnded && (isCreator || isParticipant) && (
               <Button 
-                className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
+                className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-[#B3731D] hover:bg-[#B3731D]/90' : 'bg-gray-400'}`}
                 onClick={handleFinalizeChallenge}
                 disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
                 title={
@@ -892,10 +892,10 @@ const status = getChallengeStatus();
               </Button>
             )}
 
-            {/* Finalize Voting Treasury button - Apply same conditions */}
+            {/* Distribute Voting Rewards button */}
             {hasVotingPeriodEnded && (isCreator || isParticipant) && (
               <Button 
-                className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
+                className="w-full mb-4 bg-[#B3731D] hover:bg-[#B3731D]/90"
                 onClick={() => {
                   if (!finalizeVotingTreasury) {
                     console.error("finalizeVotingTreasury function not available");
@@ -1538,7 +1538,7 @@ const status = getChallengeStatus();
 
         {hasVotingPeriodEnded && (isCreator || isParticipant) && (
           <Button 
-            className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}`}
+            className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-[#B3731D] hover:bg-[#B3731D]/90' : 'bg-gray-400'}`}
             onClick={handleFinalizeChallenge}
             disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
             title={
@@ -1563,7 +1563,7 @@ const status = getChallengeStatus();
 
         {hasVotingPeriodEnded && (isCreator || isParticipant) && (
           <Button 
-            className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
+            className="w-full mb-4 bg-[#B3731D] hover:bg-[#B3731D]/90"
             onClick={() => {
               if (!finalizeVotingTreasury) {
                 console.error("finalizeVotingTreasury function not available");

@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PublicKey } from "@solana/web3.js";
 import { toast } from "@/hooks/use-toast"
 
+const MAX_USERS = 50;
 
 type ChallengeResult = {
   success: boolean;
@@ -92,6 +93,14 @@ export default function CreateChallengePage() {
 
     if (Number(formData.maxparticipants) <= 0) {
       return "Number of participants must be greater than 0"
+    }
+
+    if (Number(formData.maxparticipants) > MAX_USERS) {
+      return `Maximum participants cannot exceed ${MAX_USERS} due to blockchain storage limits`
+    }
+
+    if (Number(formData.maxvoters) > MAX_USERS) {
+      return `Maximum voters cannot exceed ${MAX_USERS} due to blockchain storage limits`
     }
 
     if (Number(formData.reward) <= 0) {
@@ -199,10 +208,10 @@ export default function CreateChallengePage() {
       // Now create the challenge in your database
       const now = new Date();
       
-      // Calculate the end dates - Change from minutes to days
-      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 24 * 60 * 60 * 1000));
-      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 24 * 60 * 60 * 1000));
-      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 24 * 60 * 60 * 1000));
+      // Calculate the end dates - Change from days to minutes
+      const registrationEndDate = new Date(now.getTime() + (parseInt(formData.registration_end) * 60 * 1000));
+      const submissionEndDate = new Date(registrationEndDate.getTime() + (parseInt(formData.submission_end) * 60 * 1000));
+      const votingEndDate = new Date(submissionEndDate.getTime() + (parseInt(formData.voting_end) * 60 * 1000));
 
       // Then create the challenge in your database
       const result = await createChallengeDB({
@@ -376,7 +385,7 @@ export default function CreateChallengePage() {
             </div>
 
             <div>
-              <Label className="mb-2 block">Challenge Period (days)</Label>
+              <Label className="mb-2 block">Challenge Period (minutes)</Label>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="relative w-full">
@@ -393,7 +402,7 @@ export default function CreateChallengePage() {
                       required
                     />
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">days</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">min</span>
                   </div>
                 </div>
                 <div>
@@ -411,7 +420,7 @@ export default function CreateChallengePage() {
                       required
                     />
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">days</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">min</span>
                   </div>
                 </div>
                 <div>
@@ -429,7 +438,7 @@ export default function CreateChallengePage() {
                       required
                     />
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">days</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">min</span>
                   </div>
                 </div>
               </div>
@@ -454,13 +463,17 @@ export default function CreateChallengePage() {
                   <Input 
                     type="number"
                     min="1"
+                    max={MAX_USERS}
                     placeholder="Max"
                     value={formData.maxparticipants}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      maxparticipants: Math.max(
-                        parseInt(formData.minparticipants) || 1,
-                        parseInt(e.target.value) || 0
+                      maxparticipants: Math.min(
+                        MAX_USERS,
+                        Math.max(
+                          parseInt(formData.minparticipants) || 1,
+                          parseInt(e.target.value) || 0
+                        )
                       ).toString() 
                     }))}
                     className="border-[#8a8a8a] rounded-[50px]"
@@ -486,13 +499,17 @@ export default function CreateChallengePage() {
                   <Input 
                     type="number"
                     min="0"
+                    max={MAX_USERS}
                     placeholder="Max"
                     value={formData.maxvoters}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      maxvoters: Math.max(
-                        parseInt(formData.minvoters) || 0,
-                        parseInt(e.target.value) || 0
+                      maxvoters: Math.min(
+                        MAX_USERS,
+                        Math.max(
+                          parseInt(formData.minvoters) || 0,
+                          parseInt(e.target.value) || 0
+                        )
                       ).toString() 
                     }))}
                     className="border-[#8a8a8a] rounded-[50px]"
