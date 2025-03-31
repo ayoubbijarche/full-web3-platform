@@ -157,7 +157,6 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       setIsLoadingSubmissions(true);
       try {
         console.log('Fetching video submissions for challenge:', challenge.id);
-        // Pass the abort signal to the getVideoSubmissions function
         const result = await getVideoSubmissions(challenge.id, controller.signal);
         
         if (!isMounted) return;
@@ -166,21 +165,19 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           console.log('Video submissions from API:', result.submissions);
           // Map the PocketBase records to VideoSubmissionModel objects
           const typedSubmissions = result.submissions.map(record => {
-            // Determine the correct collection ID
-            const collectionId = record.collectionId || 
-                                record.$collectionId || 
-                                (record.expand?.video_submited ? 'video_submited' : 'video_submitted');
+            // Ensure voters array is properly extracted and processed
+            let voters = [];
             
-            console.log(`Mapping submission ${record.id} with collection ID: ${collectionId}`);
-            console.log('Sender data:', record.sender, record.expand?.sender);
-            console.log('Participant data:', record.participant, record.expand?.participant);
-            console.log('Full record:', record);
-            
-            // Ensure sender field is properly set
-            let senderField = record.sender;
-            if (!senderField && record.participant) {
-              console.log('No sender field, using participant as fallback');
-              senderField = record.participant;
+            // Handle different possible formats of voters data from API
+            if (Array.isArray(record.voters)) {
+              voters = record.voters;
+            } else if (typeof record.voters === 'string') {
+              try {
+                // Try to parse if it's a JSON string
+                voters = JSON.parse(record.voters);
+              } catch (e) {
+                voters = [];
+              }
             }
             
             return {
@@ -189,12 +186,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
               video: record.video || '',
               challenge: record.challenge || '',
               participant: record.participant || '',
-              sender: senderField || '',
+              sender: record.sender || record.participant || '',
               likes: record.likes || [],
               dislikes: record.dislikes || [],
               created: record.created || new Date().toISOString(),
               updated: record.updated || new Date().toISOString(),
-              collectionId: collectionId,
+              collectionId: record.collectionId || record.$collectionId || 'video_submitted',
+              voters: voters,  // Ensure voters array is properly set
+              vote_count: record.vote_count || voters.length || 0,
               expand: record.expand ? {
                 participant: record.expand.participant,
                 challenge: record.expand.challenge,
@@ -205,18 +204,14 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
           setVideoSubmissions(typedSubmissions);
         }
       } catch (error) {
-        if (!isMounted) return;
-        console.error('Error fetching video submissions:', error);
+        if (isMounted) console.error('Error fetching video submissions:', error);
       } finally {
-        if (isMounted) {
-          setIsLoadingSubmissions(false);
-        }
+        if (isMounted) setIsLoadingSubmissions(false);
       }
     };
     
     fetchVideoSubmissions();
     
-    // Cleanup function to prevent memory leaks and cancel requests
     return () => {
       isMounted = false;
       controller.abort();
@@ -580,12 +575,19 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   };
 
   // First, add a helper function at the component level
-  const hasUserVotedInChallenge = (videoSubmissions: VideoSubmissionModel[], userId?: string) => {
+  const hasUserVotedInChallenge = useCallback((userId?: string) => {
     if (!userId) return false;
+    
+    // Log for debugging
+    console.log("Checking if user has voted:", userId);
+    console.log("Available submissions:", videoSubmissions.length);
+    console.log("Voter lists:", videoSubmissions.map(s => ({id: s.id, voters: s.voters})));
+    
+    // Check all submissions for this user's vote
     return videoSubmissions.some(submission => 
-      submission.voters?.includes(userId)
+      Array.isArray(submission.voters) && submission.voters.includes(userId)
     );
-  };
+  }, [videoSubmissions]);
 
     const handleFinalizeVoting = async () => {
   console.log("Finalize Voting button clicked", {
@@ -821,6 +823,15 @@ const getChallengeStatus = () => {
   }
 };
 
+// Add this helper function near your other helper functions
+const hasUserSubmittedVideo = (userId: string | undefined) => {
+  if (!userId) return false;
+  return videoSubmissions.some(submission => 
+    (typeof submission.participant === 'string' && submission.participant === userId) || 
+    (typeof submission.sender === 'string' && submission.sender === userId)
+  );
+};
+
 // In your render method
 const status = getChallengeStatus();
 
@@ -860,10 +871,27 @@ const status = getChallengeStatus();
             <Button 
               className="w-full"
               onClick={() => setIsSubmitDialogOpen(true)}
-              disabled={!isParticipant || isCreator}
+              disabled={!isParticipant || isCreator || hasUserSubmittedVideo(auth.user?.id)}
+              title={
+                !auth.user 
+                  ? "Sign up to submit videos" 
+                  : isCreator 
+                    ? "You cannot submit videos to your own challenge" 
+                    : !isParticipant 
+                      ? "Join the challenge to submit videos"
+                      : hasUserSubmittedVideo(auth.user?.id)
+                        ? "You have already submitted a video to this challenge"
+                        : "Submit your video"
+              }
             >
               <Video className="h-4 w-4 mr-1" />
-              <span className="text-xs">Submit Video (${FIXED_SUBMISSION_FEE} CPT)</span>
+              <span className="text-xs">
+                {isCreator 
+                  ? "Can't submit to own challenge"
+                  : hasUserSubmittedVideo(auth.user?.id)
+                    ? "Already submitted"
+                    : `Submit Video (${FIXED_SUBMISSION_FEE} CPT)`}
+              </span>
             </Button>
             
             {/* Finalize Challenge button */}
@@ -1173,9 +1201,7 @@ const status = getChallengeStatus();
                     {/* Vote button */}
                     {!auth.user ? (
                       <Button variant="default" size="sm" className="h-7 text-xs" disabled>Sign in</Button>
-                    ) : Array.isArray(submission.voters) && submission.voters.includes(auth.user.id) ? (
-                      <Button variant="default" size="sm" className="h-7 text-xs bg-gray-400" disabled>Voted</Button>
-                    ) : hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
+                    ) : hasUserVotedInChallenge(auth.user.id) ? (
                       <Button variant="default" size="sm" className="h-7 text-xs bg-gray-400" disabled>Already voted</Button>
                     ) : (
                       <Button 
@@ -1437,17 +1463,7 @@ const status = getChallengeStatus();
                       >
                         Sign in to vote
                       </Button>
-                    ) : Array.isArray(submission.voters) && submission.voters.includes(auth.user.id) ? (
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
-                        disabled={true}
-                        title="You've already voted for this submission"
-                      >
-                        Already voted for this one
-                      </Button>
-                    ) : hasUserVotedInChallenge(videoSubmissions, auth.user?.id) ? (
+                    ) : hasUserVotedInChallenge(auth.user.id) ? (
                       <Button 
                         variant="default" 
                         size="sm"
@@ -1492,22 +1508,26 @@ const status = getChallengeStatus();
         <Button 
           className="w-full mb-4"
           onClick={() => setIsSubmitDialogOpen(true)}
-          disabled={!isParticipant || isCreator}
+          disabled={!isParticipant || isCreator || hasUserSubmittedVideo(auth.user?.id)}
           title={
             !auth.user 
               ? "Sign up to submit videos" 
               : isCreator 
                 ? "You cannot submit videos to your own challenge" 
                 : !isParticipant 
-                  ? "Join the challenge to submit videos" 
-                  : "Submit your video"
+                  ? "Join the challenge to submit videos"
+                  : hasUserSubmittedVideo(auth.user?.id)
+                    ? "You have already submitted a video to this challenge" 
+                    : "Submit your video"
           }
         >
           <Video className="h-4 w-4 mr-2" />
           <span className="text-sm">
             {isCreator 
               ? "Can't submit to own challenge"
-              : `Submit My Video (${FIXED_SUBMISSION_FEE} CPT)`}
+              : hasUserSubmittedVideo(auth.user?.id)
+                ? "Already submitted a video"
+                : `Submit My Video (${FIXED_SUBMISSION_FEE} CPT)`}
           </span>
         </Button>
 

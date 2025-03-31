@@ -539,11 +539,11 @@ export function useAuth() {
   };
 }
 
-// Update the submitVideo function to accept onchain_id
+// Update the submitVideo function to fix the filter query
 export async function submitVideo(challengeId: string, data: { 
   description: string, 
-  videoUrl: string,  // URL for the video
-  onchain_id?: string // Add this parameter
+  videoUrl: string,
+  onchain_id?: string
 }) {
   try {
     if (!pb.authStore.model) {
@@ -560,15 +560,40 @@ export async function submitVideo(challengeId: string, data: {
       return { success: false, error: 'Only participants can submit videos' };
     }
     
+    // Check if user has already submitted a video for this challenge
+    // Fix: Use simpler filter and handle collection not found errors
+    try {
+      // Try to check without complex filtering
+      const existingSubmissions = await pb.collection('video_submitted').getFullList({
+        filter: `challenge="${challengeId}"`,
+      });
+      
+      // Check if the current user has already submitted a video
+      const alreadySubmitted = existingSubmissions.some(submission => 
+        submission.sender === userId || 
+        (Array.isArray(submission.participant) && submission.participant.includes(userId)) ||
+        submission.participant === userId
+      );
+      
+      if (alreadySubmitted) {
+        return { success: false, error: 'You have already submitted a video to this challenge' };
+      }
+    } catch (filterError) {
+      // If the collection doesn't exist or there's another error, continue anyway
+      console.log("Error checking for existing submissions:", filterError);
+    }
+    
     // Create form data for submission
     const formData = new FormData();
     formData.append('description', data.description);
-    formData.append('video', data.videoUrl);  // Store as URL string
+    formData.append('video', data.videoUrl);
     formData.append('challenge', challengeId);
-    formData.append('participant', userId);
+    formData.append('participant', userId); // This field might be an array in your schema
     formData.append('sender', userId);
     formData.append('likes', '0');
     formData.append('dislikes', '0');
+    formData.append('vote_count', '0');
+    formData.append('voters', '[]'); // Initialize with empty array
     
     // Add the onchain_id if it exists
     if (data.onchain_id) {
@@ -577,21 +602,17 @@ export async function submitVideo(challengeId: string, data: {
     
     // Create the video submission
     const submission = await pb.collection('video_submitted').create(formData);
+    console.log("Video submission created:", submission);
     
     // Update the challenge to include this video submission
     await pb.collection('challenges').update(challengeId, {
       video_submited: submission.id
     });
     
-    // Update the user's videos_submitted relation
-    await pb.collection('users').update(userId, {
-      videos_submitted: submission.id
-    });
-    
     return { success: true, submission };
   } catch (error) {
     console.error('Error submitting video:', error);
-    return { success: false, error: 'Failed to submit video' };
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to submit video' };
   }
 }
 
