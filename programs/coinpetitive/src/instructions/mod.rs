@@ -8,3 +8,7 @@ pub mod token_errors;
 pub use token_errors::*;
 pub mod token_constants;
 pub use token_constants::*;
+pub mod challenge_tracking;
+pub use challenge_tracking::*;
+pub mod fee_tracking;
+pub use fee_tracking::*;

@@ -30,7 +30,7 @@ pub enum TokenErr {
 
 //transfers to founder team wallet
 pub fn founder_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
-    let founder_wallet = Pubkey::from_str("5w3VpTacYmcCBXygAxFoCDfG4R11q9dbj4WGLVswweKE")
+    let founder_wallet = Pubkey::from_str("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt")
         .expect("Failed to parse founder wallet");
     require!(
         ctx.accounts.to.owner == founder_wallet,
@@ -53,7 +53,7 @@ pub fn founder_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
 
 //transfers to dev team wallet
 pub fn dev_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
-    let dev_wallet = Pubkey::from_str("DhCu49epRCawP9Yp2ZoatzSvfmTewi2x73xEM6Vb2kh2")
+    let dev_wallet = Pubkey::from_str("8zhGg2MhHb4aGDa62jymyUTT3mkzQAyqPJme4Cyn6iYh")
         .expect("Failed to parse dev wallet");
     
     require!(
@@ -78,7 +78,7 @@ pub fn dev_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
 
 //transfers to marketing team wallet
 pub fn do_marketing_transfer(ctx: Context<PartiesTr>, amount: u64) -> Result<()> {
-    let marketing_wallet = Pubkey::from_str("973DKZUVJQqo11pXs74KzB1jwjrMMXLueBBiRCwi9Eh")
+    let marketing_wallet = Pubkey::from_str("7vyM8kJQwUbcgWHqNiqmHzLFbeALVyZPT3Rry9WgCnTA")
             .expect("Failed to parse marketing wallet");
     
     require!(

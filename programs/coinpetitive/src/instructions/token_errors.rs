@@ -16,4 +16,24 @@ pub enum TokenError {
     NoMintConditionsMet,
     #[msg("Exceeds daily sell limit of 1% of circulating supply")]
     ExceedsDailySellLimit,
+    #[msg("Arithmetic overflow")]
+    ArithmeticOverflow,
+    #[msg("Unauthorized access")]
+    Unauthorized,
+    #[msg("Invalid batch size")]
+    InvalidBatchSize,
+    #[msg("Wallet already tracked")]
+    WalletAlreadyTracked,
+    #[msg("Too many requests")]
+    TooManyRequests,
+    #[msg("Invalid blockhash")]
+    InvalidBlockhash,
+    #[msg("Invalid token owner")]
+    NotTokenOwner,
+    #[msg("Invalid token mint")]
+    InvalidTokenMint,
+    #[msg("Insufficient token balance")]
+    InsufficientTokenBalance,
+    #[msg("Not authorized")]
+    NotAuthorized
 }

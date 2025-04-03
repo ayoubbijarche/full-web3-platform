@@ -211,23 +211,30 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+// Update the signUp function in pb.ts to use the correct field name (code not secretCode)
 export async function signUp(data: {
+  username: string;
   email: string;
   password: string;
   passwordConfirm: string;
-  username: string;
   xProfile?: string;
   telegram?: string;
   avatar?: File;
-  pubkey?: string; // Add this parameter
+  pubkey?: string;
+  secretCode: string; // Still accept secretCode from UI forms
 }) {
   try {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) {
-        formData.append(key, value);
-      }
-    });
+    formData.append('username', data.username);
+    formData.append('email', data.email);
+    formData.append('password', data.password);
+    formData.append('passwordConfirm', data.passwordConfirm);
+    formData.append('code', data.secretCode); // Store as 'code' in the database
+    
+    if (data.xProfile) formData.append('xProfile', data.xProfile);
+    if (data.telegram) formData.append('telegram', data.telegram);
+    if (data.avatar) formData.append('avatar', data.avatar);
+    if (data.pubkey) formData.append('pubkey', data.pubkey);
 
     const record = await pb.collection('users').create(formData);
     await signIn(data.email, data.password);
@@ -540,6 +547,7 @@ export function useAuth() {
 }
 
 // Update the submitVideo function to fix the filter query
+// Update the submitVideo function to fix the filter query
 export async function submitVideo(challengeId: string, data: { 
   description: string, 
   videoUrl: string,
@@ -615,6 +623,7 @@ export async function submitVideo(challengeId: string, data: {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to submit video' };
   }
 }
+
 
 // Get video submissions for a challenge
 export async function getVideoSubmissions(challengeId: string, signal?: AbortSignal) {
@@ -816,36 +825,52 @@ export const likeVideoSubmission = async (submissionId: string) => {
     if (!pb.authStore.model) throw new Error('User not authenticated');
     const userId = pb.authStore.model.id;
 
-    const submission = await pb.collection('video_submitted').getOne(submissionId, {
-      expand: 'likedBy,dislikedBy'
-    });
-
-    // Get the current relations
-    const likedByIds = submission.likedBy || [];
-    const dislikedByIds = submission.dislikedBy || [];
+    const submission = await pb.collection('video_submitted').getOne(submissionId);
+    
+    // Get the current like/dislike arrays - make sure they're arrays
+    let likedByIds = Array.isArray(submission.likedBy) ? [...submission.likedBy] : [];
+    let dislikedByIds = Array.isArray(submission.dislikedBy) ? [...submission.dislikedBy] : [];
+    
+    // Check if the user already liked or disliked this submission
     const isLiked = likedByIds.includes(userId);
     const isDisliked = dislikedByIds.includes(userId);
-
-    // Calculate new state
-    let newLikedByIds = isLiked 
-      ? likedByIds.filter((id: string) => id !== userId)
-      : [...likedByIds, userId];
     
-    let newDislikedByIds = isDisliked
-      ? dislikedByIds.filter((id: string) => id !== userId)
-      : dislikedByIds;
-
-    // Update the submission
+    // Calculate the new state based on user action
+    if (isLiked) {
+      // If already liked, remove the like (toggle off)
+      likedByIds = likedByIds.filter(id => id !== userId);
+    } else {
+      // Add a like
+      likedByIds.push(userId);
+      
+      // Remove any existing dislike from this user
+      if (isDisliked) {
+        dislikedByIds = dislikedByIds.filter(id => id !== userId);
+      }
+    }
+    
+    // Update the submission with new arrays and count
     const updated = await pb.collection('video_submitted').update(submissionId, {
-      likes: newLikedByIds.length,
-      dislikes: newDislikedByIds.length,
-      likedBy: newLikedByIds,
-      dislikedBy: newDislikedByIds
+      likedBy: likedByIds,
+      dislikedBy: dislikedByIds,
+      likes: likedByIds.length,
+      dislikes: dislikedByIds.length
     });
-
-    return { success: true, submission: updated };
+    
+    return { 
+      success: true,
+      submission: {
+        ...updated,
+        likedBy: likedByIds,    // Keep these as arrays
+        dislikedBy: dislikedByIds,
+      }
+    };
   } catch (error) {
-    return handleError(error);
+    console.error('Error liking video:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to like video' 
+    };
   }
 };
 
@@ -855,36 +880,52 @@ export const dislikeVideoSubmission = async (submissionId: string) => {
     if (!pb.authStore.model) throw new Error('User not authenticated');
     const userId = pb.authStore.model.id;
 
-    const submission = await pb.collection('video_submitted').getOne(submissionId, {
-      expand: 'likedBy,dislikedBy'
-    });
-
-    // Get the current relations
-    const likedByIds = submission.likedBy || [];
-    const dislikedByIds = submission.dislikedBy || [];
+    const submission = await pb.collection('video_submitted').getOne(submissionId);
+    
+    // Get the current like/dislike arrays - make sure they're arrays
+    let likedByIds = Array.isArray(submission.likedBy) ? [...submission.likedBy] : [];
+    let dislikedByIds = Array.isArray(submission.dislikedBy) ? [...submission.dislikedBy] : [];
+    
+    // Check if the user already liked or disliked this submission
     const isLiked = likedByIds.includes(userId);
     const isDisliked = dislikedByIds.includes(userId);
-
-    // Calculate new state
-    let newDislikedByIds = isDisliked
-      ? dislikedByIds.filter((id: string) => id !== userId)
-      : [...dislikedByIds, userId];
-
-    let newLikedByIds = isLiked
-      ? likedByIds.filter((id: string) => id !== userId)
-      : likedByIds;
-
-    // Update the submission
+    
+    // Calculate the new state based on user action
+    if (isDisliked) {
+      // If already disliked, remove the dislike (toggle off)
+      dislikedByIds = dislikedByIds.filter(id => id !== userId);
+    } else {
+      // Add a dislike
+      dislikedByIds.push(userId);
+      
+      // Remove any existing like from this user
+      if (isLiked) {
+        likedByIds = likedByIds.filter(id => id !== userId);
+      }
+    }
+    
+    // Update the submission with new arrays and count
     const updated = await pb.collection('video_submitted').update(submissionId, {
-      likes: newLikedByIds.length,
-      dislikes: newDislikedByIds.length,
-      likedBy: newLikedByIds,
-      dislikedBy: newDislikedByIds
+      likedBy: likedByIds,
+      dislikedBy: dislikedByIds,
+      likes: likedByIds.length,
+      dislikes: dislikedByIds.length
     });
-
-    return { success: true, submission: updated };
+    
+    return { 
+      success: true,
+      submission: {
+        ...updated,
+        likedBy: likedByIds,    // Keep these as arrays
+        dislikedBy: dislikedByIds,
+      }
+    };
   } catch (error) {
-    return handleError(error);
+    console.error('Error disliking video:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to dislike video' 
+    };
   }
 };
 
@@ -972,3 +1013,124 @@ export const deleteUserAccount = async (userId: string, password: string) => {
     };
   }
 };
+
+
+
+// Create a simple function to change password directly if user knows their old password
+export async function changePassword(oldPassword: string, newPassword: string) {
+  try {
+    if (!pb.authStore.model) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    const userId = pb.authStore.model.id;
+    
+    // Verify old password first
+    await pb.collection('users').authWithPassword(
+      pb.authStore.model.email,
+      oldPassword
+    );
+    
+    // Update with new password
+    await pb.collection('users').update(userId, {
+      password: newPassword,
+      passwordConfirm: newPassword
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error changing password:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to change password' 
+    };
+  }
+}
+
+// Add this new simpler function for password reset
+export async function resetForgottenPassword(email: string, code: string, newPassword: string) {
+  try {
+    console.log('Resetting password for email:', email);
+    
+    // Get all users for debugging
+    const allUsers = await pb.collection('users').getFullList();
+    console.log('Available users:', allUsers.map(u => ({id: u.id, email: u.email})));
+    
+    // Find the user by email
+    const users = allUsers.filter(u => 
+      u.email && u.email.toLowerCase() === email.toLowerCase()
+    );
+    
+    if (users.length === 0) {
+      console.log('No user found with email:', email);
+      return { success: false, error: "No account found with this email" };
+    }
+    
+    const user = users[0];
+    console.log('Found user:', user.id);
+    
+    // Check if the recovery code matches
+    const userCode = String(user.code || '').trim();
+    const inputCode = String(code || '').trim();
+    
+    console.log('Comparing codes:', {userCode, inputCode});
+    
+    if (userCode !== inputCode) {
+      console.log('Code mismatch');
+      return { success: false, error: "Incorrect recovery code" };
+    }
+    
+    console.log('Code verified, resetting password');
+    
+    // Reset the password
+    await pb.collection('users').update(user.id, {
+      password: newPassword,
+      passwordConfirm: newPassword,
+    });
+    
+    console.log('Password reset successful');
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to reset password' 
+    };
+  }
+}
+
+export async function requestPasswordReset(email: string) {
+  try {
+    // This sends an email with a reset token
+    await pb.collection('users').requestPasswordReset(email);
+    return { 
+      success: true, 
+      message: "Check your email for password reset instructions" 
+    };
+  } catch (error) {
+    console.error('Password reset request failed:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to request password reset'
+    };
+  }
+}
+
+
+export async function confirmPasswordReset(token: string, newPassword: string) {
+  try {
+    await pb.collection('users').confirmPasswordReset(
+      token,
+      newPassword,
+      newPassword 
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Password reset confirmation failed:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to reset password'
+    };
+  }
+}
+

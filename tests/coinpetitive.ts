@@ -14,8 +14,6 @@ import { web3 } from "@project-serum/anchor";
 import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 import { Connection } from '@solana/web3.js';
 
-// Configure the local cluster connection
-const connection = new Connection('http://localhost:8899', 'confirmed');
 
 describe("coinpetitive", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -53,211 +51,24 @@ describe("coinpetitive", () => {
     token_metadata_program_id
   );
   
-  const mint_addr = new anchor.web3.PublicKey("Dazs8dzwT7iR55L576WRaijEBF6RMJUHskErrFx4fwJ9");
+  const mint_addr = new anchor.web3.PublicKey("wc3eLDaYLrPwD6Xacvb4xfXD1Cu6Mcw7ZbWopNynNYT");
   const recipientPublicKey = new anchor.web3.PublicKey("8E1TjSr2jTPXDMiHFBDytLQS2orkmzTmgM29itFvs66g");
   const recipientTokenAccount = getAssociatedTokenAddressSync(mint_addr, recipientPublicKey);
-  const senderPublicKey = new anchor.web3.PublicKey("3EqDtdVGZistkvBr4gchmjVeqdCHYdUuVLQSMtPM2bTD");
+  const senderPublicKey = new anchor.web3.PublicKey("6wBiHEqFQPQ1muidbziVANUHVvLFuAt4snmnJmigg16Z");
   const senderTokenAccount = getAssociatedTokenAddressSync(mint_addr, senderPublicKey);
   
-  /*
-  it("tests token minting with 5M challenges condition", async () => {
-    // Get the token state account address
-    const [tokenStateAddress] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("token_state")],
-      program.programId
-    );
-    
-    try {
-      // Call one of the existing milestone functions to test 5M challenges
-      console.log("Testing minting with 5M challenges completed...");
-      await milestone_1(mint, payer, program, metadata, 5000000);
-      
-      // Verify the token state after minting
-      try {
-        const tokenStateAccount = await program.account.tokenState.fetch(tokenStateAddress);
-        console.log("Current token supply:", tokenStateAccount.currentSupply.toNumber());
-        console.log("Challenges completed:", tokenStateAccount.challengesCompleted.toNumber());
-        console.log("Mint conditions used:", tokenStateAccount.mintConditionsUsed.map(c => !!c));
-        assert.equal(
-          tokenStateAccount.mintConditionsUsed[0], 
-          true, 
-          "First mint condition should be used"
-        );
-      } catch (error) {
-        console.log("Could not fetch token state account:", error.message);
-      }
-    } catch (error) {
-      console.log("Minting test result:", error.message);
-    }
-  });
-  
-  it("tests token minting with 10M challenges condition", async () => {
-    try {
-      // Call the second milestone function to test 10M challenges
-      console.log("Testing minting with 10M challenges completed...");
-      await milestone_2(mint, payer, program, metadata, 5000000);
-      console.log("Second milestone minting test completed");
-    } catch (error) {
-      console.log("Second milestone minting test result:", error.message);
-    }
-  });
-  
-  it("tests token minting with entry fees conditions", async () => {
-    try {
-      // Test minting based on entry fees conditions
-      console.log("Testing minting with 50M entry fees...");
-      await milestone_3(mint, payer, program, metadata, 5000000);
-      
-      console.log("Testing minting with 100M entry fees...");
-      await milestone_4(mint, payer, program, metadata, 5000000);
-    } catch (error) {
-      console.log("Entry fee minting test result:", error.message);
-    }
-  });
-  
-  it("tests token minting with unique wallets conditions", async () => {
-    try {
-      // Test minting based on unique wallets conditions
-      console.log("Testing minting with 250K unique wallets...");
-      await milestone_5(mint, payer, program, metadata, 5000000);
-      
-      console.log("Testing minting with 500K unique wallets...");
-      await milestone_6(mint, payer, program, metadata, 5000000);
-      
-      console.log("Testing minting with 1M unique wallets...");
-      await milestone_7(mint, payer, program, metadata, 5000000);
-    } catch (error) {
-      console.log("Unique wallets minting test result:", error.message);
-    }
-  });
-  
-  it("tests token minting with self-sustaining condition", async () => {
-    try {
-      // Test minting based on self-sustaining revenue status
-      console.log("Testing minting with self-sustaining revenue status...");
-      await milestone_8(mint, payer, program, metadata, 5000000);
-    } catch (error) {
-      console.log("Self-sustaining minting test result:", error.message);
-    }
-  });
-  
-  it("tests transfer with unique wallet tracking", async () => {
-    // Create new wallet for testing
-    const newWallet = anchor.web3.Keypair.generate();
-    const newWalletTokenAccount = getAssociatedTokenAddressSync(mint_addr, newWallet.publicKey);
-    
-    // Get token state address
-    const [tokenStateAddress] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("token_state")],
-      program.programId
-    );
-    
-    try {
-      // Get initial unique wallet count
-      let initialUniqueWallets = 0;
-      try {
-        const tokenStateAccount = await program.account.tokenState.fetch(tokenStateAddress);
-        initialUniqueWallets = tokenStateAccount.uniqueWallets.toNumber();
-        console.log("Initial unique wallets:", initialUniqueWallets);
-      } catch (error) {
-        console.log("Could not fetch initial unique wallets count:", error.message);
-      }
-      
-      // Create associated token account for new wallet
-      try {
-        const createAtaIx = createAssociatedTokenAccountInstruction(
-          payer,
-          newWalletTokenAccount,
-          newWallet.publicKey,
-          mint_addr
-        );
-        
-        const tx = new anchor.web3.Transaction().add(createAtaIx);
-        await program.provider.sendAndConfirm(tx);
-        console.log("Created token account for new wallet");
-      } catch (error) {
-        console.log("Creating token account result:", error.message);
-      }
-      
-      // Transfer tokens using standard SPL token transfer
-      try {
-        console.log("Transferring tokens to new wallet...");
-        
-        // Use the imported createTransferInstruction function
-        const transferIx = createTransferInstruction(
-          senderTokenAccount,       // Source account
-          newWalletTokenAccount,    // Destination account
-          senderPublicKey,          // Owner of source account
-          1000                      // Amount of tokens
-        );
-        
-        const tx = new anchor.web3.Transaction().add(transferIx);
-        await program.provider.sendAndConfirm(tx, []);
-        console.log("Tokens transferred successfully");
-        
-        // Check if unique wallets increased
-        const tokenStateAccount = await program.account.tokenState.fetch(tokenStateAddress);
-        const finalUniqueWallets = tokenStateAccount.uniqueWallets.toNumber();
-        console.log("Final unique wallets:", finalUniqueWallets);
-        
-        if (finalUniqueWallets > initialUniqueWallets) {
-          console.log("✅ Unique wallet tracking working correctly");
-        } else {
-          console.log("⚠️ Unique wallet count did not increase as expected");
-        }
-      } catch (error) {
-        console.log("Transfer test result:", error.message);
-      }
-    } catch (error) {
-      console.log("Unique wallet tracking test error:", error.message);
-    }
-  });
-  */
-  
+
+    init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata);
+
+
+    //mint_cpv(mint, payer, program, metadata, 21_000_000);
+
+    //transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 500000);
+
+    //check_wallet_milestones(mint_addr, program, payer, metadata);
+
+
 })
-
-
-
-
-function pay_challenge(program){
-  it("pays for challenge creation", async () => {
-    const payer = program.provider.publicKey;
-    const recipientWallet = new anchor.web3.PublicKey("wa7YMAsw23DkXEhV2F5Lqs6w7aHhNdeWB1cUFVMXeRr"); // Your specific wallet address
-    
-    const context = {
-      user: payer,
-      recipientWallet: recipientWallet,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    };
-    
-    // Optional: Increase compute budget if needed
-    const modifyComputeUnits = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
-      units: 400000 // Request more compute units
-    });
-    
-    try {
-      const txHash = await program.methods
-        .payChallenge()
-        .accounts(context)
-        .preInstructions([modifyComputeUnits]) // Optional: Include this line if needed
-        .rpc();
-      
-      await program.provider.connection.confirmTransaction(txHash);
-      console.log(`Transaction: https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
-    } catch (error) {
-      console.error("Full error details:", error);
-      throw error;
-    }
-  });
-}
-
-
-
-
-
-
-
-
 
 
 
@@ -292,10 +103,13 @@ function init_token(program , mint , metadataAddress , payer , token_metadata_pr
     });
 }
 
-
-
-function mint_cpv(mint , payer , program , metadata , supply){
+function mint_cpv(mint, payer, program, metadata, supply){
   it("mint tokens", async () => {
+        console.log("============================");
+        console.log("Minting to token address:", mint.toString());
+        console.log("Supply amount:", supply);
+        console.log("============================");
+        
         const destination = await anchor.utils.token.associatedAddress({
           mint: mint,
           owner: payer,
@@ -323,6 +137,8 @@ function mint_cpv(mint , payer , program , metadata , supply){
         const amountToMint = supply;
         const amount = new anchor.BN(amountToMint * Math.pow(10, metadata.decimals));
         
+        console.log(`  About to mint ${amountToMint} tokens to ${payer.toString()}`);
+        
         const txHash = await program.methods
           .mintToken(amount)
           .accounts(context)
@@ -340,16 +156,15 @@ function mint_cpv(mint , payer , program , metadata , supply){
         assert.equal(
           postBalance, 
           initialBalance + amountToMint, 
-          "Balance should be increased by exactly 2 tokens"
+          "Balance should be increased by exactly the minted amount"
         );
       });
 }
 
-
 function transfer_to_founder(mint_addr , program , payer , metadata , senderTokenAccount , tk){
   it("transfers tokens to the founder's ATA", async () => {
     
-    const founderWallet = new anchor.web3.PublicKey("5w3VpTacYmcCBXygAxFoCDfG4R11q9dbj4WGLVswweKE");
+    const founderWallet = new anchor.web3.PublicKey("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt");
     const recipientAta = getAssociatedTokenAddressSync(mint_addr, founderWallet);
     
       try {
@@ -397,8 +212,6 @@ function transfer_to_founder(mint_addr , program , payer , metadata , senderToke
       console.log(`Transfer successful: https://explorer.solana.com/tx/${txSignature}?cluster=devnet`);
     });
 }
-
-
 
 function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAccount , tk){
   it("transfers tokens to the dev's ATA", async () => {
@@ -450,10 +263,7 @@ function transfer_to_dev(mint_addr , program , payer , metadata , senderTokenAcc
           .rpc();
         console.log(`Transfer successful: https://explorer.solana.com/tx/${txSignature}?cluster=devnet`);
       });
-    
 }
-
-
 
 function transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenAccount, tk) {
   it("transfers tokens to the marketing ATA", async () => {
@@ -511,328 +321,496 @@ function transfer_to_marketing(mint_addr, program, payer, metadata, senderTokenA
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-// 5 M challenges complete
-function milestone_1(mint , payer , program , metadata , supply){
-  let challenges = 0;
-  for (challenges; challenges <= 5; ++challenges){
-    console.log("challenge : ", challenges);
-    if(challenges == 5){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-//10 M challenges complete
-function milestone_2(mint , payer , program , metadata , supply){
-  let challenges = 0;
-  for (challenges; challenges <= 10; ++challenges){
-    console.log("challenge : ", challenges);
-    if(challenges == 5){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-
-//50M token entry fee
-function milestone_3(mint , payer , program , metadata , supply){
-  let fee = 0;
-  for (fee; fee <= 5; ++fee){
-    console.log("entry fee number : ", fee);
-    if(fee == 5){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-//100M entry fee payed
-function milestone_4(mint , payer , program , metadata , supply){
-  let fee = 0;
-  for (fee; fee <= 100; ++fee){
-    console.log("entry fee : ", fee);
-    if(fee == 100){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-
-//250K unique wallets holding tokens
-function milestone_5(mint , payer , program , metadata , supply){
-  let wallets = 0;
-  for (wallets; wallets <= 25; ++wallets){
-    console.log("wallet : ", wallets);
-    if(wallets == 5){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-
-//500K unique wallets holding tokens
-function milestone_6(mint , payer , program , metadata , supply){
-  let wallets = 0;
-  for (wallets; wallets <= 5; ++wallets){
-    console.log("wallet : ", wallets);
-    if(wallets == 5){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-//1M unique wallets holding
-function milestone_7(mint , payer , program , metadata , supply){
-  let wallets = 0;
-  for (wallets; wallets <= 10; ++wallets){
-    console.log("wallet : ", wallets);
-    if(wallets == 5){
-      console.log("minting 5M tokens...")
-      mint_cpv(mint, payer, program, metadata, supply)
-    }
-  }
-}
-
-//platform self sustaining revenue
-function milestone_8(mint , payer , program , metadata , supply){
-  let operational_costs = 100;
-  let revenue = 200;
-  if(operational_costs < revenue){
-    console.log("platform reached self-sustaining revenue!")
-    mint_cpv(mint, payer, program, metadata, supply)
-  }
-  
-}
-
-
-describe("Challenge Flow", () => {
-
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-  const program = anchor.workspace.Coinpetitive as Program<Coinpetitive>;
-
-  before(async () => {
-
-    await connection.getVersion();
-    console.log("Local validator is ready");
-  });
-
-  async function airdropSol(connection: Connection, address: PublicKey, amount: number) {
-    const signature = await connection.requestAirdrop(
-      address,
-      amount * web3.LAMPORTS_PER_SOL
+// done
+function check_wallet_milestones(mint_addr, program, payer, metadata) {
+  it("continuously checks wallet milestones every 5 seconds", async function() {
+    // Set a longer timeout for this test (default is 2000ms)
+    this.timeout(3600000); // 1 hour
+    
+    console.log("============================");
+    console.log("Starting continuous wallet milestone monitoring...");
+    console.log("Press Ctrl+C to stop the test");
+    console.log("============================");
+    
+    // Define wallet milestones (in production these would be 250k, 500k, 1M)
+    // For testing, we use much smaller numbers
+    const WALLET_MILESTONES = [
+      { threshold: 250000, index: 4, name: "Test 250k wallets" },
+      { threshold: 500000, index: 5, name: "Test 500k wallets" },
+      { threshold: 1000000, index: 6, name: "Test 1M wallets" }
+    ];
+    
+    // Get token state address
+    const [tokenStateAddress] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("token_state")],
+      program.programId
     );
-    await connection.confirmTransaction(signature);
-  }
-
-
-  const PROGRAM_ACCOUNT = new web3.PublicKey("wa7YMAsw23DkXEhV2F5Lqs6w7aHhNdeWB1cUFVMXeRr");
-
-  it("complete challenge flow with submissions and voting", async () => {
-    // Generate keypairs for all participants
-    const creator = web3.Keypair.generate();
-    const participant1 = web3.Keypair.generate();
-    const participant2 = web3.Keypair.generate();
-    const voter1 = web3.Keypair.generate();
-    const voter2 = web3.Keypair.generate();
-    const challengeKeypair = web3.Keypair.generate();
-
-    // Log generated accounts
-    console.log("\n=== Generated Accounts ===");
-    console.log("Creator:", creator.publicKey.toString());
-    console.log("Participant 1:", participant1.publicKey.toString());
-    console.log("Participant 2:", participant2.publicKey.toString());
-    console.log("Challenge:", challengeKeypair.publicKey.toString());
-    console.log("===========================\n");
-
-    // Fund accounts
-    await airdropSol(connection, creator.publicKey, 5); // Increased from 2
-    await airdropSol(connection, participant1.publicKey, 2); // Increased from 1
-    await airdropSol(connection, participant2.publicKey, 2); // Increased from 1
-    await airdropSol(connection, voter1.publicKey, 1); // Increased from 0.1
-    await airdropSol(connection, voter2.publicKey, 1); // Increased from 0.1
-
-    try {
-      // 1. Create challenge
-      console.log("Creating challenge...");
-      const reward = new BN(1 * web3.LAMPORTS_PER_SOL);
-      const registrationFee = new BN(0.1 * web3.LAMPORTS_PER_SOL);
-      const submissionFee = new BN(0.2 * web3.LAMPORTS_PER_SOL);
-      const votingFee = new BN(0.05 * web3.LAMPORTS_PER_SOL);
-
-      const createTx = await program.methods
-      .createChallenge(
-        reward,            // reward amount
-        registrationFee,   // registration fee
-        submissionFee,     // submission fee
-        votingFee         // voting fee
-      )
-      .accounts({
-        user: creator.publicKey,
-        challenge: challengeKeypair.publicKey,
-        programAccount: PROGRAM_ACCOUNT, // Add this line
-      })
-      .signers([creator, challengeKeypair])
-      .rpc();
-
-      console.log(`Challenge created: ${createTx}`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // 2. Participants join challenge
-      console.log("\nParticipants joining challenge...");
-      const join1Tx = await program.methods
-        .joinChallenge()
-        .accounts({
-          user: participant1.publicKey,
-          challenge: challengeKeypair.publicKey,
-
-        })
-        .signers([participant1])
-        .rpc();
-
-      const join2Tx = await program.methods
-        .joinChallenge()
-        .accounts({
-          user: participant2.publicKey,
-          challenge: challengeKeypair.publicKey,
-
-        })
-        .signers([participant2])
-        .rpc();
-
-      console.log(`Participants joined: ${join1Tx}, ${join2Tx}`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // 3. Submit videos
-      console.log("\nSubmitting videos...");
-      const video1Url = "https://example.com/video1";
-      const video2Url = "https://example.com/video2";
-
-      const submit1Tx = await program.methods
-        .submitVideo(video1Url)
-        .accounts({
-          participant: participant1.publicKey,
-          challenge: challengeKeypair.publicKey,
-        })
-        .signers([participant1])
-        .rpc();
-
-      console.log("First submission complete");
-
-      const submit2Tx = await program.methods
-        .submitVideo(video2Url)
-        .accounts({
-          participant: participant2.publicKey,
-          challenge: challengeKeypair.publicKey,
-
-        })
-        .signers([participant2])
-        .rpc();
-
-      console.log("Second submission complete");
-
-      // Add verification after submissions
-      const afterSubmissions = await program.account.challenge.fetch(
-        challengeKeypair.publicKey
-      );
-      assert.equal(
-        afterSubmissions.videoSubmissions.length, 
-        2, 
-        "Should have exactly 2 submissions"
-      );
-
-      // 4. Vote for videos
-      console.log("\nVoting for submissions...");
-      const vote1Tx = await program.methods
-        .voteForVideo(new anchor.BN(0))  // Vote for first submission (index 0)
-        .accounts({
-          voter: voter1.publicKey,
-          challenge: challengeKeypair.publicKey,
-        })
-        .signers([voter1])
-        .rpc();
-
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Add delay between votes
-
-      const vote2Tx = await program.methods
-        .voteForVideo(new anchor.BN(0))  // Vote for first submission (index 0)
-        .accounts({
-          voter: voter2.publicKey,
-          challenge: challengeKeypair.publicKey,
-        })
-        .signers([voter2])
-        .rpc();
-
-      console.log(`Votes cast: ${vote1Tx}, ${vote2Tx}`);
-
-      // Verify votes were counted
-      const afterVoting = await program.account.challenge.fetch(
-        challengeKeypair.publicKey
-      );
-
-      // Log vote state for debugging
-      console.log("\nVote state:", {
-        submission0Votes: afterVoting.videoSubmissions[0].voteCount.toNumber(),
-        submission1Votes: afterVoting.videoSubmissions[1].voteCount.toNumber(),
-        totalVotes: afterVoting.totalVotes?.toNumber() || 0,
-        voters: afterVoting.videoSubmissions[0].voters.map(v => v.toString())
-      });
-
-      // 5. Verify final state
-      const challengeAccount = await program.account.challenge.fetch(
-        challengeKeypair.publicKey
-      );
-
-      // Add verification assertions
-      assert.equal(
-        challengeAccount.videoSubmissions.length, 
-        2, 
-        "Should have 2 video submissions"
-      );
-      assert.equal(
-        challengeAccount.videoSubmissions[0].voteCount.toNumber(), 
-        2, 
-        "First video should have 2 votes"
-      );
-      assert.equal(
-        challengeAccount.videoSubmissions[1].voteCount.toNumber(), 
-        0, 
-        "Second video should have 0 votes"
-      );
-
-
-      if (!challengeAccount) {
-        throw new Error("Challenge account not initialized");
+    
+    // Keep track of milestones we have locally minted for
+    const locallyMintedMilestones = new Set();
+    
+    // Run continuous monitoring
+    const checkInterval = 5000; // 5 seconds
+    let checkCount = 0;
+    
+    // Use a promise that we deliberately don't resolve
+    // This keeps the test running until manually terminated
+    return new Promise(async () => {
+      while (true) {
+        try {
+          checkCount++;
+          console.log(`\n[Check #${checkCount}] ${new Date().toLocaleTimeString()}`);
+          
+          // Find all token accounts for this mint
+          console.log("Scanning for wallet holders...");
+          const connection = program.provider.connection;
+          const tokenAccounts = await connection.getProgramAccounts(
+            TOKEN_PROGRAM_ID,
+            {
+              filters: [
+                { dataSize: 165 }, // Token account size
+                { memcmp: { offset: 0, bytes: mint_addr.toBase58() } }, // Filter by mint
+              ],
+            }
+          );
+          
+          // Count unique wallet addresses with non-zero balance
+          const uniqueWallets = new Set();
+          for (const account of tokenAccounts) {
+            const data = account.account.data;
+            const owner = new PublicKey(data.slice(32, 64));
+            const amount = Number(data.readBigUInt64LE(64));
+            
+            if (amount > 0) {
+              uniqueWallets.add(owner.toBase58());
+            }
+          }
+          
+          const walletCount = uniqueWallets.size;
+          console.log(`Found ${walletCount} unique wallets with non-zero balances`);
+          
+          // Always fetch fresh token state on each iteration
+          const tokenState = await program.account.tokenState.fetch(tokenStateAddress);
+          const mintConditionsUsed = tokenState.mintConditionsUsed;
+          
+          // Debug logging
+          console.log("Current mint conditions used:", mintConditionsUsed);
+          
+          // Check each milestone
+          let mintingExecuted = false;
+          for (const milestone of WALLET_MILESTONES) {
+            if (walletCount >= milestone.threshold) {
+              console.log(`🎉 Milestone reached: ${milestone.name} (${walletCount} wallets)`);
+              
+              // Triple check to avoid duplicate minting:
+              // 1. Check on-chain state
+              // 2. Check local tracking
+              const onChainUsed = mintConditionsUsed[milestone.index];
+              const locallyUsed = locallyMintedMilestones.has(milestone.index);
+              
+              if (onChainUsed || locallyUsed) {
+                console.log(`Milestone ${milestone.name} already used for minting (on-chain: ${onChainUsed}, local: ${locallyUsed})`);
+                continue;
+              }
+              
+              // Check time restriction
+              const currentTimestamp = Math.floor(Date.now() / 1000);
+              const lastMintTimestamp = tokenState.lastMintTimestamp.toNumber();
+              const MIN_TIME_BETWEEN_MINTS = 365 * 24 * 60 * 60; // 1 year in seconds
+              
+              // For testing, we can bypass the time restriction
+              // In production, uncomment this:
+              /*
+              if (currentTimestamp - lastMintTimestamp < MIN_TIME_BETWEEN_MINTS) {
+                const daysRemaining = Math.ceil((MIN_TIME_BETWEEN_MINTS - (currentTimestamp - lastMintTimestamp)) / (24 * 60 * 60));
+                console.log(`Time restriction applies: ${daysRemaining} days remaining`);
+                continue;
+              }
+              */
+              
+              console.log(`💰 Minting 5M tokens for milestone: ${milestone.name}`);
+              
+              try {
+                // Set up destination for minted tokens
+                const destination = await anchor.utils.token.associatedAddress({
+                  mint: mint_addr,
+                  owner: payer,
+                });
+                
+                // Mint 5M tokens (MINT_INCREMENT)
+                const mintAmount = new anchor.BN(5_000_000 * Math.pow(10, metadata.decimals));
+                
+                const txHash = await program.methods
+                  .mintToken(mintAmount)
+                  .accounts({
+                    mint: mint_addr,
+                    destination,
+                    tokenState: tokenStateAddress,
+                    payer,
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+                  })
+                  .rpc();
+                
+                // Wait for confirmation
+                await program.provider.connection.confirmTransaction(txHash);
+                  
+                console.log(`✅ Milestone mint successful! TX: https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
+                
+                // Mark as locally minted to prevent duplicate mints
+                locallyMintedMilestones.add(milestone.index);
+                
+                // Flag that minting was executed
+                mintingExecuted = true;
+                
+                // Only mint for one milestone at a time
+                break;
+              } catch (error) {
+                console.error(`❌ Error minting for milestone:`, error);
+              }
+            }
+          }
+          
+          // Extra safety: If we did a mint, wait a few seconds and refresh state
+          if (mintingExecuted) {
+            console.log("Waiting for state to update after minting...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            // Verify the milestone was correctly marked as used on-chain
+            const updatedTokenState = await program.account.tokenState.fetch(tokenStateAddress);
+            console.log("Updated mint conditions used after minting:", updatedTokenState.mintConditionsUsed);
+          }
+          
+          console.log(`Monitoring active... Next check in 5 seconds`);
+          
+          // Wait 5 seconds before checking again
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        } catch (error) {
+          console.error("Error during milestone check:", error);
+          // Continue the loop even after errors
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
       }
-
-
-      assert.equal(challengeAccount.videoSubmissions.length, 2, "Should have 2 video submissions");
-      assert.equal(challengeAccount.videoSubmissions[0].voteCount.toNumber(), 2, "First video should have 2 votes");
-      assert.equal(challengeAccount.videoSubmissions[1].voteCount.toNumber(), 0, "Second video should have 0 votes");
-      assert.equal(challengeAccount.winner.toString(), participant1.publicKey.toString(), "Winner should be participant1");
-      assert.equal(challengeAccount.isActive, false, "Challenge should be completed");
-
-      console.log("\nChallenge flow completed successfully!");
-
-    } catch (error) {
-      console.error("Challenge flow failed:", error);
-      throw error;
-    }
+    });
   });
-});
+}
+
+
+
+
+
+
+
+
+
+
+function check_entry_fee_milestones(mint_addr, program, payer, metadata) {
+  it("continuously checks entry fee milestones every 5 seconds", async function() {
+    // Set a longer timeout for this test (default is 2000ms)
+    this.timeout(3600000); // 1 hour
+    
+    console.log("============================");
+    console.log("Starting continuous entry fee milestone monitoring...");
+    console.log("Press Ctrl+C to stop the test");
+    console.log("============================");
+    
+    // Define entry fee milestones based on tokenomics
+    const ENTRY_FEE_MILESTONES = [
+      { threshold: 50_000_000, index: 2, name: "50M total entry fees" },
+      { threshold: 100_000_000, index: 3, name: "100M total entry fees" }
+    ];
+    
+    // For testing, you might want to use smaller thresholds:
+    // const ENTRY_FEE_MILESTONES = [
+    //   { threshold: 5, index: 2, name: "Test 5 entry fees" },
+    //   { threshold: 10, index: 3, name: "Test 10 entry fees" }
+    // ];
+    
+    // Get token state address
+    const [tokenStateAddress] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("token_state")],
+      program.programId
+    );
+    
+    // Keep track of milestones we have locally minted for
+    const locallyMintedMilestones = new Set();
+    
+    // Run continuous monitoring
+    const checkInterval = 5000; // 5 seconds
+    let checkCount = 0;
+    
+    // Use a promise that we deliberately don't resolve
+    // This keeps the test running until manually terminated
+    return new Promise(async () => {
+      while (true) {
+        try {
+          checkCount++;
+          console.log(`\n[Check #${checkCount}] ${new Date().toLocaleTimeString()}`);
+          
+          // Fetch token state to get total entry fees
+          const tokenState = await program.account.tokenState.fetch(tokenStateAddress);
+          const totalEntryFees = tokenState.totalEntryFees.toNumber();
+          const mintConditionsUsed = tokenState.mintConditionsUsed;
+          
+          console.log(`Current total entry fees: ${totalEntryFees}`);
+          console.log("Current mint conditions used:", mintConditionsUsed);
+          
+          // Check each milestone
+          let mintingExecuted = false;
+          for (const milestone of ENTRY_FEE_MILESTONES) {
+            if (totalEntryFees >= milestone.threshold) {
+              console.log(`🎉 Milestone reached: ${milestone.name} (${totalEntryFees} fees paid)`);
+              
+              // Triple check to avoid duplicate minting:
+              // 1. Check on-chain state
+              // 2. Check local tracking
+              const onChainUsed = mintConditionsUsed[milestone.index];
+              const locallyUsed = locallyMintedMilestones.has(milestone.index);
+              
+              if (onChainUsed || locallyUsed) {
+                console.log(`Milestone ${milestone.name} already used for minting (on-chain: ${onChainUsed}, local: ${locallyUsed})`);
+                continue;
+              }
+              
+              // Check time restriction
+              const currentTimestamp = Math.floor(Date.now() / 1000);
+              const lastMintTimestamp = tokenState.lastMintTimestamp.toNumber();
+              const MIN_TIME_BETWEEN_MINTS = 365 * 24 * 60 * 60; // 1 year in seconds
+              
+              // For testing, we can bypass the time restriction
+              // In production, uncomment this:
+              /*
+              if (currentTimestamp - lastMintTimestamp < MIN_TIME_BETWEEN_MINTS) {
+                const daysRemaining = Math.ceil((MIN_TIME_BETWEEN_MINTS - (currentTimestamp - lastMintTimestamp)) / (24 * 60 * 60));
+                console.log(`Time restriction applies: ${daysRemaining} days remaining`);
+                continue;
+              }
+              */
+              
+              console.log(`💰 Minting 5M tokens for milestone: ${milestone.name}`);
+              
+              try {
+                // Set up destination for minted tokens
+                const destination = await anchor.utils.token.associatedAddress({
+                  mint: mint_addr,
+                  owner: payer,
+                });
+                
+                // Mint 5M tokens (MINT_INCREMENT)
+                const mintAmount = new anchor.BN(5_000_000 * Math.pow(10, metadata.decimals));
+                
+                const txHash = await program.methods
+                  .mintToken(mintAmount)
+                  .accounts({
+                    mint: mint_addr,
+                    destination,
+                    tokenState: tokenStateAddress,
+                    payer,
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+                  })
+                  .rpc();
+                
+                // Wait for confirmation
+                await program.provider.connection.confirmTransaction(txHash);
+                  
+                console.log(`✅ Entry Fee Milestone mint successful! TX: https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
+                
+                // Mark as locally minted to prevent duplicate mints
+                locallyMintedMilestones.add(milestone.index);
+                
+                // Flag that minting was executed
+                mintingExecuted = true;
+                
+                // Only mint for one milestone at a time
+                break;
+              } catch (error) {
+                console.error(`❌ Error minting for milestone:`, error);
+              }
+            } else {
+              console.log(`Milestone ${milestone.name} not yet reached: ${totalEntryFees}/${milestone.threshold} (${((totalEntryFees/milestone.threshold)*100).toFixed(2)}%)`);
+            }
+          }
+          
+          // Extra safety: If we did a mint, wait a few seconds and refresh state
+          if (mintingExecuted) {
+            console.log("Waiting for state to update after minting...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            // Verify the milestone was correctly marked as used on-chain
+            const updatedTokenState = await program.account.tokenState.fetch(tokenStateAddress);
+            console.log("Updated mint conditions used after minting:", updatedTokenState.mintConditionsUsed);
+          }
+          
+          console.log(`Entry fee monitoring active... Next check in 5 seconds`);
+          
+          // Wait 5 seconds before checking again
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        } catch (error) {
+          console.error("Error during entry fee milestone check:", error);
+          // Continue the loop even after errors
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
+      }
+    });
+  });
+}
+
+
+function check_challenge_milestones(mint_addr, program, payer, metadata) {
+  it("continuously checks challenge completion milestones every 5 seconds", async function() {
+    // Set a longer timeout for this test
+    this.timeout(3600000); // 1 hour
+    
+    console.log("============================");
+    console.log("Starting continuous challenge milestone monitoring...");
+    console.log("Press Ctrl+C to stop the test");
+    console.log("============================");
+    
+    // Define challenge milestones based on tokenomics
+    const CHALLENGE_MILESTONES = [
+      { threshold: 5_000_000, index: 0, name: "5M challenges completed" },
+      { threshold: 10_000_000, index: 1, name: "10M challenges completed" }
+    ];
+    
+    // For testing, you might want to use smaller thresholds:
+    // const CHALLENGE_MILESTONES = [
+    //   { threshold: 5, index: 0, name: "Test 5 challenges" },
+    //   { threshold: 10, index: 1, name: "Test 10 challenges" }
+    // ];
+    
+    // Get token state address
+    const [tokenStateAddress] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("token_state")],
+      program.programId
+    );
+    
+    // Keep track of milestones we have locally minted for
+    const locallyMintedMilestones = new Set();
+    
+    // Run continuous monitoring
+    const checkInterval = 5000; // 5 seconds
+    let checkCount = 0;
+    
+    // Use a promise that we deliberately don't resolve
+    // This keeps the test running until manually terminated
+    return new Promise(async () => {
+      while (true) {
+        try {
+          checkCount++;
+          console.log(`\n[Check #${checkCount}] ${new Date().toLocaleTimeString()}`);
+          
+          // Fetch token state to get total challenges completed
+          const tokenState = await program.account.tokenState.fetch(tokenStateAddress);
+          const totalChallenges = tokenState.challengesCompleted.toNumber();
+          const mintConditionsUsed = tokenState.mintConditionsUsed;
+          
+          console.log(`Current total challenges completed: ${totalChallenges}`);
+          console.log("Current mint conditions used:", mintConditionsUsed);
+          
+          // Check each milestone
+          let mintingExecuted = false;
+          for (const milestone of CHALLENGE_MILESTONES) {
+            if (totalChallenges >= milestone.threshold) {
+              console.log(`🎉 Milestone reached: ${milestone.name} (${totalChallenges} challenges)`);
+              
+              // Triple check to avoid duplicate minting:
+              // 1. Check on-chain state
+              // 2. Check local tracking
+              const onChainUsed = mintConditionsUsed[milestone.index];
+              const locallyUsed = locallyMintedMilestones.has(milestone.index);
+              
+              if (onChainUsed || locallyUsed) {
+                console.log(`Milestone ${milestone.name} already used for minting (on-chain: ${onChainUsed}, local: ${locallyUsed})`);
+                continue;
+              }
+              
+              // Check time restriction
+              const currentTimestamp = Math.floor(Date.now() / 1000);
+              const lastMintTimestamp = tokenState.lastMintTimestamp.toNumber();
+              const MIN_TIME_BETWEEN_MINTS = 365 * 24 * 60 * 60; // 1 year in seconds
+              
+              // For testing, we can bypass the time restriction
+              // In production, uncomment this:
+              /*
+              if (currentTimestamp - lastMintTimestamp < MIN_TIME_BETWEEN_MINTS) {
+                const daysRemaining = Math.ceil((MIN_TIME_BETWEEN_MINTS - (currentTimestamp - lastMintTimestamp)) / (24 * 60 * 60));
+                console.log(`Time restriction applies: ${daysRemaining} days remaining`);
+                continue;
+              }
+              */
+              
+              console.log(`💰 Minting 5M tokens for milestone: ${milestone.name}`);
+              
+              try {
+                // Set up destination for minted tokens
+                const destination = await anchor.utils.token.associatedAddress({
+                  mint: mint_addr,
+                  owner: payer,
+                });
+                
+                // Mint 5M tokens (MINT_INCREMENT)
+                const mintAmount = new anchor.BN(5_000_000 * Math.pow(10, metadata.decimals));
+                
+                const txHash = await program.methods
+                  .mintToken(mintAmount)
+                  .accounts({
+                    mint: mint_addr,
+                    destination,
+                    tokenState: tokenStateAddress,
+                    payer,
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+                  })
+                  .rpc();
+                
+                // Wait for confirmation
+                await program.provider.connection.confirmTransaction(txHash);
+                  
+                console.log(`✅ Challenge Milestone mint successful! TX: https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
+                
+                // Mark as locally minted to prevent duplicate mints
+                locallyMintedMilestones.add(milestone.index);
+                
+                // Flag that minting was executed
+                mintingExecuted = true;
+                
+                // Only mint for one milestone at a time
+                break;
+              } catch (error) {
+                console.error(`❌ Error minting for milestone:`, error);
+              }
+            } else {
+              console.log(`Milestone ${milestone.name} not yet reached: ${totalChallenges}/${milestone.threshold} (${((totalChallenges/milestone.threshold)*100).toFixed(2)}%)`);
+            }
+          }
+          
+          // Extra safety: If we did a mint, wait a few seconds and refresh state
+          if (mintingExecuted) {
+            console.log("Waiting for state to update after minting...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            // Verify the milestone was correctly marked as used on-chain
+            const updatedTokenState = await program.account.tokenState.fetch(tokenStateAddress);
+            console.log("Updated mint conditions used after minting:", updatedTokenState.mintConditionsUsed);
+          }
+          
+          console.log(`Challenge monitoring active... Next check in 5 seconds`);
+          
+          // Wait 5 seconds before checking again
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        } catch (error) {
+          console.error("Error during challenge milestone check:", error);
+          // Continue the loop even after errors
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
+      }
+    });
+  });
+}

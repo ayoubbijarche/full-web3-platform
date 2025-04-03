@@ -1,9 +1,13 @@
 use anchor_lang::prelude::*;
-
 pub mod instructions;
 use instructions::*;
 use instructions::token::*;
+use instructions::token_constants::*;
+use instructions::token_errors::*;
+use instructions::challenge_tracking::*;
 use instructions::challenge::*;
+
+
 
 declare_id!("6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1");
 
@@ -104,10 +108,16 @@ pub mod coinpetitive {
         instructions::challenge::distribute_voting_treasury(ctx, voter, voter_index)
     }
     
-    // Note: The following functions are removed as they're
-    // no longer needed with our simplified approach:
-    // - join_challenge
-    // - submit_video
-    // - vote_for_video
+    pub fn track_challenge(ctx: Context<TrackChallenge>) -> Result<()> {
+        instructions::challenge_tracking::track_challenge_completion(ctx)
+    }
+    
+    pub fn track_challenges_batch(ctx: Context<TrackChallengesBatch>, count: u64) -> Result<()> {
+        instructions::challenge_tracking::track_challenges_batch(ctx, count)
+    }
+    
+    pub fn track_entry_fee(ctx: Context<TrackEntryFee>, fee_amount: u64) -> Result<()> {
+        instructions::fee_tracking::track_entry_fee(ctx, fee_amount)
+    }
 }
 

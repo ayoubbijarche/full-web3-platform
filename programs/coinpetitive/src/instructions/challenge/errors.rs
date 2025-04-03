@@ -49,7 +49,9 @@ pub enum ErrorCode {
     #[msg("math overflow")]
     MathOverflow,
     #[msg("No winner declared")]
-    NoWinnerDeclared
+    NoWinnerDeclared,
+    #[msg("Arithmetic overflow")]
+    ArithmeticOverflow
 
 
 }

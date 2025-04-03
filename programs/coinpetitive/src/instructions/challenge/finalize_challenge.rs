@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use crate::instructions::challenge::types::Challenge;
 use crate::instructions::challenge::errors::ErrorCode;
+use crate::instructions::token::TokenState; // Add this import
 
 // Constants for clarity
 pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
@@ -14,7 +15,6 @@ pub struct FinalizeChallenge<'info> {
     
     #[account(
         mut,
-        // Remove creator-only constraint but keep it active
         constraint = challenge.is_active @ ErrorCode::ChallengeNotActive
     )]
     pub challenge: Account<'info, Challenge>,
@@ -36,19 +36,29 @@ pub struct FinalizeChallenge<'info> {
     #[account(mut)]
     pub treasury_token_account: AccountInfo<'info>,
     
-    /// CHECK: Creator's token account to receive remaining funds - add constraint here
+    /// CHECK: Creator's token account 
     #[account(
         mut,
-        // Ensure this is the creator's token account by checking the owner
         constraint = challenge.creator == creator.key() @ ErrorCode::InvalidCreator
     )]
     pub creator_token_account: AccountInfo<'info>,
     
-    /// CHECK: The actual creator of the challenge - add this account
+    /// CHECK: The actual creator of the challenge
     #[account(
         constraint = challenge.creator == creator.key() @ ErrorCode::InvalidCreator
     )]
     pub creator: AccountInfo<'info>,
+
+    // Add token_state account for tracking challenges
+    #[account(
+        mut,
+        seeds = [b"token_state"],
+        bump,
+    )]
+    pub token_state: Account<'info, TokenState>,
+    
+    // System program
+    pub system_program: Program<'info, System>,
 }
 
 pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
@@ -192,6 +202,25 @@ pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
         
         msg!("Transferred remaining {} tokens to creator", treasury_balance);
     }
+    
+    // Increment challenge completion counter in token state
+    let token_state = &mut ctx.accounts.token_state;
+    token_state.challenges_completed = token_state.challenges_completed.checked_add(1)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    
+    // Check challenge milestones
+    if token_state.challenges_completed >= 5_000_000 {
+        token_state.mint_conditions_met[0] = true;
+        msg!("Milestone reached: 5M challenges completed!");
+    }
+    
+    if token_state.challenges_completed >= 10_000_000 {
+        token_state.mint_conditions_met[1] = true;
+        msg!("Milestone reached: 10M challenges completed!");
+    }
+    
+    msg!("Challenge #{} completed and tracked. Total challenges: {}", 
+         challenge.key(), token_state.challenges_completed);
     
     msg!("Challenge finalized successfully!");
     Ok(())

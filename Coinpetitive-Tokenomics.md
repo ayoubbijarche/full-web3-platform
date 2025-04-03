@@ -12,11 +12,11 @@
 | :-: | :-: | :-: |
 |**5M challenges completed**|5M|26M|
 |**10M challenges completed**|5M|31M|
-|**50M total entry fees paid**|5M|36M|
-|**100M total entry fees paid**|5M|41M|
-|**250,000 unique wallets holding tokens**|5M|46M|
-|**500,000 unique wallets holding tokens**|5M|51M|
-|**1M unique wallets holding tokens**|5M|56M|
+|**50M total entry fees paid**|5M|36M| // done
+|**100M total entry fees paid**|5M|41M|// done
+|**250,000 unique wallets holding tokens**|5M|46M| // done
+|**500,000 unique wallets holding tokens**|5M|51M| // done
+|**1M unique wallets holding tokens**|5M|56M|      // done
 |**Platform reaches self-sustaining revenue** (revenue > operational costs)|5M|61M|
 #### <a name="_753pbkl9j9on"></a>**Minting Restrictions**
 - **Each minting event is limited to 5M tokens.**

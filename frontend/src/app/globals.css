@@ -125,22 +125,137 @@ main {
   z-index: 100000 !important;
 }
 
+/* Enhanced Wallet Adapter Custom Styles */
+
+/* Main modal container */
 .wallet-adapter-modal-wrapper {
   background-color: white !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  max-width: 400px !important;
+  padding: 0 !important;
 }
 
-.wallet-adapter-modal-button-close {
-  background-color: #b3731d !important;
-}
-
+/* Modal title */
 .wallet-adapter-modal-title {
-  color: black !important;
+  color: white !important;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  padding: 1.25rem 1.5rem !important;
+  margin: 0 !important;
+  background-color:  #b3731d !important;
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+  text-align: center !important;
 }
 
+/* Modal content */
+.wallet-adapter-modal-container {
+  padding: 2.5rem !important;
+}
+
+/* Wallet list container */
 .wallet-adapter-modal-list {
-  margin: 0 0 4px !important;
+  margin: 3px !important;
+  padding: 0.5rem 0 !important;
 }
 
-.wallet-adapter-modal-list li:not(:first-of-type) {
-  margin-top: 4px !important;
+/* Individual wallet item */
+.wallet-adapter-modal-list li {
+  margin: 0.5rem 0 !important;
+}
+
+/* Wallet buttons */
+.wallet-adapter-modal-list .wallet-adapter-button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  background: white !important;
+  border: 1px solid #b3731d !important;
+  color: black !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 0.2s ease !important;
+  height: auto !important;
+  border-radius: 12px !important;
+  width: 90% !important;
+  margin-left: 1.2rem;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background-color: #faf2e7 !important;
+  border-color: #b3731d !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Wallet icons */
+.wallet-adapter-modal-list .wallet-adapter-button-start-icon {
+  margin-right: 1rem !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background-color: white !important;
+  padding: 4px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button-end-icon {
+  margin-left: auto !important;
+}
+
+/* Modal close button */
+.wallet-adapter-modal-button-close {
+  background-color: white !important;
+  border: 1px solid #e9d6b2 !important;
+  color: #b3731d !important;
+  height: 36px !important;
+  width: 36px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: 20px !important;
+  right: 20px !important;
+}
+
+
+
+/* Footer area */
+.wallet-adapter-modal-middle {
+  margin: 1rem 0 !important;
+  padding: 1rem 1.5rem !important;
+  background-color: #faf2e7 !important;
+  border-radius: 12px !important;
+  text-align: center !important;
+}
+
+/* Modal fade effect */
+.wallet-adapter-modal-fade-in {
+  animation-duration: 300ms !important;
+}
+
+/* Wallet adapter connect button (outside modal) */
+.wallet-connection-button {
+  background: linear-gradient(90deg, #e0b36c 0%, #b3731d 100%) !important;
+  border: none !important;
+  color: white !important;
+  font-family: inherit !important;
+  font-size: 16px !important;
+  padding: 0 1.5rem !important;
+  border-radius: 12px !important;
+  height: 46px !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.wallet-connection-button:hover {
+  filter: brightness(1.05) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }

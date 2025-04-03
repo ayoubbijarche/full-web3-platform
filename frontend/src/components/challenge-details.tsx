@@ -362,15 +362,6 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const handleLikeVideo = async (submissionId: string) => {
     if (!auth.user) return;
     
-    const submission = videoSubmissions.find(sub => sub.id === submissionId);
-    if (!submission) return;
-    
-    const userId = auth.user.id;
-    if (Array.isArray(submission.likes) && submission.likes.includes(userId)) {
-      console.log('User has already liked this submission.');
-      return;
-    }
-    
     try {
       const result = await likeVideoSubmission(submissionId);
       if (result.success && 'submission' in result) {
@@ -379,8 +370,10 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             sub.id === submissionId 
               ? { 
                   ...sub, 
-                  likes: result.submission.likes || [],
-                  dislikes: result.submission.dislikes || []
+                  likedBy: result.submission.likedBy || [],
+                  dislikedBy: result.submission.dislikedBy || [],
+                  likes: result.submission.likedBy?.length || 0,
+                  dislikes: result.submission.dislikedBy?.length || 0
                 } 
               : sub
           )
@@ -388,6 +381,31 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       }
     } catch (error) {
       console.error('Error liking video:', error);
+    }
+  };
+
+  const handleDislikeVideo = async (submissionId: string) => {
+    if (!auth.user) return;
+    
+    try {
+      const result = await dislikeVideoSubmission(submissionId);
+      if (result.success && 'submission' in result) {
+        setVideoSubmissions(prevSubmissions => 
+          prevSubmissions.map(sub => 
+            sub.id === submissionId 
+              ? { 
+                  ...sub, 
+                  likedBy: result.submission.likedBy || [],
+                  dislikedBy: result.submission.dislikedBy || [],
+                  likes: result.submission.likedBy?.length || 0,
+                  dislikes: result.submission.dislikedBy?.length || 0
+                } 
+              : sub
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error disliking video:', error);
     }
   };
 
@@ -443,32 +461,6 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
         setIsFinalizing(false);
       }
     };
-
-  const handleDislikeVideo = async (submissionId: string) => {
-    if (!auth.user) return;
-    
-    const submission = videoSubmissions.find(sub => sub.id === submissionId);
-    if (!submission) return;
-    
-    try {
-      const result = await dislikeVideoSubmission(submissionId);
-      if (result.success && 'submission' in result) {
-        setVideoSubmissions(prevSubmissions => 
-          prevSubmissions.map(sub => 
-            sub.id === submissionId 
-              ? { 
-                  ...sub, 
-                  likes: result.submission.likes || [],
-                  dislikes: result.submission.dislikes || []
-                } 
-              : sub
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error disliking video:', error);
-    }
-  };
 
   const handleVote = async (submissionId: string) => {
     if (!auth.user) {
@@ -1169,35 +1161,36 @@ const status = getChallengeStatus();
                     {submission.description}
                   </p>
                   
-                  <div className="flex justify-between items-center">
-                    {/* Like/Dislike buttons */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1">
-                        <ThumbsUp 
-                          className={`h-4 w-4 cursor-pointer ${
-                            Array.isArray(submission.likes) && submission.likes.includes(auth.user?.id) 
-                            ? 'text-primary fill-primary' : 'text-gray-500 hover:text-primary'
-                          }`}
-                          onClick={() => handleLikeVideo(submission.id)}
-                        />
-                        <span className="text-xs">
-                          {Array.isArray(submission.likes) ? submission.likes.length : 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ThumbsDown 
-                          className={`h-4 w-4 cursor-pointer ${
-                            Array.isArray(submission.dislikes) && submission.dislikes.includes(auth.user?.id)
-                            ? 'text-primary fill-primary' : 'text-gray-500 hover:text-primary'
-                          }`}
-                          onClick={() => handleDislikeVideo(submission.id)}
-                        />
-                        <span className="text-xs">
-                          {Array.isArray(submission.dislikes) ? submission.dislikes.length : 0}
-                        </span>
-                      </div>
+                  <div className="flex justify-start items-center gap-6 mt-2 pl-1">
+                    <div className="flex items-center gap-1">
+                      <ThumbsUp 
+                        className={`h-5 w-5 cursor-pointer ${
+                          Array.isArray(submission.likedBy) && submission.likedBy.includes(auth.user?.id) 
+                          ? 'text-[#B3731D] fill-[#B3731D]' 
+                          : 'text-gray-500 hover:text-[#B3731D]'
+                        }`}
+                        onClick={() => handleLikeVideo(submission.id)}
+                      />
+                      <span className="text-sm">
+                        {typeof submission.likes === 'number' ? submission.likes : 0}
+                      </span>
                     </div>
-                    
+                    <div className="flex items-center gap-1">
+                      <ThumbsDown 
+                        className={`h-5 w-5 cursor-pointer ${
+                          Array.isArray(submission.dislikedBy) && submission.dislikedBy.includes(auth.user?.id)
+                          ? 'text-[#B3731D] fill-[#B3731D]' 
+                          : 'text-gray-500 hover:text-[#B3731D]'
+                        }`}
+                        onClick={() => handleDislikeVideo(submission.id)}
+                      />
+                      <span className="text-sm">
+                        {typeof submission.dislikes === 'number' ? submission.dislikes : 0}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
                     {/* Vote button */}
                     {!auth.user ? (
                       <Button variant="default" size="sm" className="h-7 text-xs" disabled>Sign in</Button>
@@ -1400,27 +1393,27 @@ const status = getChallengeStatus();
                   <div className="flex items-center gap-1">
                   <ThumbsUp 
                     className={`h-5 w-5 cursor-pointer ${
-                    Array.isArray(submission.likes) && submission.likes.includes(auth.user?.id) 
-                      ? 'text-primary fill-primary' 
-                      : 'text-gray-500 hover:text-primary'
+                    Array.isArray(submission.likedBy) && submission.likedBy.includes(auth.user?.id) 
+                      ? 'text-[#B3731D] fill-[#B3731D]' 
+                      : 'text-gray-500 hover:text-[#B3731D]'
                     }`}
                     onClick={() => handleLikeVideo(submission.id)}
                   />
                   <span className="text-sm">
-                    {Array.isArray(submission.likes) ? submission.likes.length : 0}
+                    {typeof submission.likes === 'number' ? submission.likes : 0}
                   </span>
                   </div>
                   <div className="flex items-center gap-1">
                   <ThumbsDown 
                     className={`h-5 w-5 cursor-pointer ${
-                    Array.isArray(submission.dislikes) && submission.dislikes.includes(auth.user?.id)
-                      ? 'text-primary fill-primary' 
-                      : 'text-gray-500 hover:text-primary'
+                    Array.isArray(submission.dislikedBy) && submission.dislikedBy.includes(auth.user?.id)
+                      ? 'text-[#B3731D] fill-[#B3731D]' 
+                      : 'text-gray-500 hover:text-[#B3731D]'
                     }`}
                     onClick={() => handleDislikeVideo(submission.id)}
                   />
                   <span className="text-sm">
-                    {Array.isArray(submission.dislikes) ? submission.dislikes.length : 0}
+                    {typeof submission.dislikes === 'number' ? submission.dislikes : 0}
                   </span>
                   </div>
                 </div>

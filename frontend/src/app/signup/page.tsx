@@ -23,7 +23,8 @@ export default function SignUp() {
     passwordConfirm: "",
     xProfile: "",
     telegram: "",
-    pubkey: "", // Add this field
+    pubkey: "",
+    secretCode: "", // Add this field for recovery
   })
   const [avatar, setAvatar] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string>("")
@@ -201,6 +202,24 @@ export default function SignUp() {
                   className="rounded-[50px] border-[#8a8a8a] h-9 sm:h-10 text-sm"
                   required
                 />
+              </div>
+
+              <div className="space-y-1 sm:space-y-2">
+                <Label htmlFor="secretCode" className="text-sm">Secret Recovery Code (4 digits)</Label>
+                <Input
+                  id="secretCode"
+                  value={formData.secretCode}
+                  onChange={handleInputChange}
+                  placeholder="Enter a 4-digit code"
+                  className="rounded-[50px] border-[#8a8a8a] h-9 sm:h-10 text-sm"
+                  maxLength={4}
+                  pattern="[0-9]{4}"
+                  title="Please enter a 4-digit number"
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Remember this code. You'll need it to recover your account.
+                </p>
               </div>
 
               <div className="col-span-1 sm:col-span-2 space-y-1 sm:space-y-2">

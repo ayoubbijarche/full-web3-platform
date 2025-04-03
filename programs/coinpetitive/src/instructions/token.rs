@@ -97,7 +97,10 @@ pub struct TokenState {
     pub total_entry_fees: u64,
     pub unique_wallets: u64,
     pub mint_conditions_used: [bool; 8], // Track which of the 8 conditions have been used
+    pub mint_conditions_met: [bool; 8],  // Track which of the 8 conditions have been met
     pub is_self_sustaining: bool, // Track if platform is self-sustaining
+    pub last_challenge_tracked: i64, // Add this field
+    pub pending_mint_milestone: Option<u8>, // Store which milestone triggers the next mint
 }
 
 impl TokenState {
@@ -108,7 +111,10 @@ impl TokenState {
         8 + // total_entry_fees
         8 + // unique_wallets
         8 + // mint_conditions_used (8 booleans)
-        1; // is_self_sustaining boolean
+        8 + // mint_conditions_met (8 booleans)
+         8 + // last_challenge_tracked
+         1 + // is_self_sustaining boolean
+         1; // pending_mint_milestone (Option<u8>)
 }
 
 // Burn tokens struct
@@ -129,22 +135,24 @@ pub struct BurnTokens<'info> {
 // Struct for daily sell limit tracking
 #[derive(Accounts)]
 pub struct TransferWithLimit<'info> {
+    pub authority: Signer<'info>,
+    
     #[account(mut)]
     pub from: Account<'info, TokenAccount>,
+    
     #[account(mut)]
     pub to: Account<'info, TokenAccount>,
-    pub authority: Signer<'info>,
+    
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    
     #[account(
         mut,
         seeds = [b"token_state"],
         bump,
     )]
     pub token_state: Account<'info, TokenState>,
-    #[account(
-        seeds = [b"mint"],
-        bump,
-    )]
-    pub mint: Account<'info, Mint>,
+    
     pub token_program: Program<'info, Token>,
 }
 
@@ -189,7 +197,10 @@ pub fn initiate_token(ctx: Context<InitToken>, metadata: InitTokenParams) -> Res
     token_state.total_entry_fees = 0;
     token_state.unique_wallets = 0;
     token_state.mint_conditions_used = [false; 8]; // Initialize all conditions as unused
+    token_state.mint_conditions_met = [false; 8];  // Initialize all conditions as unmet
     token_state.is_self_sustaining = false;
+    token_state.last_challenge_tracked = 0; // Initialize last challenge tracked
+    token_state.pending_mint_milestone = None; // Initialize pending mint milestone
     
     msg!("Token mint and state initialized successfully.");
     Ok(())
@@ -199,75 +210,13 @@ pub fn mint_tokens(ctx: Context<MintTokens>, quantity: u64) -> Result<()> {
     let token_state = &mut ctx.accounts.token_state;
     let current_timestamp = Clock::get()?.unix_timestamp;
     
-    // Check if this is initial minting or additional minting
-    if token_state.current_supply == 0 {
-        // Initial minting - enforce the 21M cap
-        require!(quantity <= INITIAL_SUPPLY, TokenError::ExceedsInitialSupplyCap);
-    } else {
-        // Additional minting - enforce restrictions
-        
-        // 1. Check max supply cap
-        require!(
-            token_state.current_supply + quantity <= MAX_SUPPLY,
-            TokenError::ExceedsMaxSupplyCap
-        );
-        
-        // 2. Check increment size (5M per mint)
-        require!(quantity == MINT_INCREMENT, TokenError::InvalidMintIncrement);
-        
-        // 3. Check time restriction (one mint per year)
-        require!(
-            current_timestamp - token_state.last_mint_timestamp >= MIN_TIME_BETWEEN_MINTS,
-            TokenError::MintingTooFrequent
-        );
-        
-        // 4. Check if any new minting condition is met
-        let mut condition_index: Option<usize> = None;
-        
-        // Check each minting condition in order and find first unused one that's met
-        // Condition 0: 5M challenges completed
-        if !token_state.mint_conditions_used[0] && token_state.challenges_completed >= 5_000_000 {
-            condition_index = Some(0);
-        }
-        // Condition 1: 10M challenges completed
-        else if !token_state.mint_conditions_used[1] && token_state.challenges_completed >= 10_000_000 {
-            condition_index = Some(1);
-        }
-        // Condition 2: 50M total entry fees paid
-        else if !token_state.mint_conditions_used[2] && token_state.total_entry_fees >= 50_000_000 {
-            condition_index = Some(2);
-        }
-        // Condition 3: 100M total entry fees paid
-        else if !token_state.mint_conditions_used[3] && token_state.total_entry_fees >= 100_000_000 {
-            condition_index = Some(3);
-        }
-        // Condition 4: 250,000 unique wallets holding tokens
-        else if !token_state.mint_conditions_used[4] && token_state.unique_wallets >= 250_000 {
-            condition_index = Some(4);
-        }
-        // Condition 5: 500,000 unique wallets holding tokens
-        else if !token_state.mint_conditions_used[5] && token_state.unique_wallets >= 500_000 {
-            condition_index = Some(5);
-        }
-        // Condition 6: 1M unique wallets holding tokens
-        else if !token_state.mint_conditions_used[6] && token_state.unique_wallets >= 1_000_000 {
-            condition_index = Some(6);
-        }
-        // Condition 7: Platform reaches self-sustaining revenue
-        else if !token_state.mint_conditions_used[7] && token_state.is_self_sustaining {
-            condition_index = Some(7);
-        }
-        
-        // Require that at least one condition is met
-        require!(condition_index.is_some(), TokenError::NoMintConditionsMet);
-        
-        // Mark the condition as used
-        if let Some(index) = condition_index {
-            token_state.mint_conditions_used[index] = true;
-        }
-    }
+    // Only maintain the max supply cap check for safety
+    require!(
+        token_state.current_supply + quantity <= MAX_SUPPLY,
+        TokenError::ExceedsMaxSupplyCap
+    );
     
-    // Perform the mint
+    // Perform the mint - no conditions checked
     let seeds = &["mint".as_bytes(), &[ctx.bumps.mint]];
     let signer = [&seeds[..]];
     mint_to(
@@ -289,7 +238,6 @@ pub fn mint_tokens(ctx: Context<MintTokens>, quantity: u64) -> Result<()> {
     
     msg!("Tokens minted successfully: {}", quantity);
     msg!("Current supply: {}", token_state.current_supply);
-    msg!("Next eligible mint time: {}", current_timestamp + MIN_TIME_BETWEEN_MINTS);
     Ok(())
 }
 
@@ -311,31 +259,20 @@ pub fn burn_tokens(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
     Ok(())
 }
 
-// Transfer with sell limit protection
+
 pub fn transfer_with_limit(ctx: Context<TransferWithLimit>, amount: u64) -> Result<()> {
     // Calculate 1% of total supply as daily limit
     let circulating_supply = ctx.accounts.mint.supply;
     let daily_limit = circulating_supply / 100; // 1% of supply
     
-    // In a real implementation, you would track user's daily transfers in storage
-    // For simplicity, we're just checking the current transaction
+    // Check against the daily limit
     require!(amount <= daily_limit, TokenError::ExceedsDailySellLimit);
     
     // Calculate burn amount (1% for liquidity pool transactions)
     let burn_amount = amount * BURN_RATE as u64 / 100;
     let transfer_amount = amount - burn_amount;
     
-    // Update the unique wallets count if this is a new wallet receiving tokens
-    // In a real implementation, you would track each unique wallet
-    // For this example, we're just incrementing the counter as a placeholder
-    let is_new_wallet = true; // This should be replaced with actual check
-    
-    if is_new_wallet {
-        ctx.accounts.token_state.unique_wallets += 1;
-        msg!("New unique wallet tracked. Total unique wallets: {}", ctx.accounts.token_state.unique_wallets);
-    }
-    
-    // Transfer tokens
+    // Transfer reduced amount to recipient
     transfer(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -348,69 +285,30 @@ pub fn transfer_with_limit(ctx: Context<TransferWithLimit>, amount: u64) -> Resu
         transfer_amount,
     )?;
     
-    // In a real implementation, you would burn the tokens here
-    // This would require additional accounts and logic
+    // Burn the calculated amount
+    if burn_amount > 0 {
+        burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    from: ctx.accounts.from.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
+                },
+            ),
+            burn_amount,
+        )?;
+        
+        // Update token state to reflect the burn
+        ctx.accounts.token_state.current_supply = ctx.accounts.token_state.current_supply
+            .checked_sub(burn_amount)
+            .ok_or(TokenError::ArithmeticOverflow)?;
+            
+        msg!("Burned {} tokens ({}% of transfer amount)", burn_amount, BURN_RATE);
+    }
     
     msg!("Transferred {} tokens with {} tokens burned", transfer_amount, burn_amount);
     Ok(())
 }
 
-// Define a separate instruction to track unique wallets
-// This would be a more scalable approach in a production implementation
-#[derive(Accounts)]
-pub struct TrackWallet<'info> {
-    #[account(
-        mut,
-        seeds = [b"token_state"],
-        bump,
-    )]
-    pub token_state: Account<'info, TokenState>,
-    pub wallet: Signer<'info>,
-}
 
-// Function to track wallets via a separate instruction
-pub fn track_wallet(ctx: Context<TrackWallet>) -> Result<()> {
-    // In a real implementation, you would maintain a set of wallet addresses
-    // and check if this wallet is already in the set before incrementing
-    
-    // Placeholder logic - in reality, would check if this is actually a new wallet
-    let is_new_wallet = true; // Replace with actual check in production
-    
-    if is_new_wallet {
-        ctx.accounts.token_state.unique_wallets += 1;
-        msg!("New unique wallet tracked. Total unique wallets: {}", ctx.accounts.token_state.unique_wallets);
-    }
-    
-    Ok(())
-}
-
-#[derive(Accounts)]
-pub struct UpdateRevenue<'info> {
-    #[account(
-        mut,
-        seeds = [b"token_state"],
-        bump,
-    )]
-    pub token_state: Account<'info, TokenState>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-}
-
-// Function to update the self-sustaining revenue status
-// This would typically be called by an admin or governance process
-pub fn update_self_sustaining_status(ctx: Context<UpdateRevenue>, is_self_sustaining: bool) -> Result<()> {
-    let token_state = &mut ctx.accounts.token_state;
-    
-    // Update the self-sustaining status
-    token_state.is_self_sustaining = is_self_sustaining;
-    
-    msg!("Platform self-sustaining status updated to: {}", is_self_sustaining);
-    
-    // If this is the first time the platform becomes self-sustaining,
-    // it could trigger a minting event (if all other conditions are met)
-    if is_self_sustaining {
-        msg!("Platform has reached self-sustaining revenue. This may trigger the final minting event.");
-    }
-    
-    Ok(())
-}

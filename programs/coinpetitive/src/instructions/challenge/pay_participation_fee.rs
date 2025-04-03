@@ -2,8 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use crate::instructions::challenge::types::Challenge;
 use crate::instructions::challenge::errors::ErrorCode;
+use crate::instructions::token::TokenState;
 
-// Constants for clarity
+
 pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
 
@@ -36,6 +37,14 @@ pub struct PayParticipationFee<'info> {
     /// CHECK: Treasury's token account
     #[account(mut)]
     pub treasury_token_account: AccountInfo<'info>,
+    
+    // Add token_state for tracking fees
+    #[account(
+        mut,
+        seeds = [b"token_state"],
+        bump,
+    )]
+    pub token_state: Account<'info, TokenState>,
     
     pub system_program: Program<'info, System>,
 }
@@ -98,6 +107,28 @@ pub fn handle(ctx: Context<PayParticipationFee>) -> Result<()> {
     
     // Add participant to the list
     challenge.participants.push(participant_key);
+    
+    // After successfully processing the payment, track the fee
+    let token_state = &mut ctx.accounts.token_state;
+    let fee_amount = challenge.participation_fee;
+    
+    // Update total entry fees tracked
+    token_state.total_entry_fees = token_state.total_entry_fees
+        .checked_add(fee_amount)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    
+    // Check fee milestones
+    if token_state.total_entry_fees >= 50_000_000 {
+        token_state.mint_conditions_met[2] = true;
+        msg!("Milestone reached: 50M total entry fees paid!");
+    }
+    
+    if token_state.total_entry_fees >= 100_000_000 {
+        token_state.mint_conditions_met[3] = true;
+        msg!("Milestone reached: 100M total entry fees paid!");
+    }
+    
+    msg!("Entry fee of {} tracked. Total fees: {}", fee_amount, token_state.total_entry_fees);
     
     msg!("Participation fee paid successfully");
     msg!("Participant {} added to challenge", participant_key);
