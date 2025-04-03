@@ -1,5 +1,5 @@
 {
-  "address": "6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1",
+  "address": "H7SvZyDYbZ7ioeCTYWE4wuVdgWUyA5XJ1CAZnsH7ga8E",
   "metadata": {
     "name": "coinpetitive",
     "version": "0.1.0",
@@ -563,30 +563,6 @@
         {
           "name": "treasury_token_account",
           "writable": true
-        },
-        {
-          "name": "token_state",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
-                ]
-              }
-            ]
-          }
         },
         {
           "name": "system_program",

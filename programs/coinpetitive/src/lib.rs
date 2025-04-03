@@ -9,7 +9,7 @@ use instructions::challenge::*;
 
 
 
-declare_id!("6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1");
+declare_id!("H7SvZyDYbZ7ioeCTYWE4wuVdgWUyA5XJ1CAZnsH7ga8E");
 
 #[program]
 pub mod coinpetitive {
