@@ -61,7 +61,7 @@ describe("coinpetitive", () => {
     init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata);
 
 
-    //mint_cpv(mint, payer, program, metadata, 21_000_000);
+    mint_cpv(mint, payer, program, metadata, 21_000_000);
 
     //transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 500000);
 

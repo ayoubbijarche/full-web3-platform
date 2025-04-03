@@ -35,5 +35,7 @@ pub enum TokenError {
     #[msg("Insufficient token balance")]
     InsufficientTokenBalance,
     #[msg("Not authorized")]
-    NotAuthorized
+    NotAuthorized,
+    #[msg("Owner mismatch")]
+    OwnerMismatch
 }

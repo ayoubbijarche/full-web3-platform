@@ -4,10 +4,10 @@ use crate::instructions::challenge::types::Challenge;
 use crate::instructions::challenge::errors::ErrorCode;
 
 // Define Token-2022 program ID constant
-pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
 // Add fixed submission fee - 5 tokens with 9 decimals (5 * 10^9)
-pub const FIXED_SUBMISSION_FEE: u64 = 5_000_000_000;
+pub const FIXED_SUBMISSION_FEE: u64 = 5_000_000_0;
 
 // Token instruction enum
 #[derive(Clone, Debug)]
@@ -20,10 +20,7 @@ pub struct SubmitVideo<'info> {
     #[account(mut)]
     pub participant: Signer<'info>,
     
-    #[account(
-        mut, 
-        constraint = challenge.reward_token_mint.to_string() == CPT_TOKEN_MINT @ ErrorCode::InvalidTokenMint
-    )]
+
     pub challenge: Account<'info, Challenge>,
     
     /// CHECK: Treasury account (PDA) - verified in the handler

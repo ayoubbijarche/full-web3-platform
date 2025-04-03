@@ -5,18 +5,15 @@ use crate::instructions::challenge::errors::ErrorCode;
 use crate::instructions::token::TokenState;
 
 
-pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
-pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
+pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
 
 #[derive(Accounts)]
 pub struct PayParticipationFee<'info> {
     #[account(mut)]
     pub participant: Signer<'info>,
     
-    #[account(
-        mut,
-        constraint = challenge.reward_token_mint.to_string() == CPT_TOKEN_MINT @ ErrorCode::InvalidTokenMint
-    )]
+    #[account(mut)]
     pub challenge: Account<'info, Challenge>,
     
     /// CHECK: Treasury account (PDA)

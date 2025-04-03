@@ -114,7 +114,7 @@
         },
         {
           "name": "token_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "voting_treasury",
@@ -164,7 +164,7 @@
         },
         {
           "name": "token_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "winner_token_account",
@@ -554,7 +554,7 @@
         },
         {
           "name": "token_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "participant_token_account",
@@ -614,8 +614,7 @@
           "signer": true
         },
         {
-          "name": "challenge",
-          "writable": true
+          "name": "challenge"
         },
         {
           "name": "treasury",
@@ -623,7 +622,7 @@
         },
         {
           "name": "token_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "participant_token_account",
@@ -900,7 +899,7 @@
         },
         {
           "name": "token_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "voter_token_account",
@@ -1025,6 +1024,11 @@
       "code": 6016,
       "name": "NotAuthorized",
       "msg": "Not authorized"
+    },
+    {
+      "code": 6017,
+      "name": "OwnerMismatch",
+      "msg": "Owner mismatch"
     }
   ],
   "types": [

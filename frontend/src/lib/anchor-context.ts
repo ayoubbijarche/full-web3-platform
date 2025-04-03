@@ -15,8 +15,8 @@ import PocketBase from 'pocketbase';
 
 export const PROGRAM_ID = new PublicKey("6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1");
 export const PROGRAM_TREASURY = new PublicKey("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt");
-export const CPT_TOKEN_MINT = new PublicKey("mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9");
-export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+export const CPT_TOKEN_MINT = new PublicKey("wc3eLDaYLrPwD6Xacvb4xfXD1Cu6Mcw7ZbWopNynNYT");
+export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"); // Regular Token program
 
 function getAssociatedToken2022AddressSync(mint: PublicKey, owner: PublicKey): PublicKey {
   return getAssociatedTokenAddressSync(
@@ -89,6 +89,21 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   
     try {
+      // Divide by 100 to compensate for the 2-decimal mismatch
+      // (This works around the bug in the contract)
+      const adjustedReward = reward;
+      const adjustedParticipationFee = participationFee / 100;
+      const adjustedVotingFee = votingFee / 100;
+      
+      console.log("Creating challenge with adjusted amounts:", {
+        originalReward: reward,
+        adjustedReward: adjustedReward,
+        originalParticipationFee: participationFee,
+        adjustedParticipationFee: adjustedParticipationFee,
+        originalVotingFee: votingFee,
+        adjustedVotingFee: adjustedVotingFee,
+      });
+      
       // Generate a new keypair for the challenge account
       const challengeKeypair = anchor.web3.Keypair.generate();
       
@@ -136,9 +151,9 @@ export function useAnchorContextProvider(): AnchorContextType {
       );
   
       console.log("Creating challenge with parameters:", {
-        reward: reward.toString(),
-        participationFee: participationFee.toString(),
-        votingFee: votingFee.toString(),
+        reward: adjustedReward.toString(),
+        participationFee: adjustedParticipationFee.toString(),
+        votingFee: adjustedVotingFee.toString(),
         challengePubkey: challengeKeypair.publicKey.toString(),
         treasuryPDA: treasuryPDA.toString(),
         treasuryTokenAccount: treasuryTokenAccount.toString(),
@@ -149,9 +164,9 @@ export function useAnchorContextProvider(): AnchorContextType {
       // Create the challenge
       const tx = await program.methods
         .createChallenge(
-          new anchor.BN(reward),
-          new anchor.BN(participationFee),
-          new anchor.BN(votingFee),
+          new anchor.BN(adjustedReward),
+          new anchor.BN(adjustedParticipationFee),
+          new anchor.BN(adjustedVotingFee),
           maxParticipants,
           challengeId  // Pass the challenge ID
         )

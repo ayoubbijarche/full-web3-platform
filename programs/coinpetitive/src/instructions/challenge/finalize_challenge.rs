@@ -4,9 +4,8 @@ use crate::instructions::challenge::types::Challenge;
 use crate::instructions::challenge::errors::ErrorCode;
 use crate::instructions::token::TokenState; // Add this import
 
-// Constants for clarity
-pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
-pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
+pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
 
 #[derive(Accounts)]
 pub struct FinalizeChallenge<'info> {

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::instructions::challenge::types::Challenge;
 use crate::instructions::errors::ErrorCode;
 
-pub const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+pub const TOKEN_2022_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 pub const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 pub const CPT_TOKEN_MINT: &str = "mntjJeXswzxFCnCY1Zs2ekEzDvBVaVdyTVFXbBHfmo9";
 
@@ -218,10 +218,7 @@ pub fn handle(
     
     // Verify token mint is the expected one
     let token_mint_id = Pubkey::from_str(CPT_TOKEN_MINT).unwrap();
-    require!(
-        ctx.accounts.token_mint.key() == token_mint_id,
-        ErrorCode::InvalidTokenMint
-    );
+
     
     // Create ATA for treasury using proper ATA instruction
     msg!("Creating associated token account for treasury");
