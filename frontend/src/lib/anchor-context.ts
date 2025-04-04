@@ -13,7 +13,7 @@ import {
 } from "@solana/spl-token";
 import PocketBase from 'pocketbase';
 
-export const PROGRAM_ID = new PublicKey("6MfqEKxB2d87xU91ERi8nYxzcRPyKwTQEGwVXRxw3Bp1");
+export const PROGRAM_ID = new PublicKey("H7SvZyDYbZ7ioeCTYWE4wuVdgWUyA5XJ1CAZnsH7ga8E");
 export const PROGRAM_TREASURY = new PublicKey("FuFzoMF5xTwZego84fRoscnart4dPYNkpHho2UBe7NDt");
 export const CPT_TOKEN_MINT = new PublicKey("wc3eLDaYLrPwD6Xacvb4xfXD1Cu6Mcw7ZbWopNynNYT");
 export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"); // Regular Token program
@@ -91,7 +91,7 @@ export function useAnchorContextProvider(): AnchorContextType {
     try {
       // Divide by 100 to compensate for the 2-decimal mismatch
       // (This works around the bug in the contract)
-      const adjustedReward = reward;
+      const adjustedReward = reward / 100; 
       const adjustedParticipationFee = participationFee / 100;
       const adjustedVotingFee = votingFee / 100;
       
@@ -690,20 +690,39 @@ export function useAnchorContextProvider(): AnchorContextType {
         votingTreasuryTokenAccount: votingTreasuryTokenAccount.toString()
       });
       
-      // Get the token account info
-      const tokenAccountInfo = await connection.getTokenAccountBalance(votingTreasuryTokenAccount);
+      // Check if the account exists before getting balance
+      const accountInfo = await connection.getAccountInfo(votingTreasuryTokenAccount);
+      
+      let tokenBalance = {
+        value: { amount: "0", decimals: 9, uiAmount: 0 }
+      };
+      
+      // Only try to get token balance if account exists
+      if (accountInfo) {
+        const tokenBalanceResponse = await connection.getTokenAccountBalance(votingTreasuryTokenAccount);
+        tokenBalance = {
+          value: {
+            amount: tokenBalanceResponse.value.amount,
+            decimals: tokenBalanceResponse.value.decimals,
+            uiAmount: tokenBalanceResponse.value.uiAmount ?? 0 // Convert null to 0
+          }
+        };
+      } else {
+        console.log("Voting treasury token account doesn't exist yet, returning zero balance");
+      }
       
       // Get the SOL balance of the voting treasury
       const solBalance = await connection.getBalance(votingTreasuryPubkey);
       
       return {
         success: true,
-        tokenBalance: tokenAccountInfo.value.uiAmount ?? undefined,
-        tokenDecimals: tokenAccountInfo.value.decimals,
-        tokenAmountRaw: tokenAccountInfo.value.amount,
+        tokenBalance: tokenBalance.value.uiAmount ?? 0,
+        tokenDecimals: tokenBalance.value.decimals,
+        tokenAmountRaw: tokenBalance.value.amount,
         solBalance: solBalance / LAMPORTS_PER_SOL,
         votingTreasuryAddress: votingTreasuryPubkey.toString(),
-        votingTreasuryTokenAccount: votingTreasuryTokenAccount.toString()
+        votingTreasuryTokenAccount: votingTreasuryTokenAccount.toString(),
+        accountExists: !!accountInfo
       };
     } catch (error: unknown) {
       console.error("Error fetching voting treasury balance:", error);
@@ -711,10 +730,6 @@ export function useAnchorContextProvider(): AnchorContextType {
       let errorMessage = "Failed to get voting treasury balance";
       if (error instanceof Error) {
         errorMessage = error.message;
-        
-        if (errorMessage.includes("account not found")) {
-          errorMessage = "Voting treasury token account not found. The account might not have been created yet.";
-        }
       }
       
       return {
@@ -740,89 +755,100 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   
     try {
-      // Convert string to PublicKey
       const challengePubkey = new PublicKey(challengePublicKey);
       
-      console.log("Starting challenge finalization for:", challengePublicKey);
+      // IMPORTANT: First fetch the actual on-chain challenge data to get the real creator
+      console.log("Fetching challenge account data from blockchain");
+      const challengeAccountInfo = await connection.getAccountInfo(challengePubkey);
       
-      // Step 1: Fetch all video submissions for this challenge from PocketBase
-      const pb = new PocketBase('http://127.0.0.1:8090/');
-      
-      // Get the PocketBase challenge ID from onchain_id
-      let pbChallengeId = "";
-      try {
-        const pbChallenges = await pb.collection('challenges').getList(1, 1, {
-          filter: `onchain_id = "${challengePublicKey}"`
-        });
-        
-        if (pbChallenges.items.length === 0) {
-          return {
-            success: false,
-            error: "Challenge not found in PocketBase"
-          };
-        }
-        
-        pbChallengeId = pbChallenges.items[0].id;
-        console.log("Found PocketBase challenge ID:", pbChallengeId);
-      } catch (pbError) {
-        console.error("Error fetching challenge from PocketBase:", pbError);
+      if (!challengeAccountInfo) {
         return {
           success: false,
-          error: "Failed to fetch challenge from PocketBase"
+          error: "Challenge not found on blockchain"
         };
       }
-
-      // After getting the challenge from PocketBase, grab the creator's pubkey
-      let creatorPubkey: PublicKey;
-      try {
-        const pbChallenge = await pb.collection('challenges').getOne(pbChallengeId, {
-          expand: 'creator'
-        });
-        
-        if (pbChallenge.expand?.creator?.pubkey) {
-          creatorPubkey = new PublicKey(pbChallenge.expand.creator.pubkey);
-          console.log("Found creator pubkey:", creatorPubkey.toString());
-        } else {
-          // If we can't find the creator's pubkey, use the wallet's pubkey as fallback
-          // (This assumes wallet owner is the creator)
-          creatorPubkey = wallet.publicKey;
-          console.log("Using wallet as creator pubkey:", creatorPubkey.toString());
-        }
-      } catch (creatorError) {
-        console.error("Error fetching creator pubkey:", creatorError);
-        // Fallback to using the wallet's pubkey
+      
+      // Use Anchor to decode the account data
+      console.log("Challenge account exists. Trying to deserialize data...");
+      
+      // Instead of relying on Anchor deserialization which might fail,
+      // Let's try to fetch the challenge data from PocketBase but use a workaround
+      const pb = new PocketBase('http://localhost:8090');
+      
+      // Get the PocketBase challenge with expanded creator
+      console.log("Fetching challenge from PocketBase");
+      const pbChallenges = await pb.collection('challenges').getList(1, 1, {
+        filter: `onchain_id = "${challengePublicKey}"`,
+        expand: 'creator' // Expand the creator relation to get their pubkey
+      });
+      
+      if (pbChallenges.items.length === 0) {
+        return {
+          success: false,
+          error: "Challenge not found in PocketBase"
+        };
+      }
+      
+      const pbChallenge = pbChallenges.items[0];
+      const pbChallengeId = pbChallenge.id;
+      
+      // Get creator's pubkey from the expanded creator relation
+      let creatorPubkey;
+      if (pbChallenge.expand?.creator?.pubkey) {
+        creatorPubkey = new PublicKey(pbChallenge.expand.creator.pubkey);
+        console.log("Using creator pubkey from PocketBase:", creatorPubkey.toString());
+      } else {
+        // Fallback to wallet as creator if we can't find the pubkey in PB
         creatorPubkey = wallet.publicKey;
-        console.log("Using wallet as creator pubkey after error:", creatorPubkey.toString());
+        console.log("Creator pubkey not found in PB, using wallet:", creatorPubkey.toString());
       }
       
-      // Get all video submissions for this challenge
-      let submissions: any = null;
+      // FOR DEBUGGING - Try all possible combinations:
+      // 1. Fetch with regular RPC
+      let actualCreatorPubkey = null;
       try {
-        // Make sure to sort by vote_count descending to get the winner
-        submissions = await pb.collection('video_submitted').getList(1, 100, {
-          filter: `challenge = "${pbChallengeId}"`,
-          sort: "-vote_count",
-          expand: "participant"
-        });
+        console.log("ATTEMPTING DIRECT RPC CALL");
+        const accountData = await connection.getAccountInfo(challengePubkey);
+        console.log("Challenge account data length:", accountData?.data.length);
         
-        console.log("Found video submissions:", submissions.items.length);
-      } catch (submissionsError) {
-        console.error("Error fetching submissions from PocketBase:", submissionsError);
-        return {
-          success: false,
-          error: "Failed to fetch video submissions from PocketBase"
-        };
+        if (accountData && accountData.data.length >= 40) {
+          const creatorPubkeyBytes = accountData.data.slice(8, 40); // Skip 8-byte discriminator
+          actualCreatorPubkey = new PublicKey(creatorPubkeyBytes);
+          console.log("Extracted creator from raw account data:", actualCreatorPubkey.toString());
+        }
+      } catch (rpcError) {
+        console.error("Error in RPC extraction:", rpcError);
       }
       
-      if (submissions.items.length === 0) {
+      console.log("Will try with the following creator keys:");
+      console.log("1. PocketBase creator:", creatorPubkey.toString());
+      if (actualCreatorPubkey) {
+        console.log("2. Blockchain extracted creator:", actualCreatorPubkey.toString());
+        creatorPubkey = actualCreatorPubkey; // Use the extracted one if available
+      }
+      
+      // Derive the treasury PDA
+      const [treasuryPubkey] = PublicKey.findProgramAddressSync(
+        [Buffer.from("treasury"), challengePubkey.toBuffer()],
+        program.programId
+      );
+      
+      // Step 2: Fetch all video submissions for this challenge from PocketBase
+      const pbSubmissions = await pb.collection('video_submitted').getList(1, 100, {
+        filter: `challenge = "${pbChallengeId}"`,
+        sort: "-vote_count",
+        expand: "participant"
+      });
+      
+      if (pbSubmissions.items.length === 0) {
         return {
           success: false,
           error: "No video submissions found for this challenge"
         };
       }
       
-      // Step 2: Determine the winner (submission with highest vote_count)
-      const winnerSubmission = submissions.items[0]; // Already sorted by vote_count desc
+      // Determine the winner (submission with highest vote_count)
+      const winnerSubmission = pbSubmissions.items[0]; // Already sorted by vote_count desc
       
       console.log("Winner submission:", {
         id: winnerSubmission.id,
@@ -831,52 +857,20 @@ export function useAnchorContextProvider(): AnchorContextType {
         pubkey: winnerSubmission.expand?.participant?.pubkey
       });
       
-      // Step 3: Get the winner's pubkey
+      // Get the winner's pubkey
       let winnerPubkey;
-      try {
-        if (winnerSubmission.expand?.participant?.pubkey) {
-          // If expanded participant has pubkey
-          winnerPubkey = new PublicKey(winnerSubmission.expand.participant.pubkey);
-        } else if (winnerSubmission.participant) {
-          // If not expanded, fetch participant directly
-          // Handle array or single value
-          const participantId = Array.isArray(winnerSubmission.participant) 
-            ? winnerSubmission.participant[0] 
-            : winnerSubmission.participant;
-            
-          console.log("Fetching participant details:", participantId);
-            
-          const participant = await pb.collection('users').getOne(participantId);
-          if (!participant.pubkey) {
-            return {
-              success: false,
-              error: "Winner's wallet address not found"
-            };
-          }
-          winnerPubkey = new PublicKey(participant.pubkey);
-        } else {
-          return {
-            success: false,
-            error: "Winner's participant reference not found"
-          };
-        }
-        
-        console.log("Winner pubkey:", winnerPubkey.toString());
-      } catch (pubkeyError) {
-        console.error("Error getting winner's pubkey:", pubkeyError);
+      if (winnerSubmission.expand?.participant?.pubkey) {
+        winnerPubkey = new PublicKey(winnerSubmission.expand.participant.pubkey);
+      } else {
         return {
           success: false,
-          error: "Failed to get winner's wallet address"
+          error: "Winner's wallet address not found"
         };
       }
       
-      // Step 4: Derive the treasury PDA
-      const [treasuryPubkey] = PublicKey.findProgramAddressSync(
-        [Buffer.from("treasury"), challengePubkey.toBuffer()],
-        program.programId
-      );
+      console.log("Winner pubkey:", winnerPubkey.toString());
       
-      // Step 5: Find treasury token account
+      // Find treasury token account
       const treasuryTokenAccount = getAssociatedTokenAddressSync(
         CPT_TOKEN_MINT,
         treasuryPubkey,
@@ -884,20 +878,19 @@ export function useAnchorContextProvider(): AnchorContextType {
         TOKEN_2022_PROGRAM_ID
       );
       
-      // Step 6: Find or create winner's token account
+      // Find or create winner's token account
       const winnerTokenAccount = getAssociatedToken2022AddressSync(
         CPT_TOKEN_MINT,
         winnerPubkey
       );
       
-      // Check if winner token account exists
+      // Check if winner token account exists and create if needed
       const winnerTokenAccountInfo = await connection.getAccountInfo(winnerTokenAccount);
       if (!winnerTokenAccountInfo) {
         console.log("Creating token account for winner:", winnerPubkey.toString());
         
-        // Create the associated token account instruction
         const createAtaIx = createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
+          wallet.publicKey,
           winnerTokenAccount, 
           winnerPubkey,
           CPT_TOKEN_MINT,
@@ -914,24 +907,21 @@ export function useAnchorContextProvider(): AnchorContextType {
         console.log("Created winner token account:", signature);
       }
 
-      // Add this right after creating the winner's token account
-
-      // Step 6b: Get or create creator's token account using the actual creator's pubkey
+      // Get or create creator's token account
       const creatorTokenAccount = getAssociatedToken2022AddressSync(
         CPT_TOKEN_MINT,
-        creatorPubkey  // Use the actual creator's pubkey instead of wallet.publicKey
+        creatorPubkey
       );
       
-      // Check if creator token account exists
+      // Check if creator token account exists and create if needed
       const creatorTokenAccountInfo = await connection.getAccountInfo(creatorTokenAccount);
       if (!creatorTokenAccountInfo) {
         console.log("Creating token account for creator:", creatorPubkey.toString());
         
-        // Create the associated token account instruction
         const createCreatorAtaIx = createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
+          wallet.publicKey,
           creatorTokenAccount, 
-          creatorPubkey,   // owner should be the actual creator
+          creatorPubkey,
           CPT_TOKEN_MINT,
           TOKEN_2022_PROGRAM_ID
         );
@@ -946,14 +936,14 @@ export function useAnchorContextProvider(): AnchorContextType {
         console.log("Created creator token account:", signature);
       }
       
-      // Step 7: Call the finalize_challenge instruction with all accounts
+      // Call the finalize_challenge instruction with all accounts
       console.log("Finalizing challenge with accounts:", {
         challenge: challengePubkey.toString(),
         treasury: treasuryPubkey.toString(),
         treasuryToken: treasuryTokenAccount.toString(),
         winner: winnerPubkey.toString(),
         winnerToken: winnerTokenAccount.toString(),
-        creator: creatorPubkey.toString(), // Add this log
+        creator: creatorPubkey.toString(),
         creatorToken: creatorTokenAccount.toString(),
         voteCount: winnerSubmission.vote_count || 1
       });
@@ -971,20 +961,20 @@ export function useAnchorContextProvider(): AnchorContextType {
           treasury: treasuryPubkey,
           treasuryTokenAccount: treasuryTokenAccount,
           creatorTokenAccount: creatorTokenAccount,
-          creator: creatorPubkey, // Add this line to provide the creator account
+          creator: creatorPubkey, // Using the blockchain-extracted creator
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
       
       console.log("Successfully finalized challenge! Transaction signature:", tx);
       
-      // Step 8: Update challenge in PocketBase to mark as finalized
+      // Update challenge in PocketBase to mark as finalized
       try {
         await pb.collection('challenges').update(pbChallengeId, {
-          state: "completed" // Changed from 'finalized' to match your schema states
+          state: "completed"
         });
       } catch (updateError) {
         console.log("Warning: Could not update challenge state in PocketBase", updateError);
-        // Continue since the on-chain finalization succeeded
       }
       
       return {
@@ -1007,6 +997,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       };
     }
   };
+
   // Add this function after finalizeChallenge function and before the return statement
 
   const finalizeVotingTreasury = async (challengePublicKey: string) => {
@@ -1308,6 +1299,7 @@ export type AnchorContextType = {
     solBalance?: number;
     votingTreasuryAddress?: string;
     votingTreasuryTokenAccount?: string;
+    accountExists?: boolean;
     error?: string;
   }>;
   finalizeChallenge: (challengePublicKey: string) => Promise<{

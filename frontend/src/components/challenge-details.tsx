@@ -997,6 +997,49 @@ const status = getChallengeStatus();
             )}
           </div>
         </div>
+
+        {/* Treasury Balances */}
+        <div className="w-full mb-4">
+          <div className="border border-[#9A9A9A] rounded-lg p-3">
+            <h3 className="text-sm font-medium mb-2">Treasury Balances</h3>
+            
+            <div className="grid grid-cols-2 gap-2">
+              {/* Main Treasury */}
+              <div className="bg-gray-50 p-2 rounded-md">
+                <div className="flex items-center gap-1 mb-1">
+                  <Wallet className="h-3 w-3 text-[#B3731D]" />
+                  <span className="text-xs font-medium">Participation:</span>
+                </div>
+                <p className="text-right">
+                  {loadingBalance ? (
+                    <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-[#b3731d]"></span>
+                  ) : treasuryBalance?.success ? (
+                    <span className="text-sm font-medium">{treasuryBalance.tokenBalance || 0} CPT</span>
+                  ) : (
+                    <span className="text-xs text-gray-500">N/A</span>
+                  )}
+                </p>
+              </div>
+              
+              {/* Voting Treasury */}
+              <div className="bg-gray-50 p-2 rounded-md">
+                <div className="flex items-center gap-1 mb-1">
+                  <Wallet className="h-3 w-3 text-[#B3731D]" />
+                  <span className="text-xs font-medium">Voting:</span>
+                </div>
+                <p className="text-right">
+                  {loadingVotingBalance ? (
+                    <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-[#b3731d]"></span>
+                  ) : votingTreasuryBalance?.success ? (
+                    <span className="text-sm font-medium">{votingTreasuryBalance.tokenBalance || 0} CPT</span>
+                  ) : (
+                    <span className="text-xs text-gray-500">N/A</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
         
         {/* 3. Chat section */}
         <div className="w-full mb-4">
@@ -1351,6 +1394,43 @@ const status = getChallengeStatus();
               )}
             </div>
           )}
+        </div>
+
+        {/* Treasury Balances */}
+        <div className="w-full mb-4">
+          <div className="border border-[#9A9A9A] rounded-xl p-3">
+            <h3 className="font-semibold mb-2">Treasury Balances</h3>
+            
+            {/* Main Treasury (Participation Fees) */}
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-[#B3731D]" />
+                <span className="text-sm">Participation Treasury:</span>
+              </div>
+              {loadingBalance ? (
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
+              ) : treasuryBalance?.success ? (
+                <span className="font-medium">{treasuryBalance.tokenBalance || 0} CPT</span>
+              ) : (
+                <span className="text-gray-500 text-sm">Not available</span>
+              )}
+            </div>
+            
+            {/* Voting Treasury */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-[#B3731D]" />
+                <span className="text-sm">Voting Treasury:</span>
+              </div>
+              {loadingVotingBalance ? (
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
+              ) : votingTreasuryBalance?.success ? (
+                <span className="font-medium">{votingTreasuryBalance.tokenBalance || 0} CPT</span>
+              ) : (
+                <span className="text-gray-500 text-sm">Not available</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Video Submissions */}
