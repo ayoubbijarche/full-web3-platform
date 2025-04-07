@@ -84,13 +84,12 @@ export function useAnchorContextProvider(): AnchorContextType {
     votingFee: number,
     maxParticipants?: number 
   }) => {
-    if (!program || !wallet) {
+    if (!program || !wallet || !connection) {
       throw new Error("Wallet not connected");
     }
   
     try {
       // Divide by 100 to compensate for the 2-decimal mismatch
-      // (This works around the bug in the contract)
       const adjustedReward = reward / 100; 
       const adjustedParticipationFee = participationFee / 100;
       const adjustedVotingFee = votingFee / 100;
@@ -110,41 +109,32 @@ export function useAnchorContextProvider(): AnchorContextType {
       // Generate a unique challenge ID using timestamp
       const challengeId = new anchor.BN(Date.now());
       
-      // Derive the main treasury PDA for participation fees
+      // Derive PDAs and find token accounts - no changes to this part
       const [treasuryPDA] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("treasury"),
-          challengeKeypair.publicKey.toBuffer()
-        ],
+        [Buffer.from("treasury"), challengeKeypair.publicKey.toBuffer()],
         program.programId
       );
       
-      // Derive the voting treasury PDA for voting fees
       const [votingTreasuryPDA] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("voting_treasury"),
-          challengeKeypair.publicKey.toBuffer()
-        ],
+        [Buffer.from("voting_treasury"), challengeKeypair.publicKey.toBuffer()],
         program.programId
       );
       
-      // Find main treasury token account
+      // Find token accounts - no changes
       const treasuryTokenAccount = getAssociatedTokenAddressSync(
         CPT_TOKEN_MINT,
         treasuryPDA,
-        true,  // allowOwnerOffCurve set to true for PDAs
-        TOKEN_2022_PROGRAM_ID  // use Token-2022 program
+        true,
+        TOKEN_2022_PROGRAM_ID
       );
       
-      // Find voting treasury token account
       const votingTreasuryTokenAccount = getAssociatedTokenAddressSync(
         CPT_TOKEN_MINT,
         votingTreasuryPDA,
-        true,  // allowOwnerOffCurve set to true for PDAs
-        TOKEN_2022_PROGRAM_ID  // use Token-2022 program
+        true,
+        TOKEN_2022_PROGRAM_ID
       );
   
-      // Find user token account
       const userTokenAccount = getAssociatedToken2022AddressSync(
         CPT_TOKEN_MINT,
         wallet.publicKey
@@ -156,46 +146,99 @@ export function useAnchorContextProvider(): AnchorContextType {
         votingFee: adjustedVotingFee.toString(),
         challengePubkey: challengeKeypair.publicKey.toString(),
         treasuryPDA: treasuryPDA.toString(),
-        treasuryTokenAccount: treasuryTokenAccount.toString(),
-        votingTreasuryPDA: votingTreasuryPDA.toString(),
-        votingTreasuryTokenAccount: votingTreasuryTokenAccount.toString()
+        treasuryTokenAccount: treasuryTokenAccount.toString()
       });
   
-      // Create the challenge
-      const tx = await program.methods
+      // Get the latest blockhash for better transaction confirmation
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  
+      // BUILD TRANSACTION MANUALLY FOR MORE CONTROL
+      const createChallengeIx = await program.methods
         .createChallenge(
           new anchor.BN(adjustedReward),
           new anchor.BN(adjustedParticipationFee),
           new anchor.BN(adjustedVotingFee),
           maxParticipants,
-          challengeId  // Pass the challenge ID
+          challengeId
         )
         .accounts({
           user: wallet.publicKey,
           challenge: challengeKeypair.publicKey,
           treasury: treasuryPDA,
-          votingTreasury: votingTreasuryPDA,  // Added voting treasury
+          votingTreasury: votingTreasuryPDA,
           programAccount: PROGRAM_TREASURY,
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
           tokenMint: CPT_TOKEN_MINT,
           creatorTokenAccount: userTokenAccount,
           treasuryTokenAccount: treasuryTokenAccount,
-          votingTreasuryTokenAccount: votingTreasuryTokenAccount,  // Added voting treasury token account
+          votingTreasuryTokenAccount: votingTreasuryTokenAccount,
           associatedTokenProgram: new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
         })
-        .signers([challengeKeypair])
-        .rpc();
+        .instruction();
   
-      console.log("Challenge created! Transaction signature:", tx);
-      return {
-        success: true,
-        signature: tx,
-        challengePublicKey: challengeKeypair.publicKey.toString(),
-        treasuryPublicKey: treasuryPDA.toString(),
-        votingTreasuryPublicKey: votingTreasuryPDA.toString()
-      };
-    } catch (error: unknown) {
+      // Create transaction with the instruction
+      const tx = new Transaction().add(createChallengeIx);
+      tx.feePayer = wallet.publicKey;
+      tx.recentBlockhash = blockhash;
+      
+      // Add the challenge keypair as signer
+      tx.partialSign(challengeKeypair);
+  
+      // Sign with wallet
+      const signedTx = await wallet.signTransaction(tx);
+      
+      // Send the transaction with skipPreflight set to false for better validation
+      console.log("Sending challenge creation transaction...");
+      const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
+      
+      console.log("Challenge creation transaction sent:", signature);
+  
+      try {
+        // Use enhanced confirmation with timeout parameters
+        console.log("Waiting for confirmation...");
+        const status = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        }, 'confirmed');
+        
+        if (status.value.err) {
+          console.error("Transaction confirmed but failed:", status.value.err);
+          return {
+            success: false,
+            error: `Transaction failed: ${JSON.stringify(status.value.err)}`
+          };
+        }
+        
+        console.log("Challenge created successfully! Transaction signature:", signature);
+        return {
+          success: true,
+          signature,
+          challengePublicKey: challengeKeypair.publicKey.toString(),
+          treasuryPublicKey: treasuryPDA.toString(),
+          votingTreasuryPublicKey: votingTreasuryPDA.toString()
+        };
+      } catch (confirmError) {
+        // Special handling for confirmation timeout
+        if (confirmError instanceof Error && confirmError.message.includes("was not confirmed")) {
+          console.warn("Transaction confirmation timed out but may still succeed");
+          return {
+            success: false,
+            error: "Transaction submitted but confirmation timed out. Check the transaction status manually.",
+            pendingSignature: signature,
+            challengePublicKey: challengeKeypair.publicKey.toString(),
+            treasuryPublicKey: treasuryPDA.toString(),
+            votingTreasuryPublicKey: votingTreasuryPDA.toString()
+          };
+        }
+        
+        throw confirmError; // Re-throw other confirmation errors
+      }
+    } catch (error) {
       console.error("Error creating challenge:", error);
       return {
         success: false,
@@ -348,7 +391,6 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Update the submitVideoOnChain function:
   const submitVideoOnChain = async (challengePublicKey: string, videoUrl: string) => {
     if (!wallet) {
       return {
@@ -402,6 +444,9 @@ export function useAnchorContextProvider(): AnchorContextType {
         videoReference: videoReference.toString()
       });
       
+      // Get the latest blockhash for transaction
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      
       // Call the submit_video instruction directly
       const tx = await program.methods
         .submitVideo(videoUrl)
@@ -414,7 +459,24 @@ export function useAnchorContextProvider(): AnchorContextType {
           treasuryTokenAccount: treasuryTokenAccount,
           videoReference: videoReference,
         })
-        .rpc();
+        .rpc({ skipPreflight: false }); // Enable preflight checks
+      
+      console.log("Transaction submitted! Waiting for confirmation...");
+      
+      // Use a more robust confirmation strategy with longer timeout
+      const status = await connection.confirmTransaction({
+        signature: tx,
+        blockhash: blockhash,
+        lastValidBlockHeight: lastValidBlockHeight
+      }, 'confirmed');
+      
+      if (status.value.err) {
+        console.error("Transaction confirmed but failed:", status.value.err);
+        return {
+          success: false,
+          error: `Transaction failed: ${JSON.stringify(status.value.err)}`
+        };
+      }
       
       console.log("Successfully submitted video! Transaction signature:", tx);
       return {
@@ -424,14 +486,22 @@ export function useAnchorContextProvider(): AnchorContextType {
       };
     } catch (error: unknown) {
       console.error("Error submitting video on-chain:", error);
+      
+      // Check if it's a timeout error but the transaction might still be processing
+      if (error instanceof Error && error.message.includes("was not confirmed")) {
+        return {
+          success: false,
+          error: "Transaction submitted but confirmation timed out. Check the transaction status manually.",
+          pendingSignature: error.message.match(/Check signature ([^\s]+)/)?.[1]
+        };
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error)
       };
     }
   };
-
-  // Replace the voteForSubmissionOnChain function with this improved version
 
   const voteForSubmissionOnChain = async (challengePublicKey: string, submissionPublicKey: string) => {
     if (!wallet || !connection) {
@@ -443,7 +513,6 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   
     try {
-      // First, check if the voting treasury token account exists and create it if not
       console.log("Starting vote process for challenge:", challengePublicKey);
       
       // Convert strings to PublicKeys
@@ -481,18 +550,16 @@ export function useAnchorContextProvider(): AnchorContextType {
         TOKEN_2022_PROGRAM_ID
       );
       
-      // Create a transaction to check/create the voting treasury token account if needed
-      let tx = new Transaction();
-      
+      // Check if the voting treasury token account exists and create it if needed
+      let setupTx = null;
       try {
-        // Check if the voting treasury token account exists
         const votingTokenAccountInfo = await connection.getAccountInfo(votingTreasuryTokenAccount);
         
         if (!votingTokenAccountInfo) {
           console.log("Voting treasury token account doesn't exist, creating it...");
           
-          // Add instruction to create the ATA
-          const createAta = createAssociatedTokenAccountInstruction(
+          // Create and send the setup transaction
+          const createAtaIx = createAssociatedTokenAccountInstruction(
             wallet.publicKey,
             votingTreasuryTokenAccount,
             votingTreasuryPubkey,
@@ -501,25 +568,47 @@ export function useAnchorContextProvider(): AnchorContextType {
             TOKEN_2022_PROGRAM_ID
           );
           
-          tx.add(createAta);
+          const setupTransaction = new Transaction().add(createAtaIx);
+          setupTransaction.feePayer = wallet.publicKey;
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          setupTransaction.recentBlockhash = blockhash;
+          
+          const signedSetupTx = await wallet.signTransaction(setupTransaction);
+          const setupSig = await connection.sendRawTransaction(signedSetupTx.serialize());
+          
+          console.log("Setup transaction sent:", setupSig);
+          
+          // Wait for setup transaction to confirm with enhanced timeout handling
+          const setupStatus = await connection.confirmTransaction({
+            signature: setupSig,
+            blockhash,
+            lastValidBlockHeight
+          }, 'confirmed');
+          
+          if (setupStatus.value.err) {
+            console.error("Setup transaction failed:", setupStatus.value.err);
+            return {
+              success: false,
+              error: `Failed to create voting treasury account: ${JSON.stringify(setupStatus.value.err)}`
+            };
+          }
+          
+          setupTx = setupSig;
+          console.log("Created voting treasury token account");
         }
       } catch (err) {
-        console.log("Error checking token account, will attempt to create:", err);
-        
-        // Add instruction to create the ATA just in case
-        const createAta = createAssociatedTokenAccountInstruction(
-          wallet.publicKey,
-          votingTreasuryTokenAccount,
-          votingTreasuryPubkey,
-          CPT_TOKEN_MINT,
-          TOKEN_2022_PROGRAM_ID,
-          TOKEN_2022_PROGRAM_ID
-        );
-        
-        tx.add(createAta);
+        console.error("Error checking/creating token account:", err);
+        return {
+          success: false,
+          error: "Failed to set up voting treasury account"
+        };
       }
       
-      // Now add the vote instruction
+      // Now prepare the vote transaction
+      // Get fresh blockhash for the vote transaction
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      
+      // Prepare the vote instruction
       const voteIx = await program.methods
         .voteForSubmission()
         .accounts({
@@ -532,31 +621,63 @@ export function useAnchorContextProvider(): AnchorContextType {
           voterTokenAccount: voterTokenAccount,
           votingTreasuryTokenAccount: votingTreasuryTokenAccount,
           submissionId: submissionPubkey,
-          // Add any missing accounts your program expects 
-          systemProgram: SystemProgram.programId,  // May be needed for creating accounts
+          systemProgram: SystemProgram.programId,
         })
         .instruction();
       
-      tx.add(voteIx);
+      // Create and send the vote transaction
+      const voteTx = new Transaction().add(voteIx);
+      voteTx.feePayer = wallet.publicKey;
+      voteTx.recentBlockhash = blockhash;
       
-      // Set recent blockhash and fee payer
-      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      tx.feePayer = wallet.publicKey;
+      console.log("Signing vote transaction...");
+      const signedVoteTx = await wallet.signTransaction(voteTx);
       
-      // Sign and send the transaction
       console.log("Sending vote transaction...");
-      const signedTx = await wallet.signTransaction(tx);
-      const signature = await connection.sendRawTransaction(signedTx.serialize());
+      const signature = await connection.sendRawTransaction(signedVoteTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
       
-      // Wait for confirmation
-      console.log("Waiting for transaction confirmation...");
-      await connection.confirmTransaction(signature);
+      console.log("Vote transaction sent! Signature:", signature);
       
-      console.log("Vote successful! Transaction ID:", signature);
-      return {
-        success: true,
-        signature
-      };
+      try {
+        // Wait for confirmation with enhanced timeout handling
+        console.log("Waiting for vote transaction confirmation...");
+        const status = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        }, 'confirmed');
+        
+        if (status.value.err) {
+          console.error("Vote transaction confirmed but failed:", status.value.err);
+          return {
+            success: false,
+            error: `Transaction failed: ${JSON.stringify(status.value.err)}`
+          };
+        }
+        
+        console.log("Vote successful! Transaction confirmed:", signature);
+        return {
+          success: true,
+          signature,
+          setupTransaction: setupTx
+        };
+      } catch (confirmError) {
+        // Handle confirmation timeout
+        if (confirmError instanceof Error && confirmError.message.includes("was not confirmed")) {
+          console.warn("Transaction confirmation timed out but may still succeed");
+          return {
+            success: false,
+            error: "Transaction submitted but confirmation timed out. Check the transaction status manually.",
+            pendingSignature: signature,
+            setupTransaction: setupTx
+          };
+        }
+        
+        throw confirmError; // Re-throw other errors
+      }
     } catch (error) {
       console.error("Error voting for submission:", error);
       
@@ -579,8 +700,6 @@ export function useAnchorContextProvider(): AnchorContextType {
       };
     }
   };
-
-  // Add this function to your useAnchorContextProvider function
 
   const getTreasuryBalance = async (challengePublicKey: string) => {
     if (!connection) {
@@ -652,8 +771,6 @@ export function useAnchorContextProvider(): AnchorContextType {
       };
     }
   };
-
-  // Add this function to check the voting treasury balance
 
   const getVotingTreasuryBalance = async (challengePublicKey: string) => {
     if (!connection) {
@@ -998,8 +1115,6 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Add this function after finalizeChallenge function and before the return statement
-
   const finalizeVotingTreasury = async (challengePublicKey: string) => {
     if (!wallet) {
       return {
@@ -1234,7 +1349,103 @@ export function useAnchorContextProvider(): AnchorContextType {
     }
   };
 
-  // Update the return object to include the new function
+  const claimCreatorReward = async (challengePublicKey: string) => {
+    if (!wallet) {
+      return {
+        success: false,
+        error: "Wallet not connected"
+      };
+    }
+    
+    if (!program) {
+      return {
+        success: false,
+        error: "Program not initialized"
+      };
+    }
+  
+    try {
+      const challengePubkey = new PublicKey(challengePublicKey);
+      console.log("Starting creator reward claim for:", challengePublicKey);
+      
+      // Derive the treasury PDA from the challenge
+      const [treasuryPubkey] = PublicKey.findProgramAddressSync(
+        [Buffer.from("treasury"), challengePubkey.toBuffer()],
+        program.programId
+      );
+      
+      // Find treasury token account
+      const treasuryTokenAccount = getAssociatedTokenAddressSync(
+        CPT_TOKEN_MINT,
+        treasuryPubkey,
+        true,
+        TOKEN_2022_PROGRAM_ID
+      );
+      
+      // Get creator token account
+      const creatorTokenAccount = getAssociatedToken2022AddressSync(
+        CPT_TOKEN_MINT,
+        wallet.publicKey
+      );
+      
+      console.log("Claiming creator reward with accounts:", {
+        challenge: challengePubkey.toString(),
+        treasury: treasuryPubkey.toString(),
+        treasuryToken: treasuryTokenAccount.toString(),
+        creator: wallet.publicKey.toString(),
+        creatorToken: creatorTokenAccount.toString()
+      });
+      
+      // Check the balance before claiming
+      try {
+        const balanceBefore = await connection.getTokenAccountBalance(treasuryTokenAccount);
+        console.log("Treasury balance before claim:", balanceBefore.value.uiAmount);
+      } catch (e) {
+        console.log("Could not fetch treasury balance before claim");
+      }
+      
+      // Call the claim instruction
+      const tx = await program.methods
+        .claimCreatorReward()
+        .accounts({
+          creator: wallet.publicKey,
+          challenge: challengePubkey,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          treasury: treasuryPubkey,
+          treasuryTokenAccount: treasuryTokenAccount,
+          creatorTokenAccount: creatorTokenAccount,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+      
+      console.log("Successfully claimed creator reward! Transaction signature:", tx);
+      
+      return {
+        success: true,
+        signature: tx
+      };
+    } catch (error) {
+      console.error("Error claiming creator reward:", error);
+      
+      let errorMessage = "Failed to claim creator reward";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for specific error types
+        if (errorMessage.includes("ChallengeStillActive")) {
+          errorMessage = "Challenge is still active. Finalize it before claiming rewards.";
+        } else if (errorMessage.includes("InvalidCreator")) {
+          errorMessage = "Only the challenge creator can claim the remaining rewards.";
+        }
+      }
+      
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  };
+
   return {
     wallet,
     program,
@@ -1245,7 +1456,8 @@ export function useAnchorContextProvider(): AnchorContextType {
     getTreasuryBalance,
     getVotingTreasuryBalance,
     finalizeChallenge,
-    finalizeVotingTreasury  // Add this to the return object
+    finalizeVotingTreasury,
+    claimCreatorReward
   };
 }
 
@@ -1314,6 +1526,11 @@ export type AnchorContextType = {
     processed?: number;
     total?: number;
     results?: any[];
+    error?: string;
+  }>;
+  claimCreatorReward: (challengePublicKey: string) => Promise<{
+    success: boolean;
+    signature?: string;
     error?: string;
   }>;
 };

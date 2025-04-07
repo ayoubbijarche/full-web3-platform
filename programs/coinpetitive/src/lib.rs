@@ -119,5 +119,9 @@ pub mod coinpetitive {
     pub fn track_entry_fee(ctx: Context<TrackEntryFee>, fee_amount: u64) -> Result<()> {
         instructions::fee_tracking::track_entry_fee(ctx, fee_amount)
     }
+
+    pub fn claim_creator_reward(ctx: Context<ClaimCreatorReward>) -> Result<()> {
+        instructions::challenge::claim_creator_reward(ctx)
+    }
 }
 

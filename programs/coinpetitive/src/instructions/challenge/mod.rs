@@ -5,7 +5,8 @@ pub mod pay_participation_fee;
 pub mod submit_video;
 pub mod vote_for_submission;
 pub mod finalize_challenge;
-pub mod distribute_voting_treasury; 
+pub mod distribute_voting_treasury;
+pub mod claim_creator_reward;
 use anchor_lang::prelude::*;
 pub use types::*;
 pub use errors::*;
@@ -15,6 +16,7 @@ pub use submit_video::*;
 pub use vote_for_submission::*;
 pub use finalize_challenge::*;
 pub use distribute_voting_treasury::*;
+pub use claim_creator_reward::*;
 
 // Re-export the handler functions with clear names
 pub fn create_challenge(
@@ -55,4 +57,8 @@ pub fn distribute_voting_treasury(
     voter_index: u64
 ) -> Result<()> {
     distribute_voting_treasury::handle(ctx, voter, voter_index)
+}
+
+pub fn claim_creator_reward(ctx: Context<ClaimCreatorReward>) -> Result<()> {
+    claim_creator_reward::handle(ctx)
 }

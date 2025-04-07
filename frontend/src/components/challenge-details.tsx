@@ -6,7 +6,7 @@ import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticke
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import mountImage from '@/assets/mount.png'
 import { SubmitVideoDialog } from "@/components/submit-video-dialog"
-import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel } from "@/lib/pb"
+import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel, claimCreatorReward } from "@/lib/pb"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAnchor } from '@/lib/anchor-context'
@@ -43,7 +43,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const isCreator = auth.user?.id === challenge.creator;
-  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, getVotingTreasuryBalance, finalizeChallenge  , finalizeVotingTreasury } = useAnchor()
+  const { participateInChallenge, voteForSubmissionOnChain, getTreasuryBalance, claimCreatorReward, getVotingTreasuryBalance, finalizeChallenge  , finalizeVotingTreasury } = useAnchor()
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null)
   const [onChainError, setOnChainError] = useState<string | null>(null)
   const [isFinalizing, setIsFinalizing] = useState(false);
@@ -52,6 +52,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isFinalizingVoting, setIsFinalizingVoting] = useState(false);
   const [finalizeVotingError, setFinalizeVotingError] = useState<string | null>(null);
   const [finalizeVotingSuccess, setFinalizeVotingSuccess] = useState<string | null>(null);
+
+ 
 
   const [treasuryBalance, setTreasuryBalance] = useState<{
     success: boolean;
@@ -83,7 +85,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [challengeState, setChallengeState] = useState<string>("active");
   const [canFinalize, setCanFinalize] = useState(false);
 
-
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
     // At the start of your component
   const [isClient, setIsClient] = useState(false);
@@ -886,6 +889,55 @@ const status = getChallengeStatus();
               </span>
             </Button>
             
+            {/* Creator Claim Reward Button - Only for creator after voting period ends */}
+            {hasVotingPeriodEnded && isCreator && (
+              <Button 
+                className="w-full mb-4 bg-[#B3731D] hover:bg-[#B3731D]/90"
+                onClick={async () => {
+                  try {
+                    setIsClaiming(true);
+                    setClaimError(null);
+                    
+                    if (!challenge.onchain_id) {
+                      toast.error("No on-chain ID available");
+                      return;
+                    }
+                    
+                    const result = await claimCreatorReward(challenge.onchain_id);
+                    
+                    if (result.success) {
+                      toast.success("Successfully claimed creator rewards!");
+                      setDataVersion(v => v + 1); // Refresh data
+                      // Refresh treasury balance after claiming
+                      const updatedBalance = await getTreasuryBalance(challenge.onchain_id);
+                      setTreasuryBalance(updatedBalance);
+                    } else {
+                      toast.error(result.error || "Failed to claim rewards");
+                      setClaimError(result.error);
+                    }
+                  } catch (error) {
+                    console.error("Error claiming creator reward:", error);
+                    toast.error("An unexpected error occurred");
+                    setClaimError("An unexpected error occurred");
+                  } finally {
+                    setIsClaiming(false);
+                  }
+                }}
+                disabled={isClaiming || !challenge.onchain_id}
+              >
+                <Wallet className="h-4 w-4 mr-2" />
+                <span className="text-sm">
+                  {isClaiming ? "Claiming..." : "Claim Creator Reward"}
+                </span>
+              </Button>
+            )}
+
+            {claimError && (
+              <div className="mb-4 text-red-500 text-sm p-2 bg-red-50 rounded-md border border-red-200">
+                {claimError}
+              </div>
+            )}
+
             {/* Finalize Challenge button */}
             {hasVotingPeriodEnded && (isCreator || isParticipant) && (
               <Button 
@@ -998,48 +1050,7 @@ const status = getChallengeStatus();
           </div>
         </div>
 
-        {/* Treasury Balances */}
-        <div className="w-full mb-4">
-          <div className="border border-[#9A9A9A] rounded-lg p-3">
-            <h3 className="text-sm font-medium mb-2">Treasury Balances</h3>
-            
-            <div className="grid grid-cols-2 gap-2">
-              {/* Main Treasury */}
-              <div className="bg-gray-50 p-2 rounded-md">
-                <div className="flex items-center gap-1 mb-1">
-                  <Wallet className="h-3 w-3 text-[#B3731D]" />
-                  <span className="text-xs font-medium">Participation:</span>
-                </div>
-                <p className="text-right">
-                  {loadingBalance ? (
-                    <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-[#b3731d]"></span>
-                  ) : treasuryBalance?.success ? (
-                    <span className="text-sm font-medium">{treasuryBalance.tokenBalance || 0} CPT</span>
-                  ) : (
-                    <span className="text-xs text-gray-500">N/A</span>
-                  )}
-                </p>
-              </div>
-              
-              {/* Voting Treasury */}
-              <div className="bg-gray-50 p-2 rounded-md">
-                <div className="flex items-center gap-1 mb-1">
-                  <Wallet className="h-3 w-3 text-[#B3731D]" />
-                  <span className="text-xs font-medium">Voting:</span>
-                </div>
-                <p className="text-right">
-                  {loadingVotingBalance ? (
-                    <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-[#b3731d]"></span>
-                  ) : votingTreasuryBalance?.success ? (
-                    <span className="text-sm font-medium">{votingTreasuryBalance.tokenBalance || 0} CPT</span>
-                  ) : (
-                    <span className="text-xs text-gray-500">N/A</span>
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+      
         
         {/* 3. Chat section */}
         <div className="w-full mb-4">
@@ -1396,43 +1407,7 @@ const status = getChallengeStatus();
           )}
         </div>
 
-        {/* Treasury Balances */}
-        <div className="w-full mb-4">
-          <div className="border border-[#9A9A9A] rounded-xl p-3">
-            <h3 className="font-semibold mb-2">Treasury Balances</h3>
-            
-            {/* Main Treasury (Participation Fees) */}
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-[#B3731D]" />
-                <span className="text-sm">Participation Treasury:</span>
-              </div>
-              {loadingBalance ? (
-                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
-              ) : treasuryBalance?.success ? (
-                <span className="font-medium">{treasuryBalance.tokenBalance || 0} CPT</span>
-              ) : (
-                <span className="text-gray-500 text-sm">Not available</span>
-              )}
-            </div>
-            
-            {/* Voting Treasury */}
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-[#B3731D]" />
-                <span className="text-sm">Voting Treasury:</span>
-              </div>
-              {loadingVotingBalance ? (
-                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[#b3731d]"></div>
-              ) : votingTreasuryBalance?.success ? (
-                <span className="font-medium">{votingTreasuryBalance.tokenBalance || 0} CPT</span>
-              ) : (
-                <span className="text-gray-500 text-sm">Not available</span>
-              )}
-            </div>
-          </div>
-        </div>
-
+      
         {/* Video Submissions */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-[#4A4A4A] mb-4">Video Submissions</h2>
@@ -1628,6 +1603,54 @@ const status = getChallengeStatus();
           </div>
         )}
 
+        {/* Creator Claim Reward Button - Only for creator after voting period ends */}
+        {hasVotingPeriodEnded && isCreator && (
+          <Button 
+            className="w-full mb-4 bg-[#B3731D] hover:bg-[#B3731D]/90"
+            onClick={async () => {
+              try {
+                setIsClaiming(true);
+                setClaimError(null);
+                
+                if (!challenge.onchain_id) {
+                  toast.error("No on-chain ID available");
+                  return;
+                }
+                
+                const result = await claimCreatorReward(challenge.onchain_id);
+                
+                if (result.success) {
+                  toast.success("Successfully claimed creator rewards!");
+                  setDataVersion(v => v + 1); // Refresh data
+                  // Refresh treasury balance after claiming
+                  const updatedBalance = await getTreasuryBalance(challenge.onchain_id);
+                  setTreasuryBalance(updatedBalance);
+                } else {
+                  toast.error(result.error || "Failed to claim rewards");
+                  setClaimError(result.error);
+                }
+              } catch (error) {
+                console.error("Error claiming creator reward:", error);
+                toast.error("An unexpected error occurred");
+                setClaimError("An unexpected error occurred");
+              } finally {
+                setIsClaiming(false);
+              }
+            }}
+            disabled={isClaiming || !challenge.onchain_id}
+          >
+            <Wallet className="h-4 w-4 mr-2" />
+            <span className="text-sm">
+              {isClaiming ? "Claiming..." : "Claim Creator Reward"}
+            </span>
+          </Button>
+        )}
+
+        {claimError && (
+          <div className="mb-4 text-red-500 text-sm p-2 bg-red-50 rounded-md border border-red-200">
+            {claimError}
+          </div>
+        )}
 
         {hasVotingPeriodEnded && (isCreator || isParticipant) && (
           <Button 

@@ -51,7 +51,9 @@ pub enum ErrorCode {
     #[msg("No winner declared")]
     NoWinnerDeclared,
     #[msg("Arithmetic overflow")]
-    ArithmeticOverflow
+    ArithmeticOverflow,
+    #[msg("Insufficient funds")]
+    InsufficientFunds
 
 
 }
