@@ -1099,37 +1099,44 @@ export async function resetForgottenPassword(email: string, code: string, newPas
   }
 }
 
+// Add this new function for requesting a password reset
 export async function requestPasswordReset(email: string) {
   try {
-    // This sends an email with a reset token
+    // This automatically sends a password reset email with PocketBase
     await pb.collection('users').requestPasswordReset(email);
-    return { 
-      success: true, 
-      message: "Check your email for password reset instructions" 
+    
+    return {
+      success: true,
+      message: "Password reset email sent"
     };
   } catch (error) {
-    console.error('Password reset request failed:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to request password reset'
+    console.error("Failed to request password reset:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send reset email"
     };
   }
 }
 
-
+// Update the confirmPasswordReset function to use PocketBase's functionality
 export async function confirmPasswordReset(token: string, newPassword: string) {
   try {
+    // Confirm the password reset with PocketBase
     await pb.collection('users').confirmPasswordReset(
-      token,
-      newPassword,
-      newPassword 
+      token, 
+      newPassword, 
+      newPassword // Confirm password
     );
-    return { success: true };
+    
+    return {
+      success: true,
+      message: "Password reset successful"
+    };
   } catch (error) {
-    console.error('Password reset confirmation failed:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to reset password'
+    console.error("Failed to reset password:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to reset password"
     };
   }
 }
