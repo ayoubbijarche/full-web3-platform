@@ -1,10 +1,9 @@
+// filepath: /home/ayoub/test/challenges-dapp/programs/coinpetitive/src/instructions/challenge/pay_participation_fee.rs
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
+use crate::instructions::fee_tracking::state::FeeTracking;
+use crate::instructions::milestone_tracking::state::MilestoneTracking;
 use crate::instructions::challenge::types::Challenge;
 use crate::instructions::challenge::errors::ErrorCode;
-use crate::instructions::fee_tracking::FeeTracker;
-
-pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 #[derive(Accounts)]
 pub struct PayParticipationFee<'info> {
@@ -14,15 +13,17 @@ pub struct PayParticipationFee<'info> {
     #[account(mut)]
     pub challenge: Account<'info, Challenge>,
     
+    #[account(mut)]
+    pub fee_tracking: Account<'info, FeeTracking>,
+    
+    #[account(mut)]
+    pub milestone_tracking: Account<'info, MilestoneTracking>,
+    
     /// CHECK: Treasury account (PDA)
-    #[account(
-        mut,
-        // No constraint needed as we'll check programmatically in handle function
-    )]
+    #[account(mut)]
     pub treasury: AccountInfo<'info>,
     
     /// CHECK: Token-2022 program
-    #[account(address = TOKEN_2022_PROGRAM_ID_STR.parse::<Pubkey>().unwrap())]
     pub token_program: AccountInfo<'info>,
     
     /// CHECK: Participant's token account
@@ -32,13 +33,6 @@ pub struct PayParticipationFee<'info> {
     /// CHECK: Treasury's token account
     #[account(mut)]
     pub treasury_token_account: AccountInfo<'info>,
-    
-    #[account(
-        mut,
-        seeds = [b"fee_tracker"],
-        bump,
-    )]
-    pub fee_tracker: Account<'info, FeeTracker>,
     
     pub system_program: Program<'info, System>,
 }
@@ -72,6 +66,14 @@ pub fn handle(ctx: Context<PayParticipationFee>) -> Result<()> {
     msg!("From participant: {}", participant_key);
     msg!("To treasury: {}", challenge.treasury);
     
+    // Update total fees paid
+    ctx.accounts.fee_tracking.total_fees_paid += challenge.participation_fee;
+    
+    // Check and update milestones
+    if ctx.accounts.fee_tracking.total_fees_paid >= 50_000_000 {
+        ctx.accounts.milestone_tracking.mint_tokens(5_000_000)?;
+    }
+    
     // Create a Token-2022 Transfer instruction
     let transfer_ix = solana_program::instruction::Instruction {
         program_id: ctx.accounts.token_program.key(),
@@ -80,7 +82,6 @@ pub fn handle(ctx: Context<PayParticipationFee>) -> Result<()> {
             solana_program::instruction::AccountMeta::new(ctx.accounts.treasury_token_account.key(), false),
             solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.participant.key(), true),
         ],
-        // Token instruction 3 = Transfer, followed by amount as little-endian bytes
         data: [3].into_iter()
               .chain(challenge.participation_fee.to_le_bytes().into_iter())
               .collect(),
@@ -102,15 +103,8 @@ pub fn handle(ctx: Context<PayParticipationFee>) -> Result<()> {
     // Add participant to the list
     challenge.participants.push(participant_key);
     
-    // Update fee tracker with participation fee
-    let fee_tracker = &mut ctx.accounts.fee_tracker;
-    fee_tracker.total_participation_fees = fee_tracker.total_participation_fees
-        .checked_add(challenge.participation_fee)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
-    
     msg!("Participation fee paid successfully");
     msg!("Participant {} added to challenge", participant_key);
-    msg!("Total participation fees tracked: {}", fee_tracker.total_participation_fees);
     
     Ok(())
 }

@@ -1,3 +1,4 @@
+// filepath: /home/ayoub/test/challenges-dapp/programs/coinpetitive/src/lib.rs
 use anchor_lang::prelude::*;
 pub mod instructions;
 use instructions::*;
@@ -6,8 +7,8 @@ use instructions::token_constants::*;
 use instructions::token_errors::*;
 use instructions::challenge_tracking::*;
 use instructions::challenge::*;
-
-
+use instructions::fee_tracking::*;
+use instructions::milestone_tracking::*;
 
 declare_id!("H7SvZyDYbZ7ioeCTYWE4wuVdgWUyA5XJ1CAZnsH7ga8E");
 
@@ -50,14 +51,13 @@ pub mod coinpetitive {
         do_marketing_transfer(ctx, amount)
     }
 
-    // Updated Challenge Functions
     pub fn create_challenge(
         ctx: Context<CreateChallenge>,
         reward: u64,
         participation_fee: u64,
         voting_fee: u64,
         max_participants: u8,
-        challenge_id: u64  // Add this new parameter
+        challenge_id: u64
     ) -> Result<()> {
         instructions::challenge::create_challenge(
             ctx,
@@ -120,8 +120,11 @@ pub mod coinpetitive {
         instructions::challenge::claim_creator_reward(ctx)
     }
 
-    pub fn initialize_fee_tracker(ctx: Context<InitializeFeeTracker>) -> Result<()> {
-        instructions::fee_tracking::initialize_fee_tracker(ctx)
+    pub fn update_total_fees(ctx: Context<UpdateTotalFees>, fee_amount: u64) -> Result<()> {
+        instructions::fee_tracking::update_total_fees(ctx, fee_amount)
+    }
+
+    pub fn mint_tokens_based_on_milestones(ctx: Context<MintMilestone>) -> Result<()> {
+        instructions::milestone_tracking::mint_tokens_based_on_milestones(ctx)
     }
 }
-

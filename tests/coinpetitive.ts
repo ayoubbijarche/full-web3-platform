@@ -51,24 +51,137 @@ describe("coinpetitive", () => {
     token_metadata_program_id
   );
   
-  const mint_addr = new anchor.web3.PublicKey("wc3eLDaYLrPwD6Xacvb4xfXD1Cu6Mcw7ZbWopNynNYT");
+  const mint_addr = new anchor.web3.PublicKey("EHuWgt2z53Krd5f7WPrnBbtupa6s5o59iMBBcq9SuVE");
   const recipientPublicKey = new anchor.web3.PublicKey("8E1TjSr2jTPXDMiHFBDytLQS2orkmzTmgM29itFvs66g");
   const recipientTokenAccount = getAssociatedTokenAddressSync(mint_addr, recipientPublicKey);
   const senderPublicKey = new anchor.web3.PublicKey("6wBiHEqFQPQ1muidbziVANUHVvLFuAt4snmnJmigg16Z");
   const senderTokenAccount = getAssociatedTokenAddressSync(mint_addr, senderPublicKey);
   
 
-    init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata);
+    //init_token(program, mint, metadataAddress, payer, token_metadata_program_id, metadata);
 
 
-    mint_cpv(mint, payer, program, metadata, 21_000_000);
+    //mint_cpv(mint, payer, program, metadata, 21_000_000);
 
     //transfer_to_founder(mint_addr, program, payer, metadata, senderTokenAccount, 500000);
 
     //check_wallet_milestones(mint_addr, program, payer, metadata);
 
+    monitor_participation_fees(program);
+
 
 })
+
+
+// Add this to the bottom of your coinpetitive.ts file
+function monitor_participation_fees(program) {
+  it("monitors participation fees in real-time", async function() {
+    // Set a longer timeout for this monitoring task
+    this.timeout(3600000); // 1 hour
+    
+    console.log("============================");
+    console.log("Starting participation fee monitoring...");
+    console.log("Press Ctrl+C to stop monitoring");
+    console.log("============================");
+    
+    // Get fee tracker PDA address
+    const [feeTrackerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("fee_tracker")],
+      program.programId
+    );
+    
+    // Define token decimals (from your metadata)
+    const TOKEN_DECIMALS = 7;  // Your token has 7 decimal places
+    
+    let lastFees = 0;
+    let checkCount = 0;
+    const checkInterval = 3000; // Check every 3 seconds
+    
+    // Helper function to convert raw amount to human-readable token amount
+    const formatTokenAmount = (rawAmount) => {
+      return (rawAmount / Math.pow(10, TOKEN_DECIMALS)).toFixed(2);
+    };
+    
+    // Keep monitoring until stopped manually
+    return new Promise(async () => {
+      // First, initialize the fee tracker if it doesn't exist
+      try {
+        const feeTrackerAccount = await program.provider.connection.getAccountInfo(feeTrackerPda);
+        if (!feeTrackerAccount) {
+          console.log("Fee tracker account doesn't exist. Initializing...");
+          await program.methods
+            .initializeFeeTracker()
+            .accounts({
+              authority: program.provider.publicKey,
+              feeTracker: feeTrackerPda,
+              systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .rpc();
+          console.log("Fee tracker initialized successfully!");
+        }
+      } catch (error) {
+        console.error("Error checking/initializing fee tracker:", error);
+      }
+      
+      console.log("Starting monitoring loop...");
+      
+      // Begin monitoring loop
+      while (true) {
+        try {
+          checkCount++;
+          
+          // Fetch current fee tracker state
+          const feeTracker = await program.account.feeTracker.fetch(feeTrackerPda);
+          const currentRawFees = feeTracker.totalParticipationFees.toNumber();
+          const currentFees = formatTokenAmount(currentRawFees);
+          
+          // Format timestamp
+          const timestamp = new Date().toLocaleTimeString();
+          
+          // On first run, just show current state
+          if (checkCount === 1) {
+            console.log(`[${timestamp}] Current total participation fees: ${currentFees} CPT (raw: ${currentRawFees})`);
+          }
+          // On subsequent runs, only show if there's a change
+          else if (currentRawFees !== lastFees) {
+            const feesAddedRaw = currentRawFees - lastFees;
+            const feesAdded = formatTokenAmount(feesAddedRaw);
+            console.log(`[${timestamp}] 🔔 New participation fee detected!`);
+            console.log(`  Added: ${feesAdded} CPT (raw: ${feesAddedRaw})`);
+            console.log(`  Total fees now: ${currentFees} CPT (raw: ${currentRawFees})`);
+          }
+          
+          // Update last seen fees for next comparison
+          lastFees = currentRawFees;
+          
+          // Only show "still monitoring" message occasionally
+          if (checkCount % 20 === 0) {
+            console.log(`[${timestamp}] Still monitoring... (check #${checkCount})`);
+          }
+          
+          // Wait before next check
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        } catch (error) {
+          console.error("Error during fee monitoring:", error);
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
+      }
+    });
+  });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

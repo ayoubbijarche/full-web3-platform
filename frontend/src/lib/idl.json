@@ -338,6 +338,55 @@
       ]
     },
     {
+      "name": "initialize_fee_tracker",
+      "discriminator": [
+        86,
+        48,
+        93,
+        210,
+        226,
+        137,
+        149,
+        130
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fee_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "marketing_transfer",
       "discriminator": [
         177,
@@ -586,6 +635,30 @@
           "writable": true
         },
         {
+          "name": "fee_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
@@ -742,59 +815,6 @@
       ]
     },
     {
-      "name": "track_entry_fee",
-      "discriminator": [
-        8,
-        16,
-        150,
-        140,
-        12,
-        6,
-        29,
-        145
-      ],
-      "accounts": [
-        {
-          "name": "token_state",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "fee_amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "transfer_dev",
       "discriminator": [
         15,
@@ -923,6 +943,19 @@
   ],
   "accounts": [
     {
+      "name": "FeeTracker",
+      "discriminator": [
+        174,
+        137,
+        95,
+        72,
+        217,
+        42,
+        175,
+        172
+      ]
+    },
+    {
       "name": "TokenState",
       "discriminator": [
         218,
@@ -1029,6 +1062,30 @@
     }
   ],
   "types": [
+    {
+      "name": "FeeTracker",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "total_participation_fees",
+            "type": "u64"
+          },
+          {
+            "name": "total_voting_fees",
+            "type": "u64"
+          },
+          {
+            "name": "total_challenges",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "InitTokenParams",
       "type": {
