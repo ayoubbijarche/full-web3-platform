@@ -18,7 +18,7 @@ pub use finalize_challenge::*;
 pub use distribute_voting_treasury::*;
 pub use claim_creator_reward::*;
 pub mod challenge_tracking;
-pub use challenge_tracking::*;
+
 
 
 // Re-export the handler functions with clear names

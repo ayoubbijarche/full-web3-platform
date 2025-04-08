@@ -1,0 +1,16 @@
+2025-04-08T19:04:22.447Z [INFO]: Initializing token...
+2025-04-08T19:04:23.344Z [INFO]: Token already initialized
+2025-04-08T19:07:55.770Z [INFO]: Minting 21000000 tokens to address: wc3eLDaYLrPwD6Xacvb4xfXD1Cu6Mcw7ZbWopNynNYT
+2025-04-08T19:07:56.760Z [INFO]: Initial balance: 317101000
+2025-04-08T19:07:56.770Z [INFO]: Minting 21000000 tokens to 6wBiHEqFQPQ1muidbziVANUHVvLFuAt4snmnJmigg16Z
+2025-04-08T19:07:57.082Z [ERROR]: Error minting tokens: AnchorError caused by account: mint. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.
+Program log: Left:
+Program log: wc3eLDaYLrPwD6Xacvb4xfXD1Cu6Mcw7ZbWopNynNYT
+Program log: Right:
+Program log: EHuWgt2z53Krd5f7WPrnBbtupa6s5o59iMBBcq9SuVE
+2025-04-08T19:16:30.273Z [INFO]: Using derived mint address: EHuWgt2z53Krd5f7WPrnBbtupa6s5o59iMBBcq9SuVE
+2025-04-08T19:16:30.294Z [INFO]: Minting 21000000 tokens to address: EHuWgt2z53Krd5f7WPrnBbtupa6s5o59iMBBcq9SuVE
+2025-04-08T19:16:31.140Z [INFO]: Initial balance: 20500000
+2025-04-08T19:16:31.141Z [INFO]: Minting 21000000 tokens to 6wBiHEqFQPQ1muidbziVANUHVvLFuAt4snmnJmigg16Z
+2025-04-08T19:16:34.349Z [INFO]: Token minting successful! TX: https://explorer.solana.com/tx/2ZMNbtuHrySh2PeUgn74DSgtDmL1nwbv1jsVuoXA515i4Nvm1MeRQZgXMgWf5jh5BmahSU3M6a1HCF5Gt5qM5agg?cluster=devnet
+2025-04-08T19:16:36.487Z [INFO]: Final balance: 41500000

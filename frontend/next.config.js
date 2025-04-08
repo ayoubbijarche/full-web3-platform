@@ -1,22 +1,6 @@
-/** @type {import('next').NextConfig} */
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'hebbkx1anhila5yf.public.blob.vercel-storage.com',
-      },
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-      },
-      {
-        protocol: 'http',
-        hostname: '127.0.0.1',
-        port: '8090',
-      },
-    ],
-  },
-}
-
-module.exports = nextConfig
+/* config options here */
+};
+exports.default = nextConfig;

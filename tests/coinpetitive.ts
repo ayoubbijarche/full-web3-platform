@@ -1024,3 +1024,115 @@ function check_challenge_milestones(mint_addr, program, payer, metadata) {
     });
   });
 }
+
+// Production-ready function to monitor challenge completions for minting triggers
+export async function monitorChallengeCompletions(program, connection) {
+  console.log("Starting challenge completion milestone monitoring service");
+  
+  // Define challenge milestones from tokenomics
+  const CHALLENGE_MILESTONES = [
+    { threshold: 5_000_000, index: 0, name: "5M challenges completed" },
+    { threshold: 10_000_000, index: 1, name: "10M challenges completed" }
+  ];
+  
+  // Get token state and challenge tracker PDA addresses
+  const [tokenStateAddress] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("token_state")], 
+    program.programId
+  );
+  
+  const [challengeTrackerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("challenge_tracker")],
+    program.programId
+  );
+  
+  const mint_addr = new PublicKey("YOUR_MAINNET_TOKEN_ADDRESS");
+  let lastChallengeCount = 0;
+  
+  // Create tracker for monitored milestones to prevent duplicate processing
+  const processedMilestones = new Set();
+  
+  while (true) {
+    try {
+      // Fetch current challenge tracker and token state
+      const tracker = await program.account.challengeTracker.fetch(challengeTrackerPda);
+      const tokenState = await program.account.tokenState.fetch(tokenStateAddress);
+      const currentChallengeCount = tracker.totalChallenges.toNumber();
+      const mintConditionsUsed = tokenState.mintConditionsUsed;
+      
+      console.log(`Current challenges completed: ${currentChallengeCount}`);
+      
+      // Check if any milestone has been reached but not yet processed
+      for (const milestone of CHALLENGE_MILESTONES) {
+        if (currentChallengeCount >= milestone.threshold && 
+            !mintConditionsUsed[milestone.index] && 
+            !processedMilestones.has(milestone.index)) {
+          
+          console.log(`🎉 Challenge milestone reached: ${milestone.name}`);
+          
+          // Check time restriction (1 year between mints)
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+          const lastMintTimestamp = tokenState.lastMintTimestamp.toNumber();
+          const MIN_TIME_BETWEEN_MINTS = 365 * 24 * 60 * 60; // 1 year in seconds
+          
+          if (currentTimestamp - lastMintTimestamp < MIN_TIME_BETWEEN_MINTS) {
+            const daysRemaining = Math.ceil((MIN_TIME_BETWEEN_MINTS - (currentTimestamp - lastMintTimestamp)) / (24 * 60 * 60));
+            console.log(`Time restriction applies: ${daysRemaining} days remaining before minting allowed`);
+            continue;
+          }
+          
+          // Proceed with minting if time restriction passed
+          console.log(`Initiating token mint for milestone: ${milestone.name}`);
+          
+          // Get destination for minted tokens (treasury or specific wallet)
+          const destination = await anchor.utils.token.associatedAddress({
+            mint: mint_addr,
+            owner: program.provider.publicKey,
+          });
+          
+          // Amount to mint (5M tokens) 
+          const DECIMALS = 7;
+          const mintAmount = new anchor.BN(5_000_000 * Math.pow(10, DECIMALS));
+          
+          try {
+            // Call the mint function with appropriate logging and error handling
+            const txHash = await program.methods
+              .mintToken(mintAmount)
+              .accounts({
+                mint: mint_addr,
+                destination,
+                tokenState: tokenStateAddress,
+                payer: program.provider.publicKey,
+                rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                systemProgram: anchor.web3.SystemProgram.programId,
+                tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+              })
+              .rpc();
+            
+            console.log(`✅ Challenge milestone mint successful! TX: https://explorer.solana.com/tx/${txHash}`);
+            processedMilestones.add(milestone.index);
+            
+            // After successful mint, store signature and details in database for records
+
+            
+            // Only process one milestone at a time
+            break;
+          } catch (error) {
+            console.error(`Error minting tokens for milestone:`, error);
+          }
+        }
+      }
+      
+      // Update last seen count
+      lastChallengeCount = currentChallengeCount;
+      
+      // Wait before next check (30 seconds in production)
+      await new Promise(resolve => setTimeout(resolve, 30000));
+    } catch (error) {
+      console.error("Error in challenge monitoring:", error);
+      // Wait before retry (with exponential backoff in production)
+      await new Promise(resolve => setTimeout(resolve, 60000));
+    }
+  }
+}

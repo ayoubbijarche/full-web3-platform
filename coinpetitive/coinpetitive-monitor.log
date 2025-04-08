@@ -1,0 +1,18 @@
+2025-04-08T22:11:40.369Z [INFO]: Coinpetitive monitoring service starting
+2025-04-08T22:11:40.458Z [INFO]: Starting Coinpetitive service
+2025-04-08T22:11:40.458Z [INFO]: Mode: DEVNET
+2025-04-08T22:11:40.458Z [INFO]: RPC: https://api.devnet.solana.com
+2025-04-08T22:11:40.459Z [INFO]: Token address: EHuWgt2z53Krd5f7WPrnBbtupa6s5o59iMBBcq9SuVE
+2025-04-08T22:11:40.459Z [INFO]: Checking challenge completion milestones
+2025-04-08T22:11:41.739Z [INFO]: Challenge count changed: 0 -> 1
+2025-04-08T22:11:41.741Z [INFO]: Checking participation fee milestones
+2025-04-08T22:11:42.043Z [INFO]: Fee amount changed: 0.00 -> 700.00 CPT
+2025-04-08T22:11:42.044Z [INFO]: 🎉 Fee milestone reached: 50M total entry fees
+2025-04-08T22:11:42.045Z [INFO]: 🎯 Starting mint for milestone: 50M total entry fees
+2025-04-08T22:11:42.204Z [INFO]: Time restriction applies: 365 days remaining before minting allowed
+2025-04-08T22:11:42.207Z [INFO]: Checking wallet count milestones
+2025-04-08T22:11:42.359Z [INFO]: Wallet count changed: 0 -> 2
+2025-04-08T22:12:13.765Z [INFO]: Checking challenge completion milestones
+2025-04-08T22:12:14.892Z [INFO]: Checking participation fee milestones
+2025-04-08T22:12:15.202Z [INFO]: Checking wallet count milestones
+2025-04-08T22:12:19.277Z [INFO]: Shutting down service...
