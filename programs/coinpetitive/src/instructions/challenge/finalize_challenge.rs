@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use crate::instructions::challenge::types::Challenge;
 use crate::instructions::challenge::errors::ErrorCode;
+use crate::instructions::challenge::challenge_tracking::ChallengeTracker;
 
 pub const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
@@ -34,16 +35,19 @@ pub struct FinalizeChallenge<'info> {
     pub treasury_token_account: AccountInfo<'info>,
     
     /// CHECK: Creator's token account - just verify it matches the creator in challenge
-    #[account(
-        mut,
-    )]
+    #[account(mut)]
     pub creator_token_account: AccountInfo<'info>,
     
     /// CHECK: The actual creator of the challenge
-    #[account(
-    )]
     pub creator: AccountInfo<'info>,
 
+    #[account(
+        mut,
+        seeds = [b"challenge_tracker"],
+        bump,
+    )]
+    pub challenge_tracker: Account<'info, ChallengeTracker>,
+    
     // System program
     pub system_program: Program<'info, System>,
 }
@@ -179,6 +183,14 @@ pub fn handle(ctx: Context<FinalizeChallenge>) -> Result<()> {
         
         msg!("Transferred remaining {} tokens to creator", treasury_balance);
     }
+    
+    // Update challenge tracker with this finalized challenge
+    let tracker = &mut ctx.accounts.challenge_tracker;
+    tracker.total_challenges = tracker.total_challenges.checked_add(1)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+    
+    msg!("Challenge completed and tracked! Total challenges finalized: {}", 
+        tracker.total_challenges);
     
     msg!("Challenge finalized successfully!");
     Ok(())

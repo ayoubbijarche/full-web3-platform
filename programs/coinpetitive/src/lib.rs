@@ -4,7 +4,6 @@ use instructions::*;
 use instructions::token::*;
 use instructions::token_constants::*;
 use instructions::token_errors::*;
-use instructions::challenge_tracking::*;
 use instructions::challenge::*;
 
 
@@ -108,13 +107,7 @@ pub mod coinpetitive {
         instructions::challenge::distribute_voting_treasury(ctx, voter, voter_index)
     }
     
-    pub fn track_challenge(ctx: Context<TrackChallenge>) -> Result<()> {
-        instructions::challenge_tracking::track_challenge_completion(ctx)
-    }
-    
-    pub fn track_challenges_batch(ctx: Context<TrackChallengesBatch>, count: u64) -> Result<()> {
-        instructions::challenge_tracking::track_challenges_batch(ctx, count)
-    }
+
     
     pub fn claim_creator_reward(ctx: Context<ClaimCreatorReward>) -> Result<()> {
         instructions::challenge::claim_creator_reward(ctx)
@@ -122,6 +115,10 @@ pub mod coinpetitive {
 
     pub fn initialize_fee_tracker(ctx: Context<InitializeFeeTracker>) -> Result<()> {
         instructions::fee_tracking::initialize_fee_tracker(ctx)
+    }
+
+    pub fn initialize_challenge_tracker(ctx: Context<InitializeChallengeTracker>) -> Result<()> {
+        instructions::challenge_tracking::initialize_challenge_tracker(ctx)
     }
 }
 

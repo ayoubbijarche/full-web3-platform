@@ -67,10 +67,107 @@ describe("coinpetitive", () => {
 
     //check_wallet_milestones(mint_addr, program, payer, metadata);
 
-    monitor_participation_fees(program);
+
+    monitor_challenge_completions(program);
 
 
 })
+
+
+
+
+// Add this function to monitor challenge completions
+
+function monitor_challenge_completions(program) {
+  it("monitors challenge completions in real-time", async function() {
+    // Set a longer timeout for this monitoring task
+    this.timeout(3600000); // 1 hour
+    
+    console.log("============================");
+    console.log("Starting challenge completion monitoring...");
+    console.log("Press Ctrl+C to stop monitoring");
+    console.log("============================");
+    
+    // Get challenge tracker PDA address
+    const [challengeTrackerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("challenge_tracker")],
+      program.programId
+    );
+    
+    let lastChallengeCount = 0;
+    let checkCount = 0;
+    const checkInterval = 3000; // Check every 3 seconds
+    
+    // Keep monitoring until stopped manually
+    return new Promise(async () => {
+      // First, initialize the challenge tracker if it doesn't exist
+      try {
+        const trackerAccount = await program.provider.connection.getAccountInfo(challengeTrackerPda);
+        if (!trackerAccount) {
+          console.log("Challenge tracker account doesn't exist. Initializing...");
+          await program.methods
+            .initializeChallengeTracker()
+            .accounts({
+              authority: program.provider.publicKey,
+              challengeTracker: challengeTrackerPda,
+              systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .rpc();
+          console.log("Challenge tracker initialized successfully!");
+        }
+      } catch (error) {
+        console.error("Error checking/initializing challenge tracker:", error);
+      }
+      
+      console.log("Starting monitoring loop...");
+      
+      // Begin monitoring loop
+      while (true) {
+        try {
+          checkCount++;
+          
+          // Fetch current challenge tracker state
+          const tracker = await program.account.challengeTracker.fetch(challengeTrackerPda);
+          const currentChallengeCount = tracker.totalChallenges.toNumber();
+          
+          // Format timestamp
+          const timestamp = new Date().toLocaleTimeString();
+          
+          // On first run, just show current state
+          if (checkCount === 1) {
+            console.log(`[${timestamp}] Current total finalized challenges: ${currentChallengeCount}`);
+          }
+          // On subsequent runs, only show if there's a change
+          else if (currentChallengeCount !== lastChallengeCount) {
+            const newChallenges = currentChallengeCount - lastChallengeCount;
+            console.log(`[${timestamp}] 🏆 New challenge(s) finalized!`);
+            console.log(`  Added: ${newChallenges} challenge(s)`);
+            console.log(`  Total finalized challenges: ${currentChallengeCount}`);
+          }
+          
+          // Update last seen count for next comparison
+          lastChallengeCount = currentChallengeCount;
+          
+          // Only show "still monitoring" message occasionally
+          if (checkCount % 20 === 0) {
+            console.log(`[${timestamp}] Still monitoring... (check #${checkCount})`);
+          }
+          
+          // Wait before next check
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        } catch (error) {
+          console.error("Error during challenge monitoring:", error);
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
+      }
+    });
+  });
+}
+
+// Call this function in your main test block
+
+
+
 
 
 // Add this to the bottom of your coinpetitive.ts file

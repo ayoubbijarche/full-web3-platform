@@ -231,6 +231,36 @@
           "name": "creator"
         },
         {
+          "name": "challenge_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  104,
+                  97,
+                  108,
+                  108,
+                  101,
+                  110,
+                  103,
+                  101,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
@@ -336,6 +366,61 @@
           }
         }
       ]
+    },
+    {
+      "name": "initialize_challenge_tracker",
+      "discriminator": [
+        169,
+        194,
+        93,
+        7,
+        225,
+        106,
+        232,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "challenge_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  104,
+                  97,
+                  108,
+                  108,
+                  101,
+                  110,
+                  103,
+                  101,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "initialize_fee_tracker",
@@ -714,107 +799,6 @@
       ]
     },
     {
-      "name": "track_challenge",
-      "discriminator": [
-        178,
-        89,
-        155,
-        61,
-        118,
-        222,
-        251,
-        33
-      ],
-      "accounts": [
-        {
-          "name": "token_state",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "track_challenges_batch",
-      "discriminator": [
-        195,
-        145,
-        84,
-        2,
-        119,
-        35,
-        245,
-        174
-      ],
-      "accounts": [
-        {
-          "name": "token_state",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "count",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "transfer_dev",
       "discriminator": [
         15,
@@ -943,6 +927,19 @@
   ],
   "accounts": [
     {
+      "name": "ChallengeTracker",
+      "discriminator": [
+        139,
+        74,
+        48,
+        57,
+        197,
+        150,
+        252,
+        12
+      ]
+    },
+    {
       "name": "FeeTracker",
       "discriminator": [
         174,
@@ -1062,6 +1059,22 @@
     }
   ],
   "types": [
+    {
+      "name": "ChallengeTracker",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "total_challenges",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "FeeTracker",
       "type": {
