@@ -37,7 +37,7 @@ export default function ProfilePage() {
               id: Number(challenge.id),
               title: challenge.title,
               description: challenge.description,
-              creator: challenge.expand?.creator?.username,
+              creator: challenge.expand?.creator?.username || 'Unknown',
               reward: challenge.reward,
               participants: challenge.participants?.length || 0,
               image: challenge.image ? `http://127.0.0.1:8090/api/files/challenges/${challenge.id}/${challenge.image}` : undefined
@@ -149,7 +149,29 @@ export default function ProfilePage() {
             createdChallenges.map((challenge) => (
               <ChallengeCard 
                 key={challenge.id} 
-                challenge={challenge}
+                challenge={{
+                  id: challenge.id,
+                  title: challenge.title,
+                  description: challenge.description,
+                  creator: challenge.creator,
+                  reward: challenge.reward,
+                  participants: challenge.participants,
+                  image: challenge.image,
+                  winner: '',
+                  category: '',
+                  minparticipats: 0,
+                  maxparticipats: 0,
+                  // Add other required properties with default values
+                  status: 'active',
+                  createdAt: '',
+                  updatedAt: '',
+                  deadline: '',
+                  rules: '',
+                  requirements: '',
+                  submission_guidelines: '',
+                  evaluation_criteria: '',
+                  tags: [],
+                } as any}
               />
             ))
           ) : (

@@ -1,4 +1,5 @@
 import { CheckCircle2, AlertTriangle, Rocket, XCircle, Info } from "lucide-react"
+import { JSX } from "react";
 
 type FAQItem = {
   question: string;

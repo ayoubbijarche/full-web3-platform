@@ -9,7 +9,6 @@ import Link from "next/link"
 import { useState } from "react"
 import { signIn } from "@/lib/pb"
 import { useRouter } from "next/navigation"
-import { ForgotPasswordDialog } from "@/components/forgot-password-dialog"
 import { toast } from "sonner"
 import { EmailResetDialog } from "./email-reset-dialog"
 

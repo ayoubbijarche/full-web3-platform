@@ -6,7 +6,7 @@ import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticke
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import mountImage from '@/assets/mount.png'
 import { SubmitVideoDialog } from "@/components/submit-video-dialog"
-import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel, claimCreatorReward } from "@/lib/pb"
+import { getChatMessages, sendMessage, useAuth, type MessageModel, joinChallenge, getVideoSubmissions, reportChallenge, likeVideoSubmission, dislikeVideoSubmission, voteForSubmission, type VideoSubmissionModel, type ChallengeModel } from "@/lib/pb"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAnchor } from '@/lib/anchor-context'
@@ -291,26 +291,17 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
             console.log("On-chain join successful!")
             console.log("Transaction signature:", onChainResult.signature)
             setOnChainStatus(`Success! Tx: ${onChainResult.signature ? onChainResult.signature.slice(0, 8) : 'unknown'}...`)
-            toast({
-              title: "Successfully joined on-chain",
-              variant: "success"
-            })
+            toast.success("Successfully joined on-chain")
           } else {
             console.error("On-chain join error:", onChainResult.error)
             setOnChainError(onChainResult.error || 'Unknown error')
-            toast({
-              title: `On-chain error: ${onChainResult.error}`,
-              variant: "destructive"
-            })
+            toast.error(`On-chain error: ${onChainResult.error}`)
             return // Stop if on-chain fails
           }
         } catch (error) {
           console.error("On-chain join error:", error)
           setOnChainError(error instanceof Error ? error.message : "Unknown error")
-          toast({
-            title: `On-chain error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            variant: "destructive"
-          })
+          toast.error(`On-chain error: ${error instanceof Error ? error.message : "Unknown error"}`)
           return // Stop if on-chain fails
         }
       } else {
@@ -367,16 +358,16 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     
     try {
       const result = await likeVideoSubmission(submissionId);
-      if (result.success && 'submission' in result) {
+      if (result.success && 'submission' in result && result.submission) {
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => 
             sub.id === submissionId 
               ? { 
                   ...sub, 
-                  likedBy: result.submission.likedBy || [],
-                  dislikedBy: result.submission.dislikedBy || [],
-                  likes: result.submission.likedBy?.length || 0,
-                  dislikes: result.submission.dislikedBy?.length || 0
+                  likedBy: result.submission?.likedBy || [],
+                  dislikedBy: result.submission?.dislikedBy || [],
+                  likes: result.submission?.likedBy?.length || 0,
+                  dislikes: result.submission?.dislikedBy?.length || 0
                 } 
               : sub
           )
@@ -392,16 +383,16 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     
     try {
       const result = await dislikeVideoSubmission(submissionId);
-      if (result.success && 'submission' in result) {
+      if (result.success && 'submission' in result && result.submission) {
         setVideoSubmissions(prevSubmissions => 
           prevSubmissions.map(sub => 
             sub.id === submissionId 
               ? { 
                   ...sub, 
-                  likedBy: result.submission.likedBy || [],
-                  dislikedBy: result.submission.dislikedBy || [],
-                  likes: result.submission.likedBy?.length || 0,
-                  dislikes: result.submission.dislikedBy?.length || 0
+                  likedBy: result.submission?.likedBy || [],
+                  dislikedBy: result.submission?.dislikedBy || [],
+                  likes: result.submission?.likedBy?.length || 0,
+                  dislikes: result.submission?.dislikedBy?.length || 0
                 } 
               : sub
           )
@@ -913,7 +904,7 @@ const status = getChallengeStatus();
                       setTreasuryBalance(updatedBalance);
                     } else {
                       toast.error(result.error || "Failed to claim rewards");
-                      setClaimError(result.error);
+                      setClaimError(result.error || "Failed to claim rewards");
                     }
                   } catch (error) {
                     console.error("Error claiming creator reward:", error);
@@ -1219,7 +1210,7 @@ const status = getChallengeStatus();
                     <div className="flex items-center gap-1">
                       <ThumbsUp 
                         className={`h-5 w-5 cursor-pointer ${
-                          Array.isArray(submission.likedBy) && submission.likedBy.includes(auth.user?.id) 
+                          auth.user?.id && Array.isArray(submission.likedBy) && submission.likedBy.includes(auth.user.id) 
                           ? 'text-[#B3731D] fill-[#B3731D]' 
                           : 'text-gray-500 hover:text-[#B3731D]'
                         }`}
@@ -1232,7 +1223,7 @@ const status = getChallengeStatus();
                     <div className="flex items-center gap-1">
                       <ThumbsDown 
                         className={`h-5 w-5 cursor-pointer ${
-                          Array.isArray(submission.dislikedBy) && submission.dislikedBy.includes(auth.user?.id)
+                          auth.user?.id && Array.isArray(submission.dislikedBy) && submission.dislikedBy.includes(auth.user.id)
                           ? 'text-[#B3731D] fill-[#B3731D]' 
                           : 'text-gray-500 hover:text-[#B3731D]'
                         }`}
@@ -1448,7 +1439,7 @@ const status = getChallengeStatus();
                   <div className="flex items-center gap-1">
                   <ThumbsUp 
                     className={`h-5 w-5 cursor-pointer ${
-                    Array.isArray(submission.likedBy) && submission.likedBy.includes(auth.user?.id) 
+                    Array.isArray(submission.likedBy) && auth.user?.id && submission.likedBy.includes(auth.user.id) 
                       ? 'text-[#B3731D] fill-[#B3731D]' 
                       : 'text-gray-500 hover:text-[#B3731D]'
                     }`}
@@ -1461,7 +1452,7 @@ const status = getChallengeStatus();
                   <div className="flex items-center gap-1">
                   <ThumbsDown 
                     className={`h-5 w-5 cursor-pointer ${
-                    Array.isArray(submission.dislikedBy) && submission.dislikedBy.includes(auth.user?.id)
+                    Array.isArray(submission.dislikedBy) && auth.user?.id && submission.dislikedBy.includes(auth.user.id)
                       ? 'text-[#B3731D] fill-[#B3731D]' 
                       : 'text-gray-500 hover:text-[#B3731D]'
                     }`}
@@ -1627,7 +1618,7 @@ const status = getChallengeStatus();
                   setTreasuryBalance(updatedBalance);
                 } else {
                   toast.error(result.error || "Failed to claim rewards");
-                  setClaimError(result.error);
+                  setClaimError(result.error || "Failed to claim rewards");
                 }
               } catch (error) {
                 console.error("Error claiming creator reward:", error);
