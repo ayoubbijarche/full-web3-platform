@@ -87,6 +87,11 @@ export function Navbar() {
         {/* Mobile menu dropdown */}
         {mobileMenuOpen && (
           <div className="px-4 py-4 sm:hidden bg-white border-t border-gray-200 shadow-md">
+            {/* Add Wallet Connection first */}
+            <div className="mb-4 border-b border-gray-200 pb-4">
+              <WalletConnection />
+            </div>
+
             {user ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 p-2 rounded-md">
@@ -136,16 +141,19 @@ export function Navbar() {
                 </Button>
               </div>
             ) : (
-              <Button 
-                className="w-full"
-                onClick={() => {
-                  setIsSignInOpen(true);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <User className="mr-2 h-4 w-4" />
-                Sign In
-              </Button>
+              <div className="space-y-3">
+                <WalletConnection />
+                <Button 
+                  className="w-full"
+                  onClick={() => {
+                    setIsSignInOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Sign In
+                </Button>
+              </div>
             )}
           </div>
         )}

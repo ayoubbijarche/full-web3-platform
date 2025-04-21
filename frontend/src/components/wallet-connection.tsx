@@ -44,12 +44,12 @@ export function WalletConnection() {
   if (!mounted) return null
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 w-full">
       {publicKey ? (
-        <>
+        <div className="flex items-center gap-2 w-full">
           <Button
             variant="outline"
-            className="bg-[#b3731d] text-white hover:bg-[#b3731d]/90 border-none"
+            className="bg-[#b3731d] text-white hover:bg-[#b3731d]/90 border-none flex-1"
           >
             <Wallet className="mr-2 h-4 w-4" />
             {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}
@@ -65,15 +65,15 @@ export function WalletConnection() {
               <LogOut className="h-4 w-4" />
             )}
           </Button>
-        </>
+        </div>
       ) : (
         <WalletMultiButton
           className={cn(
-            "wallet-adapter-button",
+            "wallet-adapter-button w-full",
             "bg-[#b3731d] hover:bg-[#b3731d]/90",
             "text-white font-medium",
             "rounded-md px-4 py-2",
-            "flex items-center gap-2",
+            "flex items-center justify-center gap-2",
             "transition-colors"
           )}
         >

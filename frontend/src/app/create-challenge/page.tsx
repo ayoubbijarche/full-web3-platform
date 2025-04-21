@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth, createChallenge as createChallengeDB } from "@/lib/pb"
+import { useAuth, createChallenge as createChallengeDB, pb } from "@/lib/pb"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,6 +36,50 @@ const categories = [
 export default function CreateChallengePage() {
   const router = useRouter()
   const auth = useAuth();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Improved auth check that directly checks PocketBase auth store
+  useEffect(() => {
+    // Check if user is authenticated directly from PocketBase
+    const isAuthenticated = pb.authStore.isValid && !!pb.authStore.model;
+    console.log("Auth check:", { 
+      isValid: pb.authStore.isValid,
+      hasModel: !!pb.authStore.model,
+      authState: auth.isAuthenticated
+    });
+    
+    // If we have an invalid state (model exists but token invalid), try to fix it
+    if (!pb.authStore.isValid && pb.authStore.model) {
+      console.log("Detected invalid auth state with existing model - attempting to fix");
+      // Force a re-login or clear the invalid state
+      pb.authStore.clear();
+      // Redirect to login page
+      router.push('/login');
+      return;
+    }
+    
+    // Small delay to ensure auth state is properly loaded
+    const checkAuth = setTimeout(() => {
+      setAuthChecked(true);
+    }, 500);
+  
+    return () => clearTimeout(checkAuth);
+  }, [auth.isAuthenticated, router]);
+  
+  // Only show auth warning after we've confirmed auth state
+  // Check directly with PocketBase as a fallback
+  if (authChecked && !auth.isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in to create a challenge</h1>
+          <Link href="/login">
+            <Button>Sign In</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -131,19 +175,6 @@ export default function CreateChallengePage() {
     }
 
     return null
-  }
-
-  if (!auth.isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Please sign in to create a challenge</h1>
-          <Link href="/">
-            <Button>Go Home</Button>
-          </Link>
-        </div>
-      </div>
-    )
   }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

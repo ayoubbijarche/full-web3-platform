@@ -2,7 +2,7 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticket, AlertTriangle, ThumbsUp, ThumbsDown, Heart, CheckCircle } from "lucide-react"
+import { Video, Wallet, Users, MessageCircle, Share2, Trophy, User, Coins, Ticket, AlertTriangle, ThumbsUp, ThumbsDown, Heart, CheckCircle, ChevronDown, ChevronUp, UserPlus, Vote } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import mountImage from '@/assets/mount.png'
 import { SubmitVideoDialog } from "@/components/submit-video-dialog"
@@ -17,6 +17,60 @@ import { useMediaQuery } from "../hooks/use-media-query" // You'll need to creat
 
 // Add this constant at the top of your component
 const FIXED_SUBMISSION_FEE = 5; // Fixed submission fee of 5 CPT
+
+// First, add this utility function to format dates and time remaining
+const formatDeadline = (date: string | Date) => {
+  const now = new Date();
+  const deadline = new Date(date);
+  const diff = deadline.getTime() - now.getTime();
+
+  if (diff <= 0) {
+    return { timeLeft: "Ended", hasEnded: true };
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) {
+    return { timeLeft: `${days}d ${hours}h`, hasEnded: false };
+  } else if (hours > 0) {
+    return { timeLeft: `${hours}h ${minutes}m`, hasEnded: false };
+  } else {
+    return { timeLeft: `${minutes}m`, hasEnded: false };
+  }
+};
+
+// Add this component to challenge-details.tsx
+const DeadlineTimer = ({ label, date, icon: Icon }: { 
+  label: string;
+  date: string | Date;
+  icon: LucideIcon;
+}) => {
+  const [timeInfo, setTimeInfo] = useState(() => formatDeadline(date));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeInfo(formatDeadline(date));
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, [date]);
+
+  return (
+    <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg">
+      <Icon className={`h-5 w-5 ${timeInfo.hasEnded ? 'text-red-500' : 'text-[#B3731D]'}`} />
+      <div>
+        <p className="text-sm text-gray-600">{label}</p>
+        <p className={`text-sm font-medium ${
+          timeInfo.hasEnded ? 'text-red-500' : 'text-[#B3731D]'
+        }`}>
+          {timeInfo.timeLeft}
+        </p>
+      </div>
+    </div>
+  );
+};
 
 export interface ChallengeDetailsProps {
   challenge: ChallengeModel;
@@ -52,9 +106,8 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
   const [isFinalizingVoting, setIsFinalizingVoting] = useState(false);
   const [finalizeVotingError, setFinalizeVotingError] = useState<string | null>(null);
   const [finalizeVotingSuccess, setFinalizeVotingSuccess] = useState<string | null>(null);
-
- 
-
+  const [isFinalized, setIsFinalized] = useState(false);
+ // Update the state type definition
   const [treasuryBalance, setTreasuryBalance] = useState<{
     success: boolean;
     tokenBalance?: number;
@@ -79,7 +132,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     error?: string;
   } | null>(null);
   const [loadingVotingBalance, setLoadingVotingBalance] = useState(false);
-
+  
   // Add these state variables to your component
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
   const [challengeState, setChallengeState] = useState<string>("active");
@@ -262,7 +315,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     try {
       // First check if the challenge is full in PocketBase
       const participantCount = challenge.participants ? challenge.participants.length : 0;
-      const maxParticipants = challenge.maxparticipats || 0;
+      const maxParticipants = challenge.maxparticipants || 0;
       
       console.log("PocketBase challenge limits:", {
         current: participantCount,
@@ -402,59 +455,50 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
       console.error('Error disliking video:', error);
     }
   };
-
-    const handleFinalizeChallenge = async () => {
-      console.log("Finalize button clicked", {
-        authUser: !!auth.user, 
-        isCreator: !!isCreator,
-        challenge_id: challenge.onchain_id,
-        isFinalizing
-      });
+  const isRegistrationOpen = () => {
+  const now = new Date();
+  const registrationEnd = new Date(challenge.registration_ends);
+  return now < registrationEnd;
+};
+  const isVotingOpen = () => {
+    const now = new Date();
+    const votingEnd = new Date(challenge.voting_end);
+    return now < votingEnd;
+  };
+  
+  const handleFinalizeChallenge = async () => {
+    if (!auth.user || !challenge.onchain_id || isFinalizing) {
+      return;
+    }
+    
+    setIsFinalizing(true);
+    setFinalizeError(null);
+    setFinalizeSuccess(null);
+    
+    try {
+      const result = await finalizeChallenge(challenge.onchain_id);
       
-      if (!auth.user) {
-        console.log("Not logged in, can't finalize");
-        return;
-      }
-      
-      if (!challenge.onchain_id) {
-        console.log("No on-chain ID for this challenge");
-        return;
-      }
-      
-      setIsFinalizing(true);
-      setFinalizeError(null);
-      setFinalizeSuccess(null);
-      
-      try {
-        console.log("Calling finalizeChallenge with:", challenge.onchain_id);
-        
-        // Simply call the finalizeChallenge function with just the challenge ID
-        // The winner is determined on-chain based on the vote counts
-        const result = await finalizeChallenge(challenge.onchain_id);
-        
-        console.log("Finalize result:", result);
-        
-        if (result.success) {
-          let successMsg = "Challenge finalized successfully!";
-          if (result.winner && result.winningVotes) {
-            successMsg += ` Winner: ${result.winner.substring(0, 8)}... with ${result.winningVotes} votes`;
-          }
-          
-          setFinalizeSuccess(successMsg);
-          toast.success("Challenge finalized successfully!");
-          setDataVersion(v => v + 1); // Refresh data
-        } else {
-          setFinalizeError(result.error || "Failed to finalize challenge");
-          toast.error(result.error || "Failed to finalize challenge");
+      if (result.success) {
+        let successMsg = "Challenge finalized successfully!";
+        if (result.winner && result.winningVotes) {
+          successMsg += ` Winner: ${result.winner.substring(0, 8)}... with ${result.winningVotes} votes`;
         }
-      } catch (error) {
-        console.error("Error in finalizeChallenge:", error);
-        setFinalizeError("An unexpected error occurred");
-        toast.error("An unexpected error occurred");
-      } finally {
-        setIsFinalizing(false);
+        
+        setFinalizeSuccess(successMsg);
+        toast.success("Challenge finalized successfully!");
+        setDataVersion(v => v + 1);
+      } else {
+        setFinalizeError(result.error || "Failed to finalize challenge");
+        toast.error(result.error || "Failed to finalize challenge");
       }
-    };
+    } catch (error) {
+      console.error("Error in finalizeChallenge:", error);
+      setFinalizeError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
 
   const handleVote = async (submissionId: string) => {
     if (!auth.user) {
@@ -650,7 +694,7 @@ export function ChallengeDetails({ challenge }: ChallengeDetailsProps) {
     }
   };
 
-  const isFull = challenge.maxparticipats > 0 && challenge.participants.length >= challenge.maxparticipats;
+  const isFull = challenge.maxparticipants > 0 && challenge.participants.length >= challenge.maxparticipants;
 
   // Add this useEffect after your other useEffects
   useEffect(() => {
@@ -809,6 +853,13 @@ const getChallengeStatus = () => {
   }
 };
 
+// Add this helper function near your other utility functions
+const isSubmissionPeriodOpen = () => {
+  const now = new Date();
+  const votingEnd = new Date(challenge.submission_end);
+  return now < votingEnd;
+};
+
 // Add this helper function near your other helper functions
 const hasUserSubmittedVideo = (userId: string | undefined) => {
   if (!userId) return false;
@@ -820,6 +871,81 @@ const hasUserSubmittedVideo = (userId: string | undefined) => {
 
 // In your render method
 const status = getChallengeStatus();
+
+// Add this to your state declarations in ChallengeDetails component
+const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
+
+// Add this helper function
+const toggleSubmissionExpand = (submissionId: string) => {
+  setExpandedSubmissions(prev => {
+    const newSet = new Set(prev);
+    if (newSet.has(submissionId)) {
+      newSet.delete(submissionId);
+    } else {
+      newSet.add(submissionId);
+    }
+    return newSet;
+  });
+};
+
+// Add this state to manage voter addresses
+const [voterAddresses, setVoterAddresses] = useState<{
+  [key: string]: {
+    pubkey: string;
+    username: string;
+    avatar?: string;
+  }
+}>({});
+
+// First, update your useEffect that fetches voter data:
+
+useEffect(() => {
+  const fetchVoterData = async () => {
+    const voterData: { [key: string]: { 
+      pubkey: string;
+      username: string;
+      avatar?: string;
+    }} = {};
+    
+    for (const submission of videoSubmissions) {
+      if (expandedSubmissions.has(submission.id) && submission.voters) {
+        for (const voterId of submission.voters) {
+          try {
+            // Only fetch if we don't already have this voter's data
+            if (!voterData[voterId]) {
+              const voter = await pb.collection('users').getOne(voterId);
+              voterData[voterId] = {
+                pubkey: voter.pubkey || 'No wallet address',
+                username: voter.username || 'Anonymous',
+                avatar: voter.avatar
+              };
+            }
+          } catch (error) {
+            voterData[voterId] = {
+              pubkey: 'Address unavailable',
+              username: 'Anonymous',
+              avatar: undefined
+            };
+          }
+        }
+      }
+    }
+    
+    setVoterAddresses(voterData);
+  };
+
+  fetchVoterData();
+}, [expandedSubmissions, videoSubmissions]);
+
+useEffect(() => {
+  const checkChallengeStatus = () => {
+    if (challenge.winner) {
+      setIsFinalized(true);
+    }
+  };
+  
+  checkChallengeStatus();
+}, [challenge]);
 
 // Separate rendering logic for mobile and desktop
   if (isMobile) {
@@ -857,7 +983,12 @@ const status = getChallengeStatus();
             <Button 
               className="w-full"
               onClick={() => setIsSubmitDialogOpen(true)}
-              disabled={!isParticipant || isCreator || hasUserSubmittedVideo(auth.user?.id)}
+              disabled={
+                !isParticipant || 
+                isCreator || 
+                hasUserSubmittedVideo(auth.user?.id) || 
+                !isSubmissionPeriodOpen()
+              }
               title={
                 !auth.user 
                   ? "Sign up to submit videos" 
@@ -867,7 +998,9 @@ const status = getChallengeStatus();
                       ? "Join the challenge to submit videos"
                       : hasUserSubmittedVideo(auth.user?.id)
                         ? "You have already submitted a video to this challenge"
-                        : "Submit your video"
+                        : !isSubmissionPeriodOpen()
+                          ? "Submission period has ended"
+                          : "Submit your video"
               }
             >
               <Video className="h-4 w-4 mr-1" />
@@ -876,7 +1009,9 @@ const status = getChallengeStatus();
                   ? "Can't submit to own challenge"
                   : hasUserSubmittedVideo(auth.user?.id)
                     ? "Already submitted"
-                    : `Submit Video (${FIXED_SUBMISSION_FEE} CPT)`}
+                    : !isSubmissionPeriodOpen()
+                      ? "Submission Closed"
+                      : `Submit Video (${FIXED_SUBMISSION_FEE} CPT)`}
               </span>
             </Button>
             
@@ -932,24 +1067,39 @@ const status = getChallengeStatus();
             {/* Finalize Challenge button */}
             {hasVotingPeriodEnded && (isCreator || isParticipant) && (
               <Button 
-                className={`w-full mb-4 ${hasVotingPeriodEnded ? 'bg-[#B3731D] hover:bg-[#B3731D]/90' : 'bg-gray-400'}`}
+                className={`w-full mb-4 ${
+                  isFinalized 
+                    ? 'bg-gray-400 hover:bg-gray-400' 
+                    : hasVotingPeriodEnded 
+                      ? 'bg-[#B3731D] hover:bg-[#B3731D]/90' 
+                      : 'bg-gray-400'
+                }`}
                 onClick={handleFinalizeChallenge}
-                disabled={isFinalizing || !challenge.onchain_id || !hasVotingPeriodEnded}
+                disabled={
+                  isFinalizing || 
+                  !challenge.onchain_id || 
+                  !hasVotingPeriodEnded || 
+                  isFinalized
+                }
                 title={
-                  !challenge.onchain_id 
-                    ? "Challenge doesn't have on-chain data" 
-                    : !hasVotingPeriodEnded 
-                      ? "Waiting for voting to end" 
-                      : "Finalize Challenge"
+                  isFinalized 
+                    ? "Challenge already finalized"
+                    : !challenge.onchain_id 
+                      ? "Challenge doesn't have on-chain data" 
+                      : !hasVotingPeriodEnded 
+                        ? "Waiting for voting to end" 
+                        : "Finalize Challenge"
                 }
               >
                 <Trophy className="h-4 w-4 mr-2" />
                 <span className="text-sm">
                   {isFinalizing 
                     ? "Finalizing..." 
-                    : !hasVotingPeriodEnded 
-                      ? "Waiting for voting to end" 
-                      : "Finalize Challenge"
+                    : isFinalized
+                      ? "Challenge Finalized"
+                      : !hasVotingPeriodEnded 
+                        ? "Waiting for voting to end" 
+                        : "Finalize Challenge"
                   }
                 </span>
               </Button>
@@ -1041,7 +1191,24 @@ const status = getChallengeStatus();
           </div>
         </div>
 
-      
+        {/* Add this section in your ChallengeDetails component after the challenge title */}
+        <div className="grid grid-cols-1 gap-2 mb-4">
+          <DeadlineTimer 
+            label="Registration Ends"
+            date={challenge.registration_ends}
+            icon={UserPlus}
+          />
+          <DeadlineTimer 
+            label="Submission Ends"
+            date={challenge.submission_end}
+            icon={Video}
+          />
+          <DeadlineTimer 
+            label="Voting Ends"
+            date={challenge.voting_end}
+            icon={Vote}
+          />
+        </div>
         
         {/* 3. Chat section */}
         <div className="w-full mb-4">
@@ -1130,11 +1297,17 @@ const status = getChallengeStatus();
             </div>
             <div className="flex items-center gap-1 text-primary">
               <Users className="h-4 w-4" />
-              <span className="text-xs">{challenge.participants.length}/{challenge.maxparticipats}</span>
+              <span className="text-xs">
+                {challenge.participants.length} participating • {challenge.minparticipants} min • {challenge.maxparticipants} max
+              </span>
             </div>
             <div className="flex items-center gap-1 text-primary">
               <Coins className="h-4 w-4" />
               <span className="text-xs">{challenge.reward} CPT</span>
+            </div>
+            <div className="flex items-center gap-1 text-primary">
+              <Ticket className="h-4 w-4" />
+              <span className="text-xs">{challenge.voting_fee} CPT</span>
             </div>
           </div>
           
@@ -1243,14 +1416,82 @@ const status = getChallengeStatus();
                       <Button variant="default" size="sm" className="h-7 text-xs bg-gray-400" disabled>Already voted</Button>
                     ) : (
                       <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => handleVote(submission.id)}
-                        disabled={isVoting}
-                        className={`h-7 text-xs ${isVoting ? 'bg-[#b3731d]/40' : 'bg-[#b3731d]'}`}
-                      >
-                        {isVoting ? "..." : `Vote ${challenge.voting_fee} CPT`}
-                      </Button>
+                      variant="default" 
+                      size="sm"
+                      onClick={() => handleVote(submission.id)}
+                      disabled={isVoting || !isVotingOpen()}
+                      className={`h-7 text-xs ${
+                        isVoting 
+                          ? 'bg-[#b3731d]/40' 
+                          : !isVotingOpen() 
+                            ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
+                            : 'bg-[#b3731d]'
+                      }`}
+                      title={
+                        !isVotingOpen() 
+                          ? "Voting period has ended" 
+                          : `Vote for this submission (${challenge.voting_fee} CPT)`
+                      }
+                    >
+                      {isVoting 
+                        ? "..." 
+                        : !isVotingOpen() 
+                          ? "Voting Closed" 
+                          : `Vote ${challenge.voting_fee} CPT`
+                      }
+                    </Button>
+                  )}
+                  </div>
+                  <div className="mt-2 border-t border-gray-200 pt-2">
+                    <Button
+                      variant="ghost"
+                      className="w-full flex items-center justify-between text-xs text-gray-600"
+                      onClick={() => toggleSubmissionExpand(submission.id)}
+                    >
+                      <span>Show Voters ({submission.voters?.length || 0})</span>
+                      {expandedSubmissions.has(submission.id) ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    
+                    {expandedSubmissions.has(submission.id) && (
+                      <div className="mt-2 space-y-2 bg-gray-50 rounded-md p-3">
+                        {submission.voters && submission.voters.length > 0 ? (
+                          submission.voters.map((voterId, index) => {
+                            const voterData = voterAddresses[voterId];
+                            
+                            return (
+                              <div key={index} className="flex items-center gap-2 bg-gray-100 p-2 rounded">
+                                <Avatar className="h-6 w-6 flex-shrink-0">
+                                  {voterData?.avatar ? (
+                                    <Image
+                                      src={`http://127.0.0.1:8090/api/files/users/${voterId}/${voterData.avatar}`}
+                                      alt={voterData?.username || 'Voter avatar'}
+                                      width={24}
+                                      height={24}
+                                      className="rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="text-xs">
+                                      {(voterData?.username || 'A').charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="flex flex-col flex-1">
+                                  <span className="text-sm font-medium">{voterData?.username || 'Loading...'}</span>
+                                  <span className="text-xs font-mono text-gray-500 truncate">
+                                    {voterData?.pubkey || 'Loading...'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="text-sm text-gray-500 text-center">No votes yet</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1314,40 +1555,44 @@ const status = getChallengeStatus();
           <div className="flex justify-between items-start mb-3">
             <h1 className="text-2xl font-bold text-[#4A4A4A]">{challenge.title}</h1>
             <div className="flex gap-2">
-              <Button 
-                className={`flex items-center ${
-                  isCreator || isParticipant || isJoining || isFull
-                    ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
-                    : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
-                }`}
-                onClick={handleJoinChallenge}
-                disabled={isCreator || isParticipant || isJoining || isFull}
-                title={
-                  !auth.user 
-                    ? "Sign up to join this challenge" 
-                    : isCreator 
-                      ? "You cannot join your own challenge" 
-                      : isParticipant 
-                        ? "You are already a participant" 
-                        : isJoining 
-                          ? "Joining..." 
-                          : isFull
-                            ? "Challenge is full"
-                            : "Join this challenge"
-                }
-              >
-                {isJoining 
-                  ? "Joining..." 
-                  : !auth.user
-                    ? "Sign up to Join"
-                    : isCreator 
-                      ? "Creator can't participate" 
-                      : isParticipant 
-                        ? "Already Joined"
-                        : isFull
-                          ? "Challenge Full"
-                          : `Join Challenge ${challenge.participation_fee} CPT`}
-              </Button>
+            <Button 
+  className={`flex items-center ${
+    isCreator || isParticipant || isJoining || isFull || !isRegistrationOpen()
+      ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
+      : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
+  }`}
+  onClick={handleJoinChallenge}
+  disabled={isCreator || isParticipant || isJoining || isFull || !isRegistrationOpen()}
+  title={
+    !auth.user 
+      ? "Sign up to join this challenge" 
+      : isCreator 
+        ? "You cannot join your own challenge" 
+        : isParticipant 
+          ? "You are already a participant" 
+          : isJoining 
+            ? "Joining..." 
+            : isFull
+              ? "Challenge is full"
+              : !isRegistrationOpen()
+                ? "Registration period has ended"
+                : "Join this challenge"
+  }
+>
+  {isJoining 
+    ? "Joining..." 
+    : !auth.user
+      ? "Sign up to Join"
+      : isCreator 
+        ? "Creator can't participate" 
+        : isParticipant 
+          ? "Already Joined"
+          : isFull
+            ? "Challenge Full"
+            : !isRegistrationOpen()
+              ? "Registration Closed"
+              : `Join Challenge ${challenge.participation_fee} CPT`}
+</Button>
               {joinError && (
                 <div className="text-red-500 text-sm">{joinError}</div>
               )}
@@ -1368,15 +1613,17 @@ const status = getChallengeStatus();
               <User className="h-5 w-5" />
               <span>{challenge.expand?.creator?.username || 'Anonymous'}</span>
             </div>
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-2 text-primary" title="Current/Min-Max Participants">
               <Users className="h-5 w-5" />
-              <span>{challenge.participants.length}/{challenge.maxparticipats}</span>
+              <span>
+                {challenge.participants.length} participating • {challenge.minparticipants} min • {challenge.maxparticipants} max
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-2 text-primary" title="Challenge Reward">
               <Coins className="h-5 w-5" />
               <span>{challenge.reward} CPT</span>
             </div>
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-2 text-primary" title="Voting Fee">
               <Ticket className="h-5 w-5" />
               <span>{challenge.voting_fee} CPT</span>
             </div>
@@ -1398,6 +1645,24 @@ const status = getChallengeStatus();
           )}
         </div>
 
+        {/* Add this section in your ChallengeDetails component after the challenge title */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <DeadlineTimer 
+            label="Registration Ends"
+            date={challenge.registration_ends}
+            icon={UserPlus}
+          />
+          <DeadlineTimer 
+            label="Submission Ends"
+            date={challenge.submission_end}
+            icon={Video}
+          />
+          <DeadlineTimer 
+            label="Voting Ends"
+            date={challenge.voting_end}
+            icon={Vote}
+          />
+        </div>
       
         {/* Video Submissions */}
         <div className="mb-6">
@@ -1503,7 +1768,7 @@ const status = getChallengeStatus();
                         Sign in to vote
                       </Button>
                     ) : hasUserVotedInChallenge(auth.user.id) ? (
-                      <Button 
+                    <Button 
                         variant="default" 
                         size="sm"
                         className="bg-gray-400 hover:bg-gray-400 cursor-not-allowed text-white"
@@ -1517,18 +1782,81 @@ const status = getChallengeStatus();
                         variant="default" 
                         size="sm"
                         onClick={() => handleVote(submission.id)}
-                        disabled={isVoting}
+                        disabled={isVoting || !isVotingOpen()}
                         className={`${
                           isVoting 
                             ? 'bg-[#b3731d]/40 cursor-not-allowed' 
-                            : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
+                            : !isVotingOpen()
+                              ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' 
+                              : 'bg-[#b3731d] hover:bg-[#b3731d]/90'
                         }`}
-                        title={`Vote ${challenge.voting_fee} CPT`}
+                        title={
+                          !isVotingOpen() 
+                            ? "Voting period has ended" 
+                            : `Vote ${challenge.voting_fee} CPT`
+                        }
                       >
-                        {isVoting ? "Voting..." : `Vote ${challenge.voting_fee} CPT`}
+                        {isVoting 
+                          ? "Voting..." 
+                          : !isVotingOpen() 
+                            ? "Voting Closed" 
+                            : `Vote ${challenge.voting_fee} CPT`
+                        }
                       </Button>
                     )}
                 </div>
+                <div className="mt-4 border-t border-gray-200 pt-4 w-full">
+    <Button
+      variant="ghost"
+      className="w-full flex items-center justify-between text-sm text-gray-600"
+      onClick={() => toggleSubmissionExpand(submission.id)}
+    >
+      <span>Show Voters ({submission.voters?.length || 0})</span>
+      {expandedSubmissions.has(submission.id) ? (
+        <ChevronUp className="h-4 w-4" />
+      ) : (
+        <ChevronDown className="h-4 w-4" />
+      )}
+    </Button>
+    
+    {expandedSubmissions.has(submission.id) && (
+      <div className="mt-2 space-y-2 bg-gray-50 rounded-md p-3">
+        {submission.voters && submission.voters.length > 0 ? (
+          submission.voters.map((voterId, index) => {
+            const voterData = voterAddresses[voterId];
+            
+            return (
+              <div key={index} className="flex items-center gap-2 bg-gray-100 p-2 rounded">
+                <Avatar className="h-6 w-6 flex-shrink-0">
+                  {voterData?.avatar ? (
+                    <Image
+                      src={`http://127.0.0.1:8090/api/files/users/${voterId}/${voterData.avatar}`}
+                      alt={voterData?.username || 'Voter avatar'}
+                      width={24}
+                      height={24}
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <AvatarFallback className="text-xs">
+                      {(voterData?.username || 'A').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="flex flex-col flex-1">
+                  <span className="text-sm font-medium">{voterData?.username || 'Loading...'}</span>
+                  <span className="text-xs font-mono text-gray-500 truncate">
+                    {voterData?.pubkey || 'Loading...'}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-sm text-gray-500 text-center">No votes yet</p>
+        )}
+      </div>
+    )}
+  </div>
                 </div>
               </div>
               ))}
@@ -1547,7 +1875,12 @@ const status = getChallengeStatus();
         <Button 
           className="w-full mb-4"
           onClick={() => setIsSubmitDialogOpen(true)}
-          disabled={!isParticipant || isCreator || hasUserSubmittedVideo(auth.user?.id)}
+          disabled={
+            !isParticipant || 
+            isCreator || 
+            hasUserSubmittedVideo(auth.user?.id) || 
+            !isSubmissionPeriodOpen()
+          }
           title={
             !auth.user 
               ? "Sign up to submit videos" 
@@ -1556,8 +1889,10 @@ const status = getChallengeStatus();
                 : !isParticipant 
                   ? "Join the challenge to submit videos"
                   : hasUserSubmittedVideo(auth.user?.id)
-                    ? "You have already submitted a video to this challenge" 
-                    : "Submit your video"
+                    ? "You have already submitted a video to this challenge"
+                    : !isSubmissionPeriodOpen()
+                      ? "Submission period has ended"
+                      : "Submit your video"
           }
         >
           <Video className="h-4 w-4 mr-2" />
@@ -1566,7 +1901,9 @@ const status = getChallengeStatus();
               ? "Can't submit to own challenge"
               : hasUserSubmittedVideo(auth.user?.id)
                 ? "Already submitted a video"
-                : `Submit My Video (${FIXED_SUBMISSION_FEE} CPT)`}
+                : !isSubmissionPeriodOpen()
+                  ? "Submission period ended"
+                  : `Submit My Video (${FIXED_SUBMISSION_FEE} CPT)`}
           </span>
         </Button>
 

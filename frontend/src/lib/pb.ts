@@ -55,8 +55,8 @@ export type ChallengeModel = {
   title: string;
   category: string;
   participants: string[];
-  minparticipats: number;
-  maxparticipats: number;
+  minparticipants: number;
+  maxparticipants: number;
   minvoters: number;
   maxvoters: number;
   voters: string[];
@@ -111,15 +111,25 @@ export type VideoSubmissionModel = {
   updated: string;
   collectionId?: string;
   expand?: {
-    participant: UserModel;
-    votes?: VoteModel[];
-    challenge: ChallengeModel;
-    sender?: UserModel;
-    voters?: Array<{
+    participant?: {
       id: string;
       username: string;
       avatar?: string;
-    }>;
+    };
+    challenge?: ChallengeModel;
+    sender?: {
+      id: string;
+      username: string;
+      avatar?: string;
+    };
+    voters?: {
+      [key: string]: {
+        id: string;
+        username: string;
+        avatar?: string;
+        pubkey?: string;
+      }
+    };
   };
 };
 
@@ -537,8 +547,24 @@ export async function getUserChallenges(userId: string) {
   }
 }
 
+// ... existing code ...
+
+// Update the useAuth function to handle this edge case
 export function useAuth() {
   const model = pb.authStore.model;
+  
+  // Check if the token is expired but we still have a model
+  if (!pb.authStore.isValid && model) {
+    // Try to refresh the token silently
+    try {
+      // This will attempt to refresh the session if needed
+      pb.authStore.clear();
+      console.log("Auth token was invalid but had a model - cleared invalid state");
+    } catch (error) {
+      console.error("Error handling expired auth:", error);
+    }
+  }
+  
   return {
     isAuthenticated: pb.authStore.isValid && !!model,
     user: model as unknown as UserModel | null,
@@ -546,8 +572,7 @@ export function useAuth() {
   };
 }
 
-// Update the submitVideo function to fix the filter query
-// Update the submitVideo function to fix the filter query
+
 export async function submitVideo(challengeId: string, data: { 
   description: string, 
   videoUrl: string,
@@ -628,153 +653,20 @@ export async function submitVideo(challengeId: string, data: {
 // Get video submissions for a challenge
 export async function getVideoSubmissions(challengeId: string, signal?: AbortSignal) {
   try {
-    console.log('Fetching video submissions for challenge ID:', challengeId);
+    const records = await pb.collection('video_submitted').getFullList({
+      filter: `challenge="${challengeId}"`,
+      sort: '-created',
+      expand: 'participant,challenge,sender,voters', // Add voters to expansion
+      $cancelKey: `video-submissions-${challengeId}-${Date.now()}`,
+      signal
+    });
     
-    // First check if the challenge has a direct video_submited relation
-    let directSubmission = null;
-    try {
-      console.log('Attempting to fetch challenge with video_submited expansion');
-      const challenge = await pb.collection('challenges').getOne(challengeId, {
-        expand: 'video_submited,video_submited.participant,video_submited.sender',
-        $cancelKey: `challenge-direct-video-${challengeId}-${Date.now()}`,
-        signal
-      });
-      
-      console.log('Challenge data received:', challenge);
-      
-      if (challenge.expand?.video_submited) {
-        console.log('Direct video submission found:', challenge.expand.video_submited);
-        // Check if the direct submission has a collectionId already
-        const submissionCollectionId = challenge.expand.video_submited.collectionId || 
-                                      challenge.expand.video_submited.$collectionId || 
-                                      'video_submited';
-        
-        console.log('Direct submission collection ID:', submissionCollectionId);
-        
-        directSubmission = {
-          ...challenge.expand.video_submited,
-          collectionId: submissionCollectionId
-        };
-      } else {
-        console.log('No direct video submission found in challenge.expand');
-      }
-    } catch (error) {
-      // If the request was aborted, don't log it as an error
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error checking for direct video submission:', error);
-      }
-    }
+    // Log the expanded data to verify
+    console.log('Expanded submissions data:', records);
     
-    // Try both collection names to see which one works
-    let submissions: Record<string, any>[] = [];
-    
-    // First try with the exact same name as in the challenge relation
-    try {
-      console.log('Attempting to fetch from video_submitted collection (single t)');
-      const videoSubmited = await pb.collection('video_submitted').getFullList({
-        filter: `challenge="${challengeId}"`,
-        sort: '-created',
-        expand: 'participant,challenge,sender',
-        $cancelKey: `video-submissions-${challengeId}-${Date.now()}-1`,
-        signal
-      });
-      console.log('video_submitted collection results:', videoSubmited);
-      console.log('Checking for sender data in results:', videoSubmited.map(item => ({
-        id: item.id,
-        sender: item.sender,
-        senderExpand: item.expand?.sender
-      })));
-      
-      // Add collection ID to each submission
-      submissions = videoSubmited.map(item => ({
-        ...item,
-        collectionId: 'video_submitted'
-      }));
-    } catch (error) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error fetching from video_submited:', error);
-      }
-    }
-    
-    // If no results, try with double t (video_submitted)
-    if (submissions.length === 0) {
-      try {
-        console.log('Attempting to fetch from video_submitted collection (double t)');
-        const videoSubmitted = await pb.collection('video_submitted').getFullList({
-          filter: `challenge="${challengeId}"`,
-          sort: '-created',
-          expand: 'participant,challenge,sender',
-          $cancelKey: `video-submissions-${challengeId}-${Date.now()}-2`,
-          signal
-        });
-        console.log('video_submitted collection results:', videoSubmitted);
-        console.log('Checking for sender data in results:', videoSubmitted.map(item => ({
-          id: item.id,
-          sender: item.sender,
-          senderExpand: item.expand?.sender
-        })));
-        
-        // Add collection ID to each submission
-        submissions = videoSubmitted.map(item => ({
-          ...item,
-          collectionId: 'video_submitted'
-        }));
-      } catch (error) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Error fetching from video_submitted:', error);
-        }
-      }
-    }
-    
-    // If still no results, try videos_submitted (plural)
-    if (submissions.length === 0) {
-      try {
-        console.log('Attempting to fetch from videos_submitted collection (plural)');
-        const videosSubmitted = await pb.collection('videos_submitted').getFullList({
-          filter: `challenge="${challengeId}"`,
-          sort: '-created',
-          expand: 'participant,challenge,sender',
-          $cancelKey: `video-submissions-${challengeId}-${Date.now()}-3`,
-          signal
-        });
-        console.log('videos_submitted collection results:', videosSubmitted);
-        console.log('Checking for sender data in results:', videosSubmitted.map(item => ({
-          id: item.id,
-          sender: item.sender,
-          senderExpand: item.expand?.sender
-        })));
-        
-        // Add collection ID to each submission
-        submissions = videosSubmitted.map(item => ({
-          ...item,
-          collectionId: 'videos_submitted'
-        }));
-      } catch (error) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Error fetching from videos_submitted:', error);
-        }
-      }
-    }
-    
-    console.log('Raw video submissions received:', submissions);
-    console.log('Number of submissions found:', submissions.length);
-    
-    // Combine the direct submission with other submissions, avoiding duplicates
-    let allSubmissions = [...submissions];
-    if (directSubmission && !submissions.some(s => s.id === directSubmission.id)) {
-      console.log('Adding direct submission to the list');
-      allSubmissions.unshift(directSubmission);
-    }
-    
-    console.log('Final submissions list:', allSubmissions);
-    console.log('Final number of submissions:', allSubmissions.length);
-    
-    return { success: true, submissions: allSubmissions };
+    return { success: true, submissions: records };
   } catch (error) {
-    // If the request was aborted, don't log it as an error
-    if (error instanceof Error && error.name !== 'AbortError') {
-      console.error('Error fetching video submissions:', error);
-    }
+    console.error('Error fetching video submissions:', error);
     return { success: false, error: 'Failed to fetch video submissions' };
   }
 }
