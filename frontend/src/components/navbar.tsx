@@ -66,7 +66,7 @@ export function Navbar() {
                 user={{
                   username: user.username,
                   email: user.email,
-                  avatarUrl: user.avatar ? `http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}` : undefined
+                  avatarUrl: user.avatar ? `https://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}` : undefined
                 }}
                 onSignOut={signOut}
               />
@@ -87,10 +87,7 @@ export function Navbar() {
         {/* Mobile menu dropdown */}
         {mobileMenuOpen && (
           <div className="px-4 py-4 sm:hidden bg-white border-t border-gray-200 shadow-md">
-            {/* Add Wallet Connection first */}
-            <div className="mb-4 border-b border-gray-200 pb-4">
-              <WalletConnection />
-            </div>
+
 
             {user ? (
               <div className="space-y-3">
@@ -98,7 +95,7 @@ export function Navbar() {
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 relative">
                     {user.avatar ? (
                       <Image
-                        src={`http://127.0.0.1:8090/api/files/users/${user.id}/${user.avatar}`}
+                        src={`https://api.coinpetitive.com/api/files/users/${user.id}/${user.avatar}`}
                         alt={user.username}
                         fill
                         className="object-cover"

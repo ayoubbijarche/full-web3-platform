@@ -14,7 +14,6 @@ import { Calendar, Upload } from "lucide-react"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useAnchor } from "@/lib/anchor-context";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PublicKey } from "@solana/web3.js";
 import { toast } from "@/hooks/use-toast"
 
 const MAX_USERS = 50;
@@ -36,39 +35,50 @@ const categories = [
 export default function CreateChallengePage() {
   const router = useRouter()
   const auth = useAuth();
-  const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>("")
+  const [keywords, setKeywords] = useState<string[]>([])
+  const [keywordInput, setKeywordInput] = useState("")
+  const { createChallenge: createOnChainChallenge, wallet } = useAnchor();
 
-  // Improved auth check that directly checks PocketBase auth store
+  // Move all useState declarations before any conditional returns
+  const [formData, setFormData] = useState({
+    challengetitle: "",
+    category: "",
+    minparticipants: "",
+    maxparticipants: "",
+    voters: "",
+    votingFees: "",
+    participation_fee: "",
+    reward: "",
+    description: "",
+    challengevideo: "",
+    keywords: "",
+    registration_end: "",
+    submission_end: "",
+    voting_end: "",
+    minvoters: "",
+    maxvoters: "",
+  })
+
   useEffect(() => {
-    // Check if user is authenticated directly from PocketBase
-    const isAuthenticated = pb.authStore.isValid && !!pb.authStore.model;
-    console.log("Auth check:", { 
-      isValid: pb.authStore.isValid,
-      hasModel: !!pb.authStore.model,
-      authState: auth.isAuthenticated
-    });
-    
-    // If we have an invalid state (model exists but token invalid), try to fix it
-    if (!pb.authStore.isValid && pb.authStore.model) {
-      console.log("Detected invalid auth state with existing model - attempting to fix");
-      // Force a re-login or clear the invalid state
-      pb.authStore.clear();
-      // Redirect to login page
-      router.push('/login');
-      return;
-    }
-    
-    // Small delay to ensure auth state is properly loaded
     const checkAuth = setTimeout(() => {
       setAuthChecked(true);
     }, 500);
   
     return () => clearTimeout(checkAuth);
-  }, [auth.isAuthenticated, router]);
-  
+  }, [auth.isAuthenticated]);
+
+  // Render loading state while checking auth
+  if (!authChecked) {
+    return <div>Loading...</div>;
+  }
+
   // Only show auth warning after we've confirmed auth state
-  // Check directly with PocketBase as a fallback
-  if (authChecked && !auth.isAuthenticated) {
+  if (!auth.isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -80,32 +90,6 @@ export default function CreateChallengePage() {
       </div>
     );
   }
-
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>("")
-  const [keywords, setKeywords] = useState<string[]>([])
-  const [keywordInput, setKeywordInput] = useState("")
-
-  const [formData, setFormData] = useState({
-    challengetitle: "",
-    category: "",
-    minparticipants: "",
-    maxparticipants: "",
-    voters: "",
-    votingFees: "",
-    participation_fee: "",
-    reward: "",
-    description: "",
-    challengevideo: "", // Changed from File to string
-    keywords: "",
-    registration_end: "",
-    submission_end: "",
-    voting_end: "",
-    minvoters: "",
-    maxvoters: "",
-  })
 
   const validateForm = () => {
     const requiredFields = {
@@ -187,7 +171,6 @@ export default function CreateChallengePage() {
   }
 
   // Get Anchor context for blockchain interactions
-  const { createChallenge: createOnChainChallenge, wallet } = useAnchor();
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();

@@ -890,7 +890,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       
       // Instead of relying on Anchor deserialization which might fail,
       // Let's try to fetch the challenge data from PocketBase but use a workaround
-      const pb = new PocketBase('http://localhost:8090');
+      const pb = new PocketBase('https://api.coinpetitive.com/');
       
       // Get the PocketBase challenge with expanded creator
       console.log("Fetching challenge from PocketBase");
@@ -1137,7 +1137,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       console.log("Starting voting treasury distribution for:", challengePublicKey);
       
       // Fetch challenge data from PocketBase
-      const pb = new PocketBase('http://127.0.0.1:8090/');
+      const pb = new PocketBase('https://api.coinpetitive.com/');
       
       // Get the PocketBase challenge ID from onchain_id
       let pbChallengeId = "";
@@ -1248,7 +1248,7 @@ export function useAnchorContextProvider(): AnchorContextType {
       
       console.log(`Found ${validVoters.length} voters with valid wallet addresses`);
       
-      let voterResults = [];
+      const voterResults = [];
       let processedCount = 0;
       
       // Process each voter with a public key

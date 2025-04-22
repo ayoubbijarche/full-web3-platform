@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 
-export const pb = new PocketBase('http://127.0.0.1:8090/');
+export const pb = new PocketBase('https://api.coinpetitive.com/');
 
 // User Model Type
 export type UserModel = {
@@ -682,7 +682,7 @@ export async function reportChallenge(challengeId: string) {
     const challenge = await pb.collection('challenges').getOne(challengeId);
     
     // Check if reports field exists, if not initialize it
-    let reports = challenge.reports || [];
+    const reports = challenge.reports || [];
     const userId = pb.authStore.model.id;
     
     // Check if user already reported
